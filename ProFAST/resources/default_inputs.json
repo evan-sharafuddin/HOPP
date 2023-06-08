@@ -1,0 +1,274 @@
+{
+    "variables":{
+        "capacity":2840.21977, 
+        "long term utilization":0.70849, 
+        "demand rampup":5.6543,
+        "analysis start year":2020, 
+        "operating life":16, 
+        "installation months":37, 
+        "TOPC":{"unit price":0.822668382,"decay":0.05084,"support utilization":0.6787,"sunset years":3}, 
+        "commodity": {"initial price":20.1234,"name":"Hydrogen","unit":"kg","escalation":0.02618},
+        "annual operating incentive":{"value":163673.7733,"decay":0.034906267,"sunset years":6}, 
+        "incidental revenue":{"value":6951.098006,"escalation":0.025771}, 
+        "credit card fees":0.024271134, 
+        "sales tax":0.024207775, 
+        "road tax":{"value":0.753892586,"escalation":0.0261}, 
+        "labor":{"value":2956.583883,"rate":17.71964046,"escalation":0.0387}, 
+        "maintenance":{"value":172507.0742,"escalation":0.013868566}, 
+        "rent":{"value":19470.00933,"escalation":0.001743845}, 
+        "license and permit":{"value":399.1349058,"escalation":0.010526704}, 
+        "non depr assets":632845.8409, 
+        "end of proj sale non depr assets":989250.8911, 
+        "installation cost":{"value":1632845.8409,"depr type":"Straight line","depr period":4,"depreciable":false}, 
+        "one time cap inct":{"value":2119203.192,"depr type":"MACRS","depr period":5,"depreciable":true}, 
+        "property tax and insurance percent":0.048568935, 
+        "admin expense percent":0.003785587, 
+        "tax loss carry forward years":7, 
+        "capital gains tax rate":0.118755993, 
+        "tax losses monetized":true, 
+        "sell undepreciated cap":true, 
+        "loan period if used":15, 
+        "debt equity ratio of initial financing":0.919458823, 
+        "debt interest rate":0.082953591,
+        "debt type":"Revolving debt", 
+        "operating incentives taxable":true, 
+        "total income tax rate":0.33874403, 
+        "cash onhand percent":0.823394427, 
+        "general inflation rate":0.01782, 
+        "leverage after tax nominal discount rate":0.109284877 
+    },
+    "incentive":[
+        {
+            "name":"LCFS",
+            "value":0.167811004,
+            "decay":0.00828,
+            "sunset years":5,
+            "tax credit":false
+        },
+        {
+            "name":"RIN",
+            "value":2.086100977,
+            "decay":0.0425,
+            "sunset years":6,
+            "tax credit":false
+        }
+    ],
+    "feedstock":[
+        {
+            "name":"delivered GH2",
+            "usage":0.816380763,
+            "unit":"kg",
+            "cost":8.958161914,
+            "escalation":0.02335161
+        },
+        {
+            "name":"electricity",
+            "usage":3.909505252,
+            "unit":"kWh",
+            "cost":0.105427462,
+            "escalation":0.006249341
+        },
+        {
+            "name":"fs3",
+            "usage":0.008305305,
+            "unit":"kWh",
+            "cost":0.452823013,
+            "escalation":0.013139132
+        },
+        {
+            "name":"fs4",
+            "usage":0.09831411,
+            "unit":"kWh",
+            "cost":0.055428002,
+            "escalation":0.016410893
+        },
+        {
+            "name":"fs5",
+            "usage":0.09891173,
+            "unit":"kWh",
+            "cost":0.215514531,
+            "escalation":0.0156172
+        },
+        {
+            "name":"fs6",
+            "usage":0.041643872,
+            "unit":"kWh",
+            "cost":0.029874358,
+            "escalation":0.002219116
+        },
+        {
+            "name":"fs7",
+            "usage":0.021815322,
+            "unit":"kWh",
+            "cost":0.352643036,
+            "escalation":0.007080475
+        },
+        {
+            "name":"fs8",
+            "usage":0.01764372,
+            "unit":"kWh",
+            "cost":0.16088917,
+            "escalation":0.010754253
+        },
+        {
+            "name":"fs9",
+            "usage":0.021040355,
+            "unit":"kWh",
+            "cost":0.489689763,
+            "escalation":0.025310327
+        }
+    ],
+    "coproduct":[
+        {
+            "name":"Coproduct 1",
+            "usage":0.013394611,
+            "unit":"",
+            "cost":0.934823018,
+            "escalation":0.007012072
+        },
+        {
+            "name":"Coproduct 2",
+            "usage":0.005679112,
+            "unit":"",
+            "cost":1.045991862,
+            "escalation":0.020455328
+        },
+        {
+            "name":"Coproduct 3",
+            "usage":0.020321426,
+            "unit":"",
+            "cost":1.015743287,
+            "escalation":0.013715026
+        },
+        {
+            "name":"Coproduct 4",
+            "usage":0.067642649,
+            "unit":"",
+            "cost":1.848885191,
+            "escalation":0.012036553
+        },
+        {
+            "name":"Coproduct 5",
+            "usage":0.088383045,
+            "unit":"",
+            "cost":1.376560213,
+            "escalation":0.019502904
+        },
+        {
+            "name":"Coproduct 6",
+            "usage":0.024981836,
+            "unit":"",
+            "cost":0.64796747,
+            "escalation":0.015892397
+        }
+    ],
+    "fixed cost":[
+        {
+            "name":"purity testing",
+            "usage":1,
+            "unit":"$",
+            "cost":3483.816459,
+            "escalation":0.015246584
+        },
+        {
+            "name":"internet connection",
+            "usage":1,
+            "unit":"$",
+            "cost":7782.493503,
+            "escalation":0.015819148
+        },
+        {
+            "name":"electricity fixed use",
+            "usage":1,
+            "unit":"$",
+            "cost":1301.603783,
+            "escalation":0.005397605
+        },
+        {
+            "name":"electric demand & service",
+            "usage":1,
+            "unit":"$",
+            "cost":3680.51624,
+            "escalation":0.013506065
+        },
+        {
+            "name":"user defined charges 5",
+            "usage":1,
+            "unit":"$",
+            "cost":27951.94944,
+            "escalation":0.029033387
+        }
+    ],
+    "capital item":[
+        {
+            "name":"EV charging",
+            "cost":444781.7021,
+            "depr type":"MACRS",
+            "depr period":15,
+            "refurb":[0.8982, 0.1234, 0.0684, 0.0407, 0.7913, 0.6264, 0.3063, 0.1728, 0.5618, 0.2823, 0.6752, 0.0862, 0.8982, 12.0]
+        },
+        {
+            "name":"Capital item 2",
+            "cost":614744.3655,
+            "depr type":"Straight line",
+            "depr period":6,
+            "refurb":[0.4226, 0.4226, 0.3478, 0.8964, 0.8796, 0.1501, 0.3408, 0.9967, 0.9802, 0.9192, 0.1916, 0.5461, 0.4226, 0.4226]
+        },
+        {
+            "name":"Capital item 3",
+            "cost":264770.7648,
+            "depr type":"MACRS",
+            "depr period":5,
+            "refurb":[0.5341, 0.5341, 0.7311, 0.6596, 0.4723, 0.2812, 0.6051, 0.723 , 0.7121, 0.877 , 0.7438, 0.4193, 0.5341, 0.5341]
+        },
+        {
+            "name":"Capital item 4",
+            "cost":133554.1234,
+            "depr type":"MACRS",
+            "depr period":5,
+            "refurb":[0.2256, 0.2256, 0.4342, 0.8464, 0.8879, 0.5104, 0     , 0     , 0     , 0     , 0.9238, 0     , 0     , 0     ]
+        },
+        {
+            "name":"Capital item 5",
+            "cost":929462.3212,
+            "depr type":"MACRS",
+            "depr period":5,
+            "refurb":[0.2752, 0.2752, 0.2508, 0.191 , 0.7374, 0.8517, 0     , 0     , 0     , 0     , 0.2765, 0     , 0     , 0     ]
+        },
+        {
+            "name":"Capital item 6",
+            "cost":475286.1648,
+            "depr type":"MACRS",
+            "depr period":7,
+            "refurb":[0.4401, 0.4401, 0.1011, 0.3871, 0.4686, 0.905 , 0.4024, 0.3172, 0.926 , 0.6936, 0.271 , 0     , 0     , 0     ]
+        },
+        {
+            "name":"Capital item 7",
+            "cost":776592.2011,
+            "depr type":"MACRS",
+            "depr period":5,
+            "refurb":[0.4486, 0.4486, 0.7188, 0.6315, 0.241 , 0.1518, 0.5699, 0.7004, 0.5086, 0.5166, 0.3422, 0     , 0     , 0     ]
+        },
+        {
+            "name":"Capital item 8",
+            "cost":827300.9292,
+            "depr type":"MACRS",
+            "depr period":5,
+            "refurb":[0.3892, 0.3892, 0.8081, 0.8264, 0.1739, 0.5745, 0.5787, 0.4806, 0.8847, 0.2424, 0.7734, 0.1809, 0.3892, 0.3892]
+        },
+        {
+            "name":"Capital item 9",
+            "cost":827300.9292,
+            "depr type":"MACRS",
+            "depr period":3,
+            "refurb":[0.4782, 0.4782, 0.3849, 0.7007, 0.6135, 0.9401, 0.4922, 0.8714, 0.1106, 0.8978, 0.0511, 0.241 , 0.4782, 0.4782]
+        },
+        {
+            "name":"Capital item 10",
+            "cost":827300.9292,
+            "depr type":"MACRS",
+            "depr period":5,
+            "refurb":[0.4877, 0.4877, 0.776 , 0.7148, 0.1907, 0.897 , 0.7004, 0.9389, 0.6987, 0.8765, 0.1963, 0.3637, 0.4877, 0.4877]
+        }
+    ]
+}
