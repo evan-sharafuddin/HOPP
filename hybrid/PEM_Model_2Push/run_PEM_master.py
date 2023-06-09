@@ -5,10 +5,11 @@ sys.path.append("")
 # from dotenv import load_dotenv
 import pandas as pd
 
-# from hybrid.PEM_Model_2Push.PEM_H2_LT_electrolyzer_Clusters import PEM_H2_Clusters as PEMClusters
-from PEM_H2_LT_electrolyzer_Clusters import (
-    PEM_H2_Clusters as PEMClusters,
-)
+### uncomment for running just this file
+# from PEM_H2_LT_electrolyzer_Clusters import (
+#     PEM_H2_Clusters as PEMClusters,
+# )
+# from optimization_utils_linear import optimize
 
 import numpy as np
 from numpy import savetxt  # ESG
@@ -25,11 +26,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-
-# from hybrid.PEM_Model_2Push.optimization_utils_linear import optimize
-# uncomment 8 and 29, comment 9&10 when running entire model
-
-from optimization_utils_linear import optimize
+### uncomment for entire simulation 
+from hybrid.PEM_Model_2Push.PEM_H2_LT_electrolyzer_Clusters import PEM_H2_Clusters as PEMClusters
+from hybrid.PEM_Model_2Push.optimization_utils_linear import optimize
 
 import time
 

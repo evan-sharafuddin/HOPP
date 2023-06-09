@@ -232,6 +232,7 @@ def set_electrolyzer_info(hopp_dict, atb_year, electrolysis_scale,electrolyzer_c
             target_ss_time_between_replacement = 26667    #[hrs]
      
     # Calculate component and system costs if distributed scale
+    # component costs for centralized already calculated
     if electrolysis_scale == 'Distributed':
         component_costs_distributed = {
             'Stack':component_costs_centralized['Stack']*(component_scales_centralized['Stack']/component_scales_distributed['Stack'])*(component_scales_distributed['Stack']/component_scales_centralized['Stack'])**component_scaling_factors['Stack'],

@@ -1,28 +1,30 @@
 import os
 import sys
-sys.path.append('')
 from dotenv import load_dotenv
 import pandas as pd
-#import jsonrun_profast_for_hydrogen
-from hybrid.sites import SiteInfo
-from hybrid.sites import flatirons_site as sample_site
-from hybrid.keys import set_developer_nrel_gov_key
-# from plot_reopt_results import plot_reopt_results
-# from run_reopt import run_reopt
-from examples.H2_Analysis.hopp_for_h2 import hopp_for_h2
-from examples.H2_Analysis.run_h2a import run_h2a as run_h2a
-from examples.H2_Analysis.simple_dispatch import SimpleDispatch
-from examples.H2_Analysis.simple_cash_annuals import simple_cash_annuals
-import examples.H2_Analysis.run_h2_PEM as run_h2_PEM
 import numpy as np
 import numpy_financial as npf
-from lcoe.lcoe import lcoe as lcoe_calc
 import matplotlib.pyplot as plt
 import warnings
 from pathlib import Path
 import time
 from multiprocessing import Pool
-warnings.filterwarnings("ignore")
+
+from hybrid.sites import SiteInfo
+from hybrid.sites import flatirons_site as sample_site
+from hybrid.keys import set_developer_nrel_gov_key
+
+# from plot_reopt_results import plot_reopt_results
+# from run_reopt import run_reopt
+# import jsonrun_profast_for_hydrogen
+
+from examples.H2_Analysis.hopp_for_h2 import hopp_for_h2
+from examples.H2_Analysis.run_h2a import run_h2a as run_h2a
+from examples.H2_Analysis.simple_dispatch import SimpleDispatch
+from examples.H2_Analysis.simple_cash_annuals import simple_cash_annuals
+import examples.H2_Analysis.run_h2_PEM as run_h2_PEM
+
+from lcoe.lcoe import lcoe as lcoe_calc
 
 import hopp_tools
 import inputs_py
@@ -34,6 +36,9 @@ import run_profast_for_steel
 
 from green_steel_ammonia_run_scenarios import batch_generator_kernel
 
+warnings.filterwarnings("ignore")
+sys.path.append('')
+
 # Establish directories
 parent_path = os.path.abspath('')
 #results_dir = parent_path + '\\examples\\H2_Analysis\\results\\'
@@ -44,9 +49,9 @@ price_breakdown_dir = parent_path + '/examples/H2_Analysis/Phase1B/ProFAST_price
 floris_dir = parent_path + '/floris_input_files/'
 orbit_path = ('examples/H2_Analysis/OSW_H2_sites_turbines_and_costs.xlsx')
 renewable_cost_path = ('examples/H2_Analysis/green_steel_site_renewable_costs_ATB.xlsx')
-floris = True # otherwise pySAM
+floris = False # otherwise pySAM
 
-# Turn to False to run ProFAST for hydrogen LCOH 
+# Turn to False to run ProFAST for hydrogen LCOH (ALWAYS FALSE)
 run_RODeO_selector = False
 
 # Grid price scenario ['wholesale','retail-peaks','retail-flat']
@@ -98,8 +103,8 @@ if __name__ == '__main__':
 
     policy = {
         # 'no-policy': {'Wind ITC': 0, 'Wind PTC': 0, "H2 PTC": 0, 'Storage ITC': 0},
-        # 'base': {'Wind ITC': 0, 'Wind PTC': 0.0051, "H2 PTC": 0.6, 'Storage ITC': 0.06},
-        'max': {'Wind ITC': 0, 'Wind PTC': 0.03072, "H2 PTC": 3.0, 'Storage ITC': 0.5},   
+        'base': {'Wind ITC': 0, 'Wind PTC': 0.0051, "H2 PTC": 0.6, 'Storage ITC': 0.06},
+        # 'max': {'Wind ITC': 0, 'Wind PTC': 0.03072, "H2 PTC": 3.0, 'Storage ITC': 0.5},   
         # 'max on grid hybrid': {'Wind ITC': 0, 'Wind PTC': 0.0051, "H2 PTC": 0.60, 'Storage ITC': 0.06},
         # 'max on grid hybrid': {'Wind ITC': 0, 'Wind PTC': 0.026, "H2 PTC": 0.60, 'Storage ITC': 0.5},
         # 'option 3': {'Wind ITC': 0.06, 'Wind PTC': 0, "H2 PTC": 0.6}, 
@@ -109,11 +114,11 @@ if __name__ == '__main__':
     
     
     site_selection = [
-                    #'Site 1',
-                    'Site 2',
-                    # 'Site 3',
-                    # 'Site 4',
-                    #'Site 5'
+                    # 'Site 1', #IN
+                    # 'Site 2', #TX
+                    'Site 3', #IA
+                    # 'Site 4', #MS
+                    # 'Site 5' #WY
                     ] 
     
     electrolysis_cases = [
@@ -122,19 +127,21 @@ if __name__ == '__main__':
                           ]
     
     grid_connection_cases = [
-                            # 'off-grid',
-                            'grid-only',
+                            'off-grid',
+                            # 'grid-only',
                             #'hybrid-grid'
                             ]
 
-    storage_capacity_cases = [
+    # adjusts hydrogen storage capacity (see run_scenarios 872)
+    storage_capacity_cases = [ 
                             1.0,
                             #1.25,
                             #1.5
                             ] 
 
     num_pem_stacks= 6
-    run_solar_param_sweep=False # runs through various solar setups 
+    run_solar_param_sweep=True # runs through various solar setups 
+
 #---- Create list of arguments to pass to batch generator kernel --------------    
     arg_list = []
     for i in policy:
@@ -152,6 +159,7 @@ if __name__ == '__main__':
     for runs in range(len(arg_list)):
         batch_generator_kernel(arg_list[runs])
     []
+
 # ------------------ Run HOPP-RODeO/PyFAST Framework to get LCOH ---------------            
     # with Pool(processes=8) as pool:
     #         pool.map(batch_generator_kernel, arg_list)

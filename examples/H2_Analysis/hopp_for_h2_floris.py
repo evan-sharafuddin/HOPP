@@ -120,7 +120,7 @@ def hopp_for_h2_floris(site, scenario, technologies, wind_size_mw, solar_size_mw
         hybrid_plant.wind._financial_model.TaxCreditIncentives.ptc_fed_amount = tuple(interim_list)
         #hybrid_plant.wind._system_model.Turbine.wind_turbine_hub_ht = scenario['Tower Height']
 
-        hybrid_plant.wind._financial_model.TaxCreditIncentives.itc_fed_percent = scenario['Wind ITC']
+        hybrid_plant.wind._financial_model.TaxCreditIncentives.itc_fed_percent = [0] # bug here for some reason
         hybrid_plant.wind._financial_model.FinancialParameters.real_discount_rate = 7
     if custom_powercurve:
         parent_path = os.path.abspath(os.path.dirname(__file__))

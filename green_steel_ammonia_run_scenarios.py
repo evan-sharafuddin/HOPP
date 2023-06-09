@@ -132,7 +132,8 @@ def batch_generator_kernel(arg_list):
 
  
     #solar and battery size list will be used in param sweep if
-    #param swee is true
+    #param sweep is true
+    
     ##Solar and Battery Parametric Sweep Inputs
     #solar_sizes_mw=[750]
     #storage_sizes_mw=[0]
@@ -148,11 +149,12 @@ def batch_generator_kernel(arg_list):
     
     save_param_sweep_general_info=True
     save_param_sweep_best_case=True
+
     #THESE ARE WORKING VARIABLES NOW
     solar_size_mw = 0 # 200 "installed solar capacity"
     storage_size_mw = 0 # 100
     storage_size_mwh = 0 # 400 (discharge time 4 hr)
-    battery_for_minimum_electrolyzer_op=True#If true, then dispatch battery (if on) to supply minimum power for operation to PEM, otherwise use it for rated PEM power
+    battery_for_minimum_electrolyzer_op=True #If true, then dispatch battery (if on) to supply minimum power for operation to PEM, otherwise use it for rated PEM power
 
     if electrolyzer_degradation_penalty==True:
         user_defined_stack_replacement_time = False#if true then not dependent on pem performance and set to constant
@@ -210,7 +212,7 @@ def batch_generator_kernel(arg_list):
     #print('Parent path = ', parent_path)
     
     # Site specific turbine information
-    xl = pd.ExcelFile(path)
+    xl = pd.ExcelFile(path) # renewable_cost_path, for the green steel ammonia specific scenario
     
     save_outputs_dict = inputs_py.establish_save_output_dict()
     save_all_runs = list()
@@ -330,7 +332,9 @@ def batch_generator_kernel(arg_list):
     hydrogen_consumption_for_ammonia = 0.197284403              # kg of hydrogen/kg of ammonia production
     ammonia_production_target_kgpy = hydrogen_production_target_kgpy/hydrogen_consumption_for_ammonia*steel_ammonia_plant_cf
     
+    # NOTE: this value below is higher (i.e. efficency is assumed to be worse) than actual BOL, so this is why BOL instead of EOL used in 376
     electrolyzer_energy_kWh_per_kg_estimate_BOL = 54.61 # Eventually need to re-arrange things to get this from set_electrolyzer_info 54.55
+
 
     electrolyzer_energy_kWh_per_kg_estimate_EOL = electrolyzer_energy_kWh_per_kg_estimate_BOL*(1+electrolyzer_degradation_power_increase)
 
