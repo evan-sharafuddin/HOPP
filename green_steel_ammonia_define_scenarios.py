@@ -44,7 +44,7 @@ price_breakdown_dir = parent_path + '/examples/H2_Analysis/Phase1B/ProFAST_price
 floris_dir = parent_path + '/floris_input_files/'
 orbit_path = ('examples/H2_Analysis/OSW_H2_sites_turbines_and_costs.xlsx')
 renewable_cost_path = ('examples/H2_Analysis/green_steel_site_renewable_costs_ATB.xlsx')
-floris = False
+floris = True # otherwise pySAM
 
 # Turn to False to run ProFAST for hydrogen LCOH 
 run_RODeO_selector = False
@@ -97,9 +97,9 @@ if __name__ == '__main__':
                 ]
 
     policy = {
-        'no-policy': {'Wind ITC': 0, 'Wind PTC': 0, "H2 PTC": 0, 'Storage ITC': 0},
-        #'base': {'Wind ITC': 0, 'Wind PTC': 0.0051, "H2 PTC": 0.6, 'Storage ITC': 0.06},
-        #'max': {'Wind ITC': 0, 'Wind PTC': 0.03072, "H2 PTC": 3.0, 'Storage ITC': 0.5},   
+        # 'no-policy': {'Wind ITC': 0, 'Wind PTC': 0, "H2 PTC": 0, 'Storage ITC': 0},
+        # 'base': {'Wind ITC': 0, 'Wind PTC': 0.0051, "H2 PTC": 0.6, 'Storage ITC': 0.06},
+        'max': {'Wind ITC': 0, 'Wind PTC': 0.03072, "H2 PTC": 3.0, 'Storage ITC': 0.5},   
         # 'max on grid hybrid': {'Wind ITC': 0, 'Wind PTC': 0.0051, "H2 PTC": 0.60, 'Storage ITC': 0.06},
         # 'max on grid hybrid': {'Wind ITC': 0, 'Wind PTC': 0.026, "H2 PTC": 0.60, 'Storage ITC': 0.5},
         # 'option 3': {'Wind ITC': 0.06, 'Wind PTC': 0, "H2 PTC": 0.6}, 
@@ -111,19 +111,19 @@ if __name__ == '__main__':
     site_selection = [
                     #'Site 1',
                     'Site 2',
-                    #'Site 3',
-                    #'Site 4',
+                    # 'Site 3',
+                    # 'Site 4',
                     #'Site 5'
                     ] 
     
     electrolysis_cases = [
                           'Centralized',
-                          #'Distributed'
+                        #   'Distributed'
                           ]
     
     grid_connection_cases = [
-                            'off-grid',
-                            #'grid-only',
+                            # 'off-grid',
+                            'grid-only',
                             #'hybrid-grid'
                             ]
 
@@ -134,7 +134,7 @@ if __name__ == '__main__':
                             ] 
 
     num_pem_stacks= 6
-    run_solar_param_sweep=False
+    run_solar_param_sweep=False # runs through various solar setups 
 #---- Create list of arguments to pass to batch generator kernel --------------    
     arg_list = []
     for i in policy:

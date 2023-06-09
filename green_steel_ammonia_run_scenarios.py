@@ -37,7 +37,7 @@ import distributed_pipe_cost_analysis
 import LCA_single_scenario
 import LCA_single_scenario_ProFAST
 from green_steel_ammonia_solar_parametric_sweep import solar_storage_param_sweep
-#from hybrid.PEM_Model_2Push import run_PEM_master
+# from hybrid.PEM_Model_2Push import run_PEM_master
 
 def batch_generator_kernel(arg_list):
 
@@ -149,9 +149,9 @@ def batch_generator_kernel(arg_list):
     save_param_sweep_general_info=True
     save_param_sweep_best_case=True
     #THESE ARE WORKING VARIABLES NOW
-    solar_size_mw = 0
-    storage_size_mw = 0
-    storage_size_mwh = 0
+    solar_size_mw = 0 # 200 "installed solar capacity"
+    storage_size_mw = 0 # 100
+    storage_size_mwh = 0 # 400 (discharge time 4 hr)
     battery_for_minimum_electrolyzer_op=True#If true, then dispatch battery (if on) to supply minimum power for operation to PEM, otherwise use it for rated PEM power
 
     if electrolyzer_degradation_penalty==True:
@@ -919,7 +919,7 @@ def batch_generator_kernel(arg_list):
         #     = LCA_single_scenario_ProFAST.hydrogen_LCA_singlescenario_ProFAST(grid_connection_scenario,atb_year,site_name,policy_option,hydrogen_production_while_running,\
         #                                                       electrolyzer_energy_kWh_per_kg,solar_size_mw,storage_size_mw,hopp_dict)
 
-        h2_solution,h2_summary,profast_h2_price_breakdown,lcoh_breakdown,electrolyzer_installed_cost_kw,elec_cf,ren_frac,electrolysis_total_EI_policy_grid,electrolysis_total_EI_policy_offgrid,H2_PTC,Ren_PTC,h2_production_capex = run_profast_for_hydrogen. run_profast_for_hydrogen(hopp_dict,electrolyzer_size_mw,H2_Results,\
+        h2_solution,h2_summary,profast_h2_price_breakdown,lcoh_breakdown,electrolyzer_installed_cost_kw,elec_cf,ren_frac,electrolysis_total_EI_policy_grid,electrolysis_total_EI_policy_offgrid,H2_PTC,Ren_PTC,h2_production_capex = run_profast_for_hydrogen.run_profast_for_hydrogen(hopp_dict,electrolyzer_size_mw,H2_Results,\
                                         electrolyzer_capex_kw,time_between_replacement,electrolyzer_energy_kWh_per_kg,hydrogen_storage_capacity_kg,hydrogen_storage_cost_USDprkg,\
                                         desal_capex,desal_opex,useful_life,water_cost,wind_size_mw,solar_size_mw,storage_size_mw,renewable_plant_cost,wind_om_cost_kw,grid_connected_hopp,\
                                         grid_connection_scenario,atb_year, site_name, policy_option, electrical_generation_timeseries, combined_pv_wind_storage_power_production_hopp,combined_pv_wind_curtailment_hopp,\
@@ -1197,5 +1197,4 @@ def batch_generator_kernel(arg_list):
         #                                     results_dir)
 
                 
-
 

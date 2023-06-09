@@ -42,6 +42,10 @@ for file in glob.glob(str(flicker_path / "*shadow.txt")):
 for file in glob.glob(str(flicker_path / "*flicker.txt")):
     package_data["hybrid"].append(str(os.path.relpath(file,
                                                       str(Path("hybrid")))))
+    
+cbc_solver_path = hybrid_path / "dispatch" / "cbc_solver" / "cbc-win64"
+for file in glob.glob(str(cbc_solver_path / '*')):
+    package_data["hybrid"].append(str(os.path.relpath(file, str(Path("hybrid")))))
 
 setup(name='HOPP',
       version=version,

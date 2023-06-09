@@ -5,10 +5,10 @@ sys.path.append("")
 # from dotenv import load_dotenv
 import pandas as pd
 
-from hybrid.PEM_Model_2Push.PEM_H2_LT_electrolyzer_Clusters import PEM_H2_Clusters as PEMClusters
-# from PEM_H2_LT_electrolyzer_Clusters import (
-#     PEM_H2_Clusters as PEMClusters,
-# )
+# from hybrid.PEM_Model_2Push.PEM_H2_LT_electrolyzer_Clusters import PEM_H2_Clusters as PEMClusters
+from PEM_H2_LT_electrolyzer_Clusters import (
+    PEM_H2_Clusters as PEMClusters,
+)
 
 import numpy as np
 from numpy import savetxt  # ESG
@@ -26,7 +26,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-from hybrid.PEM_Model_2Push.optimization_utils_linear import optimize
+# from hybrid.PEM_Model_2Push.optimization_utils_linear import optimize
+# uncomment 8 and 29, comment 9&10 when running entire model
+
+from optimization_utils_linear import optimize
+
 import time
 
 # from PyOMO import ipOpt !! FOR SANJANA!!
@@ -313,17 +317,21 @@ if __name__ == "__main__":
         "EOL Rated Efficiency Drop": EOL_eff_drop,
     }
     # power_rampup = np.linspace(cluster_min_power_kw,system_size_mw*1000,num_steps)
+    
     power_rampdown = np.flip(power_rampup)
     power_in = np.concatenate((power_rampup, power_rampdown))
+
+    electrolyzer_direct_cost_idk = 204 # added to fix error (this is electrolyzer cost $/kW, 204)
     pem = run_PEM_clusters(
         power_in,
         system_size_mw,
         num_clusters,
+        electrolyzer_direct_cost_idk,
         plant_life,
         electrolyzer_model_parameters,
         deg_penalty,
     )
 
-    h2_ts, h2_tot = pem.run()
+    h2_ts, h2_tot = pem.run(optimize=True)
     # pem.clusters[0].cell_design(80,1920*2)
     []
