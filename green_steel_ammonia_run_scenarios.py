@@ -151,9 +151,9 @@ def batch_generator_kernel(arg_list):
     save_param_sweep_best_case=True
 
     #THESE ARE WORKING VARIABLES NOW
-    solar_size_mw = 0 # 200 "installed solar capacity"
-    storage_size_mw = 0 # 100
-    storage_size_mwh = 0 # 400 (discharge time 4 hr)
+    solar_size_mw = 200 # "installed solar capacity"
+    storage_size_mw = 100 
+    storage_size_mwh = 400 # (discharge time 4 hr)
     battery_for_minimum_electrolyzer_op=True #If true, then dispatch battery (if on) to supply minimum power for operation to PEM, otherwise use it for rated PEM power
 
     if electrolyzer_degradation_penalty==True:

@@ -140,7 +140,7 @@ if __name__ == '__main__':
                             ] 
 
     num_pem_stacks= 6
-    run_solar_param_sweep=True # runs through various solar setups 
+    run_solar_param_sweep=False # runs through various solar setups 
 
 #---- Create list of arguments to pass to batch generator kernel --------------    
     arg_list = []
