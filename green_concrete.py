@@ -7,8 +7,6 @@ Created on Wed June 14 2:28 2023
 
 import ProFAST
 
-# testtttt
-
 # Abbreviations
 # LHV - lower heat value 
 # ng - natural gas
@@ -49,10 +47,12 @@ class ConcretePlant:
         multiplyer argument allows you to account for prefix (ex: M, k)
 
         NOTE: conversion factor is the average from 2014, which was the cost basis
-        year given in the spreadsheet
+        year given in the paper
+
+        source: https://www.exchangerates.org.uk/EUR-USD-spot-exchange-rates-history-2013.html
         
         '''
-        conversion_factor = 1.3283 # USD/EUR
+        conversion_factor = 1.3284 # USD/EUR
         return conversion_factor * cost_EUR * multiplyer
 
 
@@ -61,9 +61,6 @@ class ConcretePlant:
         Performs a techno-economic analysis on a BAT concrete plant
         
         Adapted from this paper: https://ieaghg.org/publications/technical-reports/reports-list/9-technical-reports/1016-2013-19-deployment-of-ccs-in-the-cement-industry
-
-        (?) Adapted from this spreadsheet: https://zenodo.org/record/1475804
-        Accompanying paper: https://www.sintef.no/globalassets/project/cemcap/2018-11-14-deliverables/d4.6-cemcap-comparative-techno-economic-analysis-of-co2-capture-in-cement-plants.pdf
 
         """
         # SEE SECTION 5.1
