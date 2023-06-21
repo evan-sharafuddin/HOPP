@@ -227,15 +227,16 @@ class ConcretePlant:
         pf.set_params('tax losses monetized',True)
         pf.set_params('operating incentives taxable',True)
         pf.set_params('general inflation rate',gen_inflation)
-        pf.set_params('leverage after tax nominal discount rate',0.0824)
-        pf.set_params('debt equity ratio of initial financing',1.38)
+        pf.set_params('leverage after tax nominal discount rate',0.00) # 0.0824
+        pf.set_params('debt equity ratio of initial financing',0.00) # 1.38
         pf.set_params('debt type','Revolving debt')
-        pf.set_params('debt interest rate',0.0489)
+        pf.set_params('debt interest rate',0.00) # 0.0489
         pf.set_params('cash onhand percent',1)
         pf.set_params('admin expense percent',0)
         pf.set_params('end of proj sale non depr assets',land_cost*(1+gen_inflation)**plant_life)
-        pf.set_params('demand rampup',5.3)
+        pf.set_params('demand rampup',0) # 5.3
         pf.set_params('license and permit',{'value':00,'escalation':gen_inflation})
+        
         # ------------------------------ Add capital items to ProFAST ------------------------------
         # NOTE: these are all converted to USD
         # NOTE: did not change the last three arguments
@@ -372,7 +373,7 @@ class ConcretePlant:
         # a neater way to implement is add to price_breakdowns but I am not sure if ProFAST can handle negative costs
         # TODO above comment might not be an issue, so might not have had to pull out all these values
             
-        bos_savings =  (price_breakdown_labor_cost_admin_support) * 0.3 # TODO is this applicable for cement?
+        bos_savings = 0 * (price_breakdown_labor_cost_admin_support) * 0.3 # TODO is this applicable for cement?
 
         breakdown_prices.append(price_breakdown_check)
         breakdown_prices.append(bos_savings) 
