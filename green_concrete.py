@@ -8,7 +8,6 @@ Created on Wed June 14 2:28 2023
 import ProFAST
 import pandas as pd
 from pathlib import Path
-import re
 
 # Abbreviations
 # LHV - lower heat value 
@@ -24,6 +23,8 @@ import re
 # convert variables to dictionaries? Would be easier to convert hard code to user input
 # mark all locations that need to account for scalable plant capacity
 #   do we want to scale plant based on clinker or cement production? Assuming cement.
+# TRY TO MAKE THE LCOC SOMEWHAT SIMILAR TO THAT IN THE PAPER
+#   off by about 20...
 
 # Important Assumptions
 # * "It is worth noting that the development and land costs are not considered in the project estimates."
@@ -76,6 +77,7 @@ class ConcretePlant:
         cli_production = 1 # Mt/y
         cli_cem_ratio = 73.7e-2 # depends on proportion of SCMs
         cem_production = cli_production / cli_cem_ratio # Mt/y
+        
         raw_meal_cli_factor = 1.6 # loss of raw meal during production of clinker
         thermal_energy = 3280 # kJ/kg cli
         
@@ -196,9 +198,6 @@ class ConcretePlant:
         local_tax = 0.8
         # not used in pf
         total_fixed_opex = maintenance + operational_labor + admin_support + insurance + local_tax
-
-        # capital_charges = 17 -- not sure where this comes from
-        # production_costs = 50.9 # see page 71, assuming utilization rate of 80%? -- calculated via profast?
         
         # ------------------------------ ProFAST ------------------------------
         # Set up ProFAST
@@ -342,23 +341,42 @@ class ConcretePlant:
             - price_breakdown.loc[price_breakdown['Name']=='Cash on hand recovery','NPV'].tolist()[0]
         
         # list containing all of the prices established above
-        breakdown_prices = [price_breakdown_crushing_plant, price_breakdown_storage_convey_raw_material, price_breakdown_grinding_plant_raw_meal, 
-                  price_breakdown_storage_conveyor_silo, price_breakdown_kiln_plant, price_breakdown_grinding_plant_cli, 
-                  price_breakdown_silo, price_breakdown_packaging_conveyor_loading, price_breakdown_mill_silo, price_breakdown_installation, 
-                  price_breakdown_labor_cost_annual, price_breakdown_labor_cost_maintenance, price_breakdown_labor_cost_admin_support, 
-                  price_breakdown_proptax_ins, price_breakdown_maintenance_materials, price_breakdown_water, price_breakdown_raw_materials, 
-                  price_breakdown_fossil_fuel, price_breakdown_alt_fuel, price_breakdown_power, price_breakdown_misc, 
-                  price_breakdown_taxes, price_breakdown_financial_equipment, price_breakdown_financial_remaining]
-        
+        breakdown_prices = [price_breakdown_crushing_plant, 
+                            price_breakdown_storage_convey_raw_material, 
+                            price_breakdown_grinding_plant_raw_meal, 
+                            price_breakdown_storage_conveyor_silo, 
+                            price_breakdown_kiln_plant, 
+                            price_breakdown_grinding_plant_cli, 
+                            price_breakdown_silo, 
+                            price_breakdown_packaging_conveyor_loading, 
+                            price_breakdown_mill_silo, 
+                            price_breakdown_installation, 
+                            price_breakdown_labor_cost_annual, 
+                            price_breakdown_labor_cost_maintenance, 
+                            price_breakdown_labor_cost_admin_support, 
+                            price_breakdown_proptax_ins, 
+                            price_breakdown_maintenance_materials, 
+                            price_breakdown_water, 
+                            price_breakdown_raw_materials, 
+                            price_breakdown_fossil_fuel, 
+                            price_breakdown_alt_fuel, 
+                            price_breakdown_power, 
+                            price_breakdown_misc, 
+                            price_breakdown_taxes, 
+                            price_breakdown_financial_equipment, 
+                            price_breakdown_financial_remaining]
+                    
         price_breakdown_check = sum(breakdown_prices)
 
-        print(f"price breakdown (manual): {price_breakdown_check}")
+       
         # a neater way to implement is add to price_breakdowns but I am not sure if ProFAST can handle negative costs
         # TODO above comment might not be an issue, so might not have had to pull out all these values
             
         bos_savings =  (price_breakdown_labor_cost_admin_support) * 0.3 # TODO is this applicable for cement?
 
+        breakdown_prices.append(price_breakdown_check)
         breakdown_prices.append(bos_savings) 
+
         breakdown_categories = ['Raw Material Crushing CAPEX',
                                 'Storage, Conveying Raw Material CAPEX',
                                 'Grinding Plant, Raw Meal CAPEX', 
@@ -368,7 +386,7 @@ class ConcretePlant:
                                 'Silo CAPEX',
                                 'Packaging Plant, Conveyor, Loading, Storing CAPEX',
                                 'Mill, Silo CAPEX',
-                                'Installation Cost'
+                                'Installation Cost',
                                 'Annual Operating Labor Cost (including maintenance?)',
                                 'Maintenance Labor Cost (zero at the moment?)',
                                 'Administrative & Support Labor Cost',
@@ -393,6 +411,9 @@ class ConcretePlant:
         for category, price in zip(breakdown_categories, breakdown_prices):
             cement_price_breakdown[f'cement price: {category} ($/ton)'] = price
 
+        print(f"price breakdown (manual): {price_breakdown_check}")
+        print(f"price breakdown (paper): {self.eur_to_usd(50.9,1)}")
+        
         # TODO what is the point of this line here?
         price_breakdown = price_breakdown.drop(columns=['index','Amount'])
 
@@ -406,17 +427,9 @@ if __name__ == '__main__':
 
     print(solution)
 
-    # (solution,summary) = plant.run_profast_for_cement()
-
-    # print(type(solution),type(summary))
-
-    # solution = pd.DataFrame(solution, index=[0])
-    # summary = pd.DataFrame(summary)
-    
-    # desktop = Path('C:/Users/esharafu/Documents/solution.csv')
-    # desktop1 = Path('C:/Users/esharafu/Documents/summary.csv')
-    # solution.to_csv(desktop)
-    # summary.to_csv(desktop1)
+    path = Path('C:\\Users\\esharafu\\Documents\\thing.csv')
+    thing = pd.DataFrame(cement_price_breakdown,index=[0]).transpose()
+    thing.to_csv(path)
 
 
 
