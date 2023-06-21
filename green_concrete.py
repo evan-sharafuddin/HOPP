@@ -6,11 +6,15 @@ Created on Wed June 14 2:28 2023
 """
 
 import ProFAST
+import pandas as pd
+from pathlib import Path
+import re
 
 # Abbreviations
 # LHV - lower heat value 
 # ng - natural gas
-# clk - clinker
+# cli - clinker
+# cem - cement
 # tdc - total direct costs (see paper)
 # epc - Engineering, process, and construction costs (total direct costs + indirect costs)
 # om - O&M
@@ -18,9 +22,16 @@ import ProFAST
 
 # TODO
 # convert variables to dictionaries? Would be easier to convert hard code to user input
+# mark all locations that need to account for scalable plant capacity
+#   do we want to scale plant based on clinker or cement production? Assuming cement.
 
 # Important Assumptions
-# "It is worth noting that the development and land costs are not considered in the project estimates."
+# * "It is worth noting that the development and land costs are not considered in the project estimates."
+# * TPC calculations exclude "land property (in particula rthe quaqrry), emerging emission abatement technology 
+# (e.g. SCR) and developing cost (power and water supply)"
+# * Production Costs: "excl. freight, raw material deposit, land property, permits etc. The rang eof production costs
+# is based on different utilization rates from 70 to 90 %"
+
 
 class ConcretePlant:
     """  
@@ -49,7 +60,9 @@ class ConcretePlant:
 
     def run_profast_for_cement(self):
         """
-        Performs a techno-economic analysis on a BAT concrete plant
+        Performs a techno-economic analysis on a BAT cement plant
+
+        NOTE: focusing on just cement for now
         
         Adapted from this paper: https://ieaghg.org/publications/technical-reports/reports-list/9-technical-reports/1016-2013-19-deployment-of-ccs-in-the-cement-industry
 
@@ -59,33 +72,46 @@ class ConcretePlant:
         # section 1.3
         # "BAT" plant, located in Europe
 
-        clk_production = 1 # Mt/y
-        clk_cem_ratio = 73.7e-2
-        cem_production = clk_production / clk_cem_ratio # Mt/y
-        raw_meal_clk_factor = 1.6 # what is this
-        specific_fuel_consumption = 3280 # kJ/kg clk
-        fuel_proportions = {
+        # TODO: plant capacity is fixed -- would need a different reference to adjust this
+        cli_production = 1 # Mt/y
+        cli_cem_ratio = 73.7e-2 # depends on proportion of SCMs
+        cem_production = cli_production / cli_cem_ratio # Mt/y
+        raw_meal_cli_factor = 1.6 # loss of raw meal during production of clinker
+        thermal_energy = 3280 # kJ/kg cli
+        
+        # TODO: add functionality of adding different fuels, and their LHVs so that 
+        # we can experiment with different fuel compositions and see if they are
+        # viable (right now, these proportions are 'hard coded' into the current TEA)
+        fuel = {
                             'Fossil fuel': 69.5e-2,
                             'Alternative fuel': 26e-2,
                             'biomass': 4.5e-2
         }
 
-        specific_elec_demand = 97 # kWh/t cem, grinding of clinker and addition of other constituents
-        specific_elec_demand_clk = 65 # kWh/t clk
-        raw_material_moisture = 6e-2 # %
 
+        elec_cli = 65 # kWh/t cli
+        elec_cli_per_cem = elec_cli * cli_cem_ratio # kWh/t cem (same as above but in terms of cement)
+        elec_other = 49 # electricity consumption for grinding clinker and other consituents
+        elec_tot = elec_cli_per_cem + elec_other # kWh/t cem, grinding of clinker and addition of other constituents
+
+        raw_material_moisture = 6e-2 # %, assuming this is weight that gets evaporated off during the process
+
+
+        ## Emissions data (specific to reference plant fuel mix, "30 % substitution by alternative fuel mix")
+        # when applicable, took the average of the given range of values
         co2_elec = (0.5 + 0.7) / 2 # t CO2/MWh
         spec_indirect_co2_elec = (0.049 + 0.068) / 2 # t CO2/ t cement
-        spec_direct_co2_clk = 0.828 # t CO2/t clk
-        spec_direct_co2_clk_no_biogenic = 0.804 # t co2/t clk
+        spec_direct_co2_cli = 0.828 # t CO2/t cli
+        spec_direct_co2_cli_no_biogenic = 0.804 # t co2/t cli
         total_spec_co2_with_elec = (0.66 + 0.68) / 2 # t co2/t cem
 
         # ------------------------------ Economic Specs ------------------------------
         # section 5.1
 
         plant_life = 25 # yr
-        capacity_rate = 80e-2 # what is this?
-        contingencies_fees = 10e-2 # fraction of installed costs
+        capacity_rate = 80e-2 
+        cem_production_actual = cem_production * capacity_rate
+        contingencies_fees = 1e-2 # fraction of installed costs
         taxation_insurance = 1e-2 # fraction of installed costs, per year
 
 
@@ -96,28 +122,31 @@ class ConcretePlant:
         # NOTE: currently this does not include land property (in particular the quarry), 
         # emerging emission abatement technology, developing cost (power & water supply)
         
+        ## quarry 
+        # TODO
         ## raw materials
         crushing_plant = 3.5
         storage_conveying_raw_material = 3.5
         grinding_plant_raw_meal = 16.8
         storage_conveyor_silo = 2.1
-        ## clk production
+        ## cli production
         kiln_plant = 11.9
-        grinding_plant_clk = 9.8
+        grinding_plant_cli = 9.8
         ## cem production
         silo = 9.8 
         packaging_conveyor_loading_storing = 6.3
         ## coal grinding 
         coal_mill_silo = 6.3
         equip_costs = crushing_plant + storage_conveying_raw_material + grinding_plant_raw_meal + \
-                    + storage_conveyor_silo + kiln_plant + grinding_plant_clk + \
+                    + storage_conveyor_silo + kiln_plant + grinding_plant_cli + \
                     silo + packaging_conveyor_loading_storing + coal_mill_silo
         
+        ## installation and total CAPEX 
         civil_steel_erection_other = 75.5 
         installed_costs = equip_costs + civil_steel_erection_other
         epc_costs = 10 
-        contigency_fees = 14.5
-        tpc = 170
+        contigency_fees = installed_costs * contingencies_fees
+        tpc = installed_costs + epc_costs + contigency_fees
         owners_costs = 11.9
         other = 8.0 # working capital, start-ups, spare parts
         interest_during_construction = 6.4
@@ -127,13 +156,34 @@ class ConcretePlant:
         # ------------------------------ OPEX ------------------------------ 
         # section 5.1.2
 
-        ## variable 
+        ## variable TODO: these need to be dependent on the fuel substitutions used and the 
+        # source of power (renewable, grid, fossil fuel pp)
+        '''
+        TODO 
+        raw materials: 
+        * clinker ingredients (limestone, clay, sand, iron ore)
+        * Gypsum
+        * SCMs?
+
+        fossil fuel & alternative fuel:
+        * hydrogen?
+        * types of alternative fuels used --> consider required thermal energy and relative proportions
+        
+        power:
+        * renewables?
+
+        process water:
+        * scale with plant capacity
+        '''
         raw_materials = 3.7 # €/ton cememt
         fossil_fuel = 35.2 # €/ton cement
         alt_fuel = 1 # €/ton cement 
         power_kiln_plant_grinding = 8.8 # €/ton cement
         process_water = 0.014 # €/ton cement
+        
         misc = 0.8 # €/ton cement
+        
+        # not used in pf
         total_var_opex = raw_materials + fossil_fuel + alt_fuel + power_kiln_plant_grinding + process_water + misc # €/ton cement
 
         ## fixed (€/ton cem)
@@ -141,38 +191,37 @@ class ConcretePlant:
         operational_labor = 5.5 # NOTE: confused about what document means by "maintenance". Cost of maintenance materials, 
         # maintenance labor, or both? Either way the given value for admin support doesn't really add up
         admin_support = 2.3 # (supposedly 30% of operational and maintenance labor)
+        # TODO: sort out what to do with these... not used in pf
         insurance = 0.8
         local_tax = 0.8
+        # not used in pf
         total_fixed_opex = maintenance + operational_labor + admin_support + insurance + local_tax
 
-        capital_charges = 17
-        production_costs = 50.9 # see page 71, assuming utilization rate of 80%?
+        # capital_charges = 17 -- not sure where this comes from
+        # production_costs = 50.9 # see page 71, assuming utilization rate of 80%? -- calculated via profast?
         
         # ------------------------------ ProFAST ------------------------------
         # Set up ProFAST
         pf = ProFAST.ProFAST('blank')
         
-        # Fill these in - can have most of them as 0 also
         gen_inflation = 0.00
-        pf.set_params('commodity',{"name":'concrete',"unit":"metric tonnes (t)","initial price":1000,"escalation":gen_inflation})
+        pf.set_params('commodity',{"name":'cement',"unit":"metric tonnes (t)","initial price":1000,"escalation":gen_inflation})
         pf.set_params('capacity',cem_production * 1e6 / 365) #units/day
         pf.set_params('operating life',plant_life)
-        pf.set_params('installation cost',{"value":installed_costs,"depr type":"Straight line","depr period":4,"depreciable":False})
-        pf.set_params('non depr assets',land_cost)
+        pf.set_params('installation cost',{"value": self.eur_to_usd(installed_costs,1e6),"depr type":"Straight line","depr period":4,"depreciable":False})
+        pf.set_params('non depr assets', self.eur_to_usd(land_cost,1e6)) # assuming Mega EUR
         pf.set_params('long term utilization',capacity_rate)
         
-        # did not do anything to these
+        # TODO: not sure how these fit into the model given in the paper
         pf.set_params('maintenance',{"value":0,"escalation":gen_inflation})
-        pf.set_params('end of proj sale non depr assets',land_cost*(1+gen_inflation)**plant_life)
-        pf.set_params('demand rampup',5.3)
         pf.set_params('installation months',20) # not sure about this one
-        pf.set_params('analysis start year',2022)
+        pf.set_params('analysis start year',2013) # is this ok? financials are based on 2013 conversion rates
         pf.set_params('credit card fees',0)
         pf.set_params('sales tax',0) 
-        pf.set_params('license and permit',{'value':00,'escalation':gen_inflation})
         pf.set_params('rent',{'value':0,'escalation':gen_inflation})
         pf.set_params('property tax and insurance percent',0)
-        pf.set_params('admin expense percent',0)
+
+        # TODO: do not understand what these mean/don't know what to do with them
         pf.set_params('total income tax rate',0.27)
         pf.set_params('capital gains tax rate',0.15)
         pf.set_params('sell undepreciated cap',True)
@@ -184,7 +233,10 @@ class ConcretePlant:
         pf.set_params('debt type','Revolving debt')
         pf.set_params('debt interest rate',0.0489)
         pf.set_params('cash onhand percent',1)
-
+        pf.set_params('admin expense percent',0)
+        pf.set_params('end of proj sale non depr assets',land_cost*(1+gen_inflation)**plant_life)
+        pf.set_params('demand rampup',5.3)
+        pf.set_params('license and permit',{'value':00,'escalation':gen_inflation})
         # ------------------------------ Add capital items to ProFAST ------------------------------
         # NOTE: these are all converted to USD
         # NOTE: did not change the last three arguments
@@ -198,7 +250,7 @@ class ConcretePlant:
                             depr_type="MACRS",depr_period=7,refurb=[0])
         pf.add_capital_item(name='kiln plant',cost=self.eur_to_usd(kiln_plant,1e6),\
                             depr_type="MACRS",depr_period=7,refurb=[0])
-        pf.add_capital_item(name='grinding plant, clinker',cost=self.eur_to_usd(grinding_plant_clk,1e6),\
+        pf.add_capital_item(name='grinding plant, clinker',cost=self.eur_to_usd(grinding_plant_cli,1e6),\
                             depr_type="MACRS",depr_period=7,refurb=[0])
         pf.add_capital_item(name='silo',cost=self.eur_to_usd(silo,1e6),\
                             depr_type="MACRS",depr_period=7,refurb=[0])
@@ -210,9 +262,10 @@ class ConcretePlant:
         # ------------------------------ Add fixed costs ------------------------------
         # NOTE: in the document these values were given in EUR/t cem, so I am just going to multiply
         # them by the annual production capacity of the plant (at plant capacity rate)
+        # NOTE: operating labor cost includes maintenance labor cost, according to the paper
         pf.add_fixed_cost(name="Annual Operating Labor Cost",usage=1,unit='$/year',\
                           cost=self.eur_to_usd(operational_labor * cem_production * capacity_rate,1),escalation=gen_inflation)
-        # making below be zero, assuming "maintenance" refers to "maintenance materials"
+        # TODO for now, making below be zero, assuming "maintenance" refers to "maintenance materials"
         pf.add_fixed_cost(name="Maintenance Labor Cost",usage=1,unit='$/year',\
                           cost=0*self.eur_to_usd(maintenance * cem_production * capacity_rate,1),escalation=gen_inflation)
         pf.add_fixed_cost(name="Administrative & Support Labor Cost",usage=1,unit='$/year',\
@@ -235,199 +288,166 @@ class ConcretePlant:
 
         # ------------------------------ Solve for breakeven price ------------------------------
         solution = pf.solve_price()
+
+        # ------------------------------ Organizing Return Values ------------------------------
         summary = pf.summary_vals
+        
+        price_breakdown = pf.get_cost_breakdown()
+        
+        # CAPEX
+        price_breakdown_crushing_plant = price_breakdown.loc[price_breakdown['Name']=='crushing plant','NPV'].tolist()[0]
+        price_breakdown_storage_convey_raw_material = price_breakdown.loc[price_breakdown['Name']=='storage, conveying raw material','NPV'].tolist()[0]  
+        price_breakdown_grinding_plant_raw_meal = price_breakdown.loc[price_breakdown['Name']=='grinding plant, raw meal','NPV'].tolist()[0] 
+        price_breakdown_storage_conveyor_silo = price_breakdown.loc[price_breakdown['Name']=='storage, conveyor, silo','NPV'].tolist()[0]     
+        price_breakdown_kiln_plant = price_breakdown.loc[price_breakdown['Name']=='kiln plant','NPV'].tolist()[0] 
+        price_breakdown_grinding_plant_cli = price_breakdown.loc[price_breakdown['Name']=='grinding plant, clinker','NPV'].tolist()[0] 
+        price_breakdown_silo = price_breakdown.loc[price_breakdown['Name']=='silo','NPV'].tolist()[0] 
+        price_breakdown_packaging_conveyor_loading = price_breakdown.loc[price_breakdown['Name']=='packaging plant, conveyor, loading, storing','NPV'].tolist()[0]  
+        price_breakdown_mill_silo = price_breakdown.loc[price_breakdown['Name']=='mill, silo','NPV'].tolist()[0]
+        price_breakdown_installation = price_breakdown.loc[price_breakdown['Name']=='Installation cost','NPV'].tolist()[0]
+    
+        # fixed OPEX
+        price_breakdown_labor_cost_annual = price_breakdown.loc[price_breakdown['Name']=='Annual Operating Labor Cost','NPV'].tolist()[0]  
+        price_breakdown_labor_cost_maintenance = price_breakdown.loc[price_breakdown['Name']=='Maintenance Labor Cost','NPV'].tolist()[0]  
+        price_breakdown_labor_cost_admin_support = price_breakdown.loc[price_breakdown['Name']=='Administrative & Support Labor Cost','NPV'].tolist()[0] 
+        price_breakdown_proptax_ins = price_breakdown.loc[price_breakdown['Name']=='Property tax and insurance','NPV'].tolist()[0]
+        
+        # variable OPEX
+        price_breakdown_maintenance_materials = price_breakdown.loc[price_breakdown['Name']=='Maintenance Materials','NPV'].tolist()[0]  
+        price_breakdown_water = price_breakdown.loc[price_breakdown['Name']=='process water','NPV'].tolist()[0] 
+        price_breakdown_raw_materials = price_breakdown.loc[price_breakdown['Name']=='Raw materials','NPV'].tolist()[0]
+        price_breakdown_fossil_fuel = price_breakdown.loc[price_breakdown['Name']=='fossil fuel','NPV'].tolist()[0]
+        price_breakdown_alt_fuel = price_breakdown.loc[price_breakdown['Name']=='alternative fuel','NPV'].tolist()[0]
+        price_breakdown_power = price_breakdown.loc[price_breakdown['Name']=='power, kiln plant + grinding','NPV'].tolist()[0]
+        price_breakdown_misc = price_breakdown.loc[price_breakdown['Name']=='Misc.','NPV'].tolist()[0]
+        price_breakdown_taxes = price_breakdown.loc[price_breakdown['Name']=='Income taxes payable','NPV'].tolist()[0]\
+            - price_breakdown.loc[price_breakdown['Name'] == 'Monetized tax losses','NPV'].tolist()[0]\
 
-        # TODO: organize values like done at bottom of run_profast_for_steel.py
+        if gen_inflation > 0:
+            price_breakdown_taxes = price_breakdown_taxes + price_breakdown.loc[price_breakdown['Name']=='Capital gains taxes payable','NPV'].tolist()[0]
 
-        return(solution, summary)
+        # TODO look into (331-342) further -- probably has something to do with the parameters I'm confused about
+        # Calculate financial expense associated with equipment
+        price_breakdown_financial_equipment = price_breakdown.loc[price_breakdown['Name']=='Repayment of debt','NPV'].tolist()[0]\
+            + price_breakdown.loc[price_breakdown['Name']=='Interest expense','NPV'].tolist()[0]\
+            + price_breakdown.loc[price_breakdown['Name']=='Dividends paid','NPV'].tolist()[0]\
+            - price_breakdown.loc[price_breakdown['Name']=='Inflow of debt','NPV'].tolist()[0]\
+            - price_breakdown.loc[price_breakdown['Name']=='Inflow of equity','NPV'].tolist()[0]    
+            
+        # Calculate remaining financial expenses
+        price_breakdown_financial_remaining = price_breakdown.loc[price_breakdown['Name']=='Non-depreciable assets','NPV'].tolist()[0]\
+            + price_breakdown.loc[price_breakdown['Name']=='Cash on hand reserve','NPV'].tolist()[0]\
+            + price_breakdown.loc[price_breakdown['Name']=='Property tax and insurance','NPV'].tolist()[0]\
+            - price_breakdown.loc[price_breakdown['Name']=='Sale of non-depreciable assets','NPV'].tolist()[0]\
+            - price_breakdown.loc[price_breakdown['Name']=='Cash on hand recovery','NPV'].tolist()[0]
+        
+        # list containing all of the prices established above
+        breakdown_prices = [price_breakdown_crushing_plant, price_breakdown_storage_convey_raw_material, price_breakdown_grinding_plant_raw_meal, 
+                  price_breakdown_storage_conveyor_silo, price_breakdown_kiln_plant, price_breakdown_grinding_plant_cli, 
+                  price_breakdown_silo, price_breakdown_packaging_conveyor_loading, price_breakdown_mill_silo, price_breakdown_installation, 
+                  price_breakdown_labor_cost_annual, price_breakdown_labor_cost_maintenance, price_breakdown_labor_cost_admin_support, 
+                  price_breakdown_proptax_ins, price_breakdown_maintenance_materials, price_breakdown_water, price_breakdown_raw_materials, 
+                  price_breakdown_fossil_fuel, price_breakdown_alt_fuel, price_breakdown_power, price_breakdown_misc, 
+                  price_breakdown_taxes, price_breakdown_financial_equipment, price_breakdown_financial_remaining]
+        
+        price_breakdown_check = sum(breakdown_prices)
+
+        print(f"price breakdown (manual): {price_breakdown_check}")
+        # a neater way to implement is add to price_breakdowns but I am not sure if ProFAST can handle negative costs
+        # TODO above comment might not be an issue, so might not have had to pull out all these values
+            
+        bos_savings =  (price_breakdown_labor_cost_admin_support) * 0.3 # TODO is this applicable for cement?
+
+        breakdown_prices.append(bos_savings) 
+        breakdown_categories = ['Raw Material Crushing CAPEX',
+                                'Storage, Conveying Raw Material CAPEX',
+                                'Grinding Plant, Raw Meal CAPEX', 
+                                'Storage, Conveyor, Silo CAPEX',
+                                'Kiln Plant CAPEX',
+                                'Grinding Plant, Clinker CAPEX',
+                                'Silo CAPEX',
+                                'Packaging Plant, Conveyor, Loading, Storing CAPEX',
+                                'Mill, Silo CAPEX',
+                                'Installation Cost'
+                                'Annual Operating Labor Cost (including maintenance?)',
+                                'Maintenance Labor Cost (zero at the moment?)',
+                                'Administrative & Support Labor Cost',
+                                'Property tax and insurance',
+                                'Maintenance Materials',
+                                'Process Water',
+                                'Raw Materials',
+                                'Fossil Fuel',
+                                'Alternative Fuel',
+                                'Power (Kiln Plant & Grinding Electricity)', 
+                                'Misc. Variable OPEX',
+                                'Taxes',
+                                'Equipment Financing',
+                                'Remaining Financial',
+                                'Total',
+                                'BOS Savings (?)']
+        
+        if len(breakdown_categories) != len(breakdown_prices):
+            raise Exception("categories and prices lists have to be the same length")
+
+        cement_price_breakdown = dict()
+        for category, price in zip(breakdown_categories, breakdown_prices):
+            cement_price_breakdown[f'cement price: {category} ($/ton)'] = price
+
+        # TODO what is the point of this line here?
+        price_breakdown = price_breakdown.drop(columns=['index','Amount'])
+
+        return(solution,summary,price_breakdown,cem_production_actual,cement_price_breakdown,total_capex)
 
 
 if __name__ == '__main__':
     plant = ConcretePlant()
-    (a,b) = plant.run_profast_for_cement()
+    (solution, summary, price_breakdown, cem_production_actual, cement_price_breakdown, total_capex) = \
+    plant.run_profast_for_cement()
+
+    print(solution)
+
+    # (solution,summary) = plant.run_profast_for_cement()
+
+    # print(type(solution),type(summary))
+
+    # solution = pd.DataFrame(solution, index=[0])
+    # summary = pd.DataFrame(summary)
+    
+    # desktop = Path('C:/Users/esharafu/Documents/solution.csv')
+    # desktop1 = Path('C:/Users/esharafu/Documents/summary.csv')
+    # solution.to_csv(desktop)
+    # summary.to_csv(desktop1)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 
     
-    def clinker_tea(): # using spreadsheet, ignore this (incomplete)
-        pass
-
-        """
-        Performs a techno-economic analysis on a BAT clinker plant
-
-        Adapted from this spreadsheet: https://zenodo.org/record/1475804
-        Accompanying paper: https://www.sintef.no/globalassets/project/cemcap/2018-11-14-deliverables/d4.6-cemcap-comparative-techno-economic-analysis-of-co2-capture-in-cement-plants.pdf
-
-        """
-
-        # ---------------------------------- Flags and User Settings ----------------------------------
-        ccs = True # carbon capture enabled, monoethanolamine (MEA) reference technology (see paper)
-
-
-        # ---------------------------------- Utilities and Consumables ----------------------------------
-        # NOTE: this will probably be substituted with values from HOPP (at least for electricity)
-        
-        ## costs
-        raw_meal = 3.012 # €/ton raw meal
-        fuel = 3 # €/GJ LHV
-        electricity = 58.1 # €/MWH_e 
-        steam = 25.3 # €/MWH_th (from ng boiler)
-        cooling_water = 0.39 # €/m^3
-        ammonia = 0.13 # €/ton NH3 
-
-        ## above values normalized by ton of clinker produced
-        if ccs:
-            raw_meal_clk = 1.66 # ton raw meal/ton clk
-            fuel_clk = 10 # GJ LHV fuel/ton clk
-            electricity_clk = 0.01 # MWH_e/ton clk
-            steam_clk = 0 # MWH_th/ton clk
-            cooling_water_clk = 10 # m^3 cooling water/ton clk
-            ammonia_clk = 5 # kg_NH3/ton clk
-        else:
-            raw_meal_clk = 1.66 # ton raw meal/ton clk
-            fuel_clk = 3.135 # GJ LHV fuel/ton clk
-            electricity_clk = 0.1319 # MWH_e/ton clk
-            steam_clk = 0 # MWH_th/ton clk
-            cooling_water_clk = 0 # m^3 cooling water/ton clk
-            ammonia_clk = 5 # kg_NH3/ton clk
-
-        ## climate impacts (carbon emissions)
-        raw_meal_co2 = 0 # kg CO2/ton raw meal ### actually?? what about quarrying emissions?
-        # NOTE: excluding fuel on purpose
-        electricity_co2 = 262 # kg CO2/MWH_e
-        steam_co2 = 224 # kg CO2/MWH_th
-        cooling_water_co2 = 0 # kg CO2/m^3
-        ammonia_co2 = 0 # kg CO2/kg NH3
-
-        # ---------------------------------- Plant Info ----------------------------------
-        # NOTE: current data are the rated capacities for this reference plant
-        
-        ## clinker production
-        clinker_production = 2895.5 # ton/day
-        cement_clinker_ratio = 1.36 # NOTE: usually designated as clinker/cement ratio
-        cement_production = clinker_production * cement_clinker_ratio
-
-        ## CO2 emissions
-        co2_stack = 28.3 # kg/s
-        co2_stack_per_ton = co2_stack * 3600 * 24 / clinker_production # kg/ton clinker
-        co2_elec = 1.2 # kg/s
-        co2_elec_per_ton = electricity_clk * electricity_co2 # kg/ton clinker
-        co2_steam_per_ton = steam_clk * steam_co2 # kg/ton clk
-        co2_steam = co2_steam_per_ton * clinker_production / 3600 / 24 # kg/s INCONSISTENT W SS
-        co2_other_per_ton = cooling_water_clk * cooling_water_co2 + \
-                            ammonia_clk * ammonia_co2 # kg/ton clk
-        co2_other = co2_other_per_ton * clinker_production / 24 / 3600 # kg/s INCONSISTENT W SS
-
-        ## Other
-        capacity_factor = 91.3
-        operational_life = 25 # yrs
-        construction_time = 3 # yrs
-
-        ## not sure what these are/if they are used for anything, 
-        # but they were in the spreadsheet so I'm including them anyway
-        # percentage_of_TPC_depreciation = 1 
-        # Inflation_rate=0e-2
-        # Construction_inflat=0e-2
-        # Percentage_of_Debt_Capital=50e-2
-        # Percentage_of_Equity_capital=50.0e-2
-        # Interest_on_debt=8.00e-2
-        # Interest_on_equity=8.00e-2
-        # Discounted_cash_flow_rate=8.00e-2
-        # DCF_and_inflation=8.00e-2
-        # depreciation_time = 0 # yrs
-        # tax_rate = 0 
-
-        
-
-        # ---------------------------------- CAPEX ----------------------------------
-        total_direct_cost = 149.82 # M€
-        indirect_costs = 0.14 # % TDC
-        epc = total_direct_cost * (1 + indirect_costs) # M€
-        owner_costs = 0.07 # % TDC
-        project_contingency = 0.15 # % TDC
-        owner_cost_conting = total_direct_cost * (owner_costs + project_contingency) # M€
-        total_plant_cost = epc + owner_cost_conting # M€ (kiln only!)
-
-        # calculate capex for CSS infrastructure
-        if ccs: 
-            total_direct_cost = 180 # M€
-            indirect_costs = 0.14 # % TDC
-            epc = total_direct_cost * (1 + indirect_costs) # M€
-            owner_costs = 0.07 # % TDC
-            project_contingency = 0.15 # % TDC
-            owner_cost_conting = total_direct_cost * (owner_costs + project_contingency) # M€
-            total_plant_cost = epc + owner_cost_conting + total_plant_cost # M€ (kiln and capture system, if CSS enabled)
-        
-        # ---------------------------------- OPEX ----------------------------------
-        ## carbon tax
-        ### in spreadsheet, skipping for now ###
-
-        total_consumables = raw_meal * raw_meal_clk + \
-                            fuel * fuel_clk + \
-                            electricity * electricity_clk + \
-                            steam * steam_clk + \
-                            cooling_water * cooling_water_clk + \
-                            ammonia * ammonia_clk # €/ton clk
-        
-        other_var_om = 0.8 # €/ton cement
-        other_var_om = 0.8 * cement_clinker_ratio # €/ton clk
-
-        insurance_local_tax_rate = 0.02 # % TPC
-        insurance_local_tax = total_plant_cost * insurance_local_tax_rate # M€/year
-
-        maintenance_cost_rate = 0.02 # % TPC
-        maintenance = maintenance_cost_rate * total_plant_cost # M€/year
-        ## labor
-        if ccs:
-            num_persons = 120
-        else:
-            num_persons = 100
-
-        labor_per_person = 60 # k€/year/person
-        operating_labor = labor_per_person * num_persons * 1e3 / 1e6 # M€/year
-        
-        
-        maintenance_labor_rate = 0.4 # % of maintenance cost
-        maintenance_labor = maintenance_labor_rate * maintenance # M€/year
-
-        admin_support__rate = 0.3 # % oper. and maintenance labor cost
-        admin_support = admin_support__rate * (operating_labor * maintenance_labor) # M€/year
-
-        labor_cost = operating_labor + admin_support # M€/year
-
-        # ---------------------------------- ProFAST Parameters ----------------------------------
-        pf = ProFAST.ProFAST('blank')
-
-        # NOTE: substituted variable values but none of the economic parameters because
-        # I did not know what a lot of them meant
-        gen_inflation = 0.00
-        pf.set_params('commodity',{"name":'Clinker',"unit":"ton","initial price":1000,"escalation":gen_inflation})
-        pf.set_params('capacity',clinker_production) #units/day
-        pf.set_params('maintenance',{"value":0,"escalation":gen_inflation})
-        pf.set_params('analysis start year',2022) # does this depend on atb_year? Or is it dependent on the spreadsheet?
-        pf.set_params('operating life',operational_life)
-        pf.set_params('installation months',construction_time * 3)
-        pf.set_params('installation cost',{"value":total_plant_cost,"depr type":"Straight line","depr period":4,"depreciable":False}) # equipment AND installation costs, is that ok here?
-        pf.set_params('non depr assets',0) # originally land costs
-        pf.set_params('end of proj sale non depr assets',0) # originally: land_cost*(1+gen_inflation)**plant_life
-        pf.set_params('demand rampup',5.3) # ??
-        pf.set_params('long term utilization',capacity_factor)
-        pf.set_params('credit card fees',0)
-        pf.set_params('sales tax',0) 
-        pf.set_params('license and permit',{'value':00,'escalation':gen_inflation})
-        pf.set_params('rent',{'value':0,'escalation':gen_inflation})
-        pf.set_params('property tax and insurance percent',0)
-        pf.set_params('admin expense percent',0)
-        pf.set_params('total income tax rate',0.27) 
-        pf.set_params('capital gains tax rate',0.15) 
-        pf.set_params('sell undepreciated cap',True)
-        pf.set_params('tax losses monetized',True)
-        pf.set_params('operating incentives taxable',True)
-        pf.set_params('general inflation rate',gen_inflation)
-        pf.set_params('leverage after tax nominal discount rate',0.0824)
-        pf.set_params('debt equity ratio of initial financing',1.38)
-        pf.set_params('debt type','Revolving debt')
-        pf.set_params('debt interest rate',0.0489)
-        pf.set_params('cash onhand percent',1)
-
+    
