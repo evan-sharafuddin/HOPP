@@ -1,3 +1,7 @@
+'''
+Copy of wind_resource.py, trying to add functionality to run on HPC
+'''
+
 import csv
 from collections import defaultdict
 import numpy as np
@@ -7,7 +11,9 @@ from hybrid.keys import get_developer_nrel_gov_key
 from hybrid.log import hybrid_logger as logger
 from hybrid.resource.resource import *
 
-
+import h5py # for reading files from Eagle
+import pandas as pd
+from scipy.spatial import cKDTree
 class WindResource(Resource):
     """ Class to manage Wind Resource data
 
@@ -56,10 +62,6 @@ class WindResource(Resource):
 
         self.format_data()
 
-        print('bruh')
-        print(self.filename)
-        print(self.path_resource)
-
     def calculate_heights_to_download(self):
         """
         Given the system hub height, and the available hubheights from WindToolkit,
@@ -68,6 +70,8 @@ class WindResource(Resource):
         hub_height_meters = self.hub_height_meters
 
         # evaluate hub height, determine what heights to download
+        # Evan: if hub height not in the list of given hub heights, the target hub height is bracketed by 
+        # two existing hub heights
         heights = [hub_height_meters]
         if hub_height_meters not in self.allowed_hub_height_meters:
             height_low = self.allowed_hub_height_meters[0]
@@ -81,10 +85,15 @@ class WindResource(Resource):
             heights[0] = height_low
             heights.append(height_high)
 
+        # wind/lat_lon_windtoolkit_year_interval_min --> has to be where the file is being written, right?
         file_resource_base = os.path.join(self.path_resource, str(self.latitude) + "_" + str(self.longitude) + "_windtoolkit_" + str(
             self.year) + "_" + str(self.interval) + "min")
         file_resource_full = file_resource_base
         file_resource_heights = dict()
+        
+        # file_resource_base = os.path.join()'/datasets/WIND/conus/v1.0.0' # CONUS
+        # file_resource_full = file_resource_base
+        # file_resource_heights = dict()
 
         for h in heights:
             file_resource_heights[h] = file_resource_base + '_' + str(h) + 'm.srw'
@@ -98,15 +107,63 @@ class WindResource(Resource):
         self.hub_height_meters = hub_height_meters
         self.calculate_heights_to_download()
 
+    def nearest_site(tree, lat_coord, lon_coord):
+        '''
+        https://github.com/NREL/hsds-examples/blob/master/notebooks/02_WTK_Domains_introduction.ipynb
+        '''
+            lat_lon = np.array([lat_coord, lon_coord])
+            dist, pos = tree.query(lat_lon)
+            return pos
+
+
     def download_resource(self):
         success = os.path.isfile(self.filename)
         if not success:
-
+            # need to access from Eagle
             for height, f in self.file_resource_heights.items():
-                url = 'https://developer.nrel.gov/api/wind-toolkit/v2/wind/wtk-srw-download?year={year}&lat={lat}&lon={lon}&hubheight={hubheight}&api_key={api_key}&email={email}'.format(
-                    year=self.year, lat=self.latitude, lon=self.longitude, hubheight=height, api_key=get_developer_nrel_gov_key(), email=self.email)
+                # TODO do I need to cat 'm' here?
+                # TODO valid f string syntax?
+                
+                path = os.path.join('/datasets/WIND/conus/', str(self.year), + f'wtk_conus_{self.year}_{self.hubheight}m.h5')
+                
+                success = os.path.isfile(path)
 
-                success = self.call_api(url, filename=f)
+                # now need to write file -- select out the coordinates 
+                eaglefile = h5py.File(path)
+                # dataset dimensions: (time, coordinates)
+
+                # height and year already taken care of
+                # need time interval, lat/lon
+                
+                # find nearest coordinates (https://github.com/NREL/hsds-examples/blob/master/notebooks/02_WTK_Domains_introduction.ipynb)
+                dset_coords = eaglefile['coordinates'][...]
+                tree = cKDTree(dset_coords)
+                site_idx = nearest_site(tree, self.lat, self.lon)
+                
+                print('testing site lookup:')
+                print(f'actual lat/lon: {self.lat},{self.lon}')
+                print(f'nearest neighbor: {eaglefile["coordinates"][site_idx]}')
+
+                # selecting correct time interval (note [...] necissary to convert h5py to numpy)
+                time_index = pd.to_datetime(f['time_index'][...].astype(str))
+
+                if self.interval != 60 
+                    throw NotImplementedError("only has support for hourly time intervals at the moment")
+                else:
+                    time_index_interval = time_index[time_index.hour == 0]
+
+                time_idx = eaglefile['time_index'][...] == time_index_interval
+                
+                
+
+                localfile = open(f, mode='w+')
+              
+
+            # for height, f in self.file_resource_heights.items():
+            #     url = 'https://developer.nrel.gov/api/wind-toolkit/v2/wind/wtk-srw-download?year={year}&lat={lat}&lon={lon}&hubheight={hubheight}&api_key={api_key}&email={email}'.format(
+            #         year=self.year, lat=self.latitude, lon=self.longitude, hubheight=height, api_key=get_developer_nrel_gov_key(), email=self.email)
+
+            #     success = self.call_api(url, filename=f)
 
             if not success:
                 raise ValueError('Unable to download wind data')
@@ -122,6 +179,8 @@ class WindResource(Resource):
 
     def combine_wind_files(self):
         """
+        Stores all the data from each file in a single array?
+        
         Parameters
         ---------
         file_resource_heights: dict
