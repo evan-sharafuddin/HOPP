@@ -44,7 +44,7 @@ class ConcretePlant:
     def __init__(self):
         pass
     
-    def eur_to_usd(self, cost_EUR, multiplyer):
+    def eur_to_usd(self, multiplyer, *costs):
         ''' 
         Converts monetary values from EUR to USD
 
@@ -57,18 +57,17 @@ class ConcretePlant:
         
         '''
         conversion_factor = 1.3284 # USD/EUR
-        return conversion_factor * cost_EUR * multiplyer
+        vals = []
+        for cost in costs:
+            vals.append(cost * conversion_factor * multiplyer)
+        return vals
 
     def btu_to_j(self, multiplyer, *vals):
         vals_j = []
         for val in vals:
-            print(val)
             vals_j.append(val * 1055.6 * multiplyer)
-            print(vals_j)
         return vals_j
             
-
-
     ### TODO Decarbonization pathways for cement ###
 
     def ccs_calcium_looping():
@@ -100,29 +99,29 @@ class ConcretePlant:
 
         # ---------------------------- Profast Parameters -----------------------
         ## Plant specs
-        cli_production = 1 # Mt/y
+        cli_production = 1e6 # t/y
         cli_cem_ratio = 73.7e-2 # depends on proportion of SCMs
-        cem_production = cli_production / cli_cem_ratio # Mt/y, if designing plant based on clinker production... might want to change this
+        cem_production = cli_production / cli_cem_ratio # t/y, if designing plant based on clinker production... might want to change this
 
         raw_meal_cli_factor = 1.6 # loss of raw meal during production of clinker... TODO remove this eventually
 
         ### TODO verify the reliability of these numbers, lots of different ones coming up in the IEAGHG article
-        thermal_energy = 3400 # kJ/kg cli -- might want to fact check this (2010, worldwide, preclaciner/preheater dry kiln)
+        thermal_energy = 3400e-3 # MJ/kg cli -- might want to fact check this (2010, worldwide, preclaciner/preheater dry kiln)
         electrical_energy = 108 # kWh/t cement (2010, worldwide)
         ###
 
         plant_life = 25 # yr
-        plant_capacity_factor = 80e-2 # seems lower than others I've seen, TODO might want to check this
+        plant_capacity_factor = 91.3e-2 # seems lower than others I've seen, TODO might want to check this
         cem_production_actual = cem_production * plant_capacity_factor
 
         ## Economic specs
-        contingencies_fees = 1e-2 # fraction of installed costs
-        taxation_insurance = 1e-2 # fraction of installed costs, per year
+        contingencies_fees = 1e-2 # fraction of installed costs (CAPEX)
+        taxation_insurance = 1e-2 # fraction of installed costs, per year (OPEX)
 
+    
         # ------------------------------ CAPEX ------------------------------
         # section 5.1
         # NOTE all values in M€
-
         # NOTE: currently this does not include land property (in particular the quarry), 
         # emerging emission abatement technology, developing cost (power & water supply)
 
@@ -153,13 +152,27 @@ class ConcretePlant:
         epc_costs = 10 
         contigency_fees = installed_costs * contingencies_fees
         tpc = installed_costs + epc_costs + contigency_fees
+        print(f'tpc: {tpc}')
+        # NOTE according to spreadsheet, tpc = 203.75
         owners_costs = 11.9
         other = 8.0 # working capital, start-ups, spare parts
         interest_during_construction = 6.4
         land_cost = 0 # TODO
         developing_cost = 0 # TODO
-
         total_capex = tpc + owners_costs + other + interest_during_construction
+
+        # ////////// unit conversions ////////////// M€ --> $
+        crushing_plant, storage_conveying_raw_material, grinding_plant_raw_meal, storage_conveying_raw_material, kiln_plant, \
+        grinding_plant_cli, silo, packaging_conveyor_loading_storing, coal_mill_silo, equip_costs, \
+        civil_steel_erection_other, installed_costs, epc_costs, contigency_fees, tpc, owners_costs, other, \
+        interest_during_construction, land_cost, developing_cost, total_capex = \
+        self.eur_to_usd(1e6,
+            crushing_plant, storage_conveying_raw_material, grinding_plant_raw_meal, storage_conveying_raw_material, kiln_plant, \
+        grinding_plant_cli, silo, packaging_conveyor_loading_storing, coal_mill_silo, equip_costs, \
+        civil_steel_erection_other, installed_costs, epc_costs, contigency_fees, tpc, owners_costs, other, \
+        interest_during_construction, land_cost, developing_cost, total_capex) # 
+        
+        
 
         # ------------------------------ OPEX ------------------------------ 
         '''
@@ -229,12 +242,12 @@ class ConcretePlant:
         # TODO make sure all these add up to 1
 
         # uc = unit consumption
-        coal_uc = thermal_energy * 1e-3 * coal_frac / coal_lhv # kg coal/kg cli
-        alt_fuel_uc = thermal_energy * 1e-3 * alt_fuel_frac / alt_fuel_lhv # kg alt fuel/kg cli
+        coal_uc = thermal_energy * coal_frac / coal_lhv # kg coal/kg cli
+        alt_fuel_uc = thermal_energy * alt_fuel_frac / alt_fuel_lhv # kg alt fuel/kg cli
 
         # TODO might want to search for better values (these are from IEAGHG)
-        coal_cost = self.eur_to_usd(3, 1e-3) # €/MJ
-        nat_gas_cost = self.eur_to_usd(6, 1e-3) # €/MJ
+        coal_cost = 3e-3 # €/MJ (paper gave in GJ)
+        nat_gas_cost = 6e-3 # €/MJ
         alt_fuel_cost = 1 # €/ton cement
 
         # ///////////// raw materials /////////////
@@ -270,19 +283,27 @@ class ConcretePlant:
         # ////////////// waste ////////////////
         # TODO: cost of cement kiln dust disposal? could be included already in some of the other costs
 
+        # ///////////// unit conversions //////////// € --> $ 
+        coal_cost, nat_gas_cost, alt_fuel_cost, raw_meal, process_water, misc, elec_price = \
+        self.eur_to_usd(1,
+            coal_cost, nat_gas_cost, alt_fuel_cost, raw_meal, process_water, misc, elec_price )
+        
         # ------------ fixed -----------------
-        ## fixed (€/ton cem)
-        maintenance = 5.0
-        operational_labor = 5.5 # NOTE: confused about what document means by "maintenance". Cost of maintenance materials, 
-        # maintenance labor, or both? Either way the given value for admin support doesn't really add up
-        admin_support = 2.3 # (supposedly 30% of operational and maintenance labor)
+        ## fixed ($/ton cem)
+        
+        num_workers = 100
+        cost_per_worker = 60 # k€/person
+        operational_labor = self.eur_to_usd(1e3, num_workers * cost_per_worker)[0] # $
+        maintenance_equip = self.eur_to_usd(1, 5.09)[0] # $
+        ### CEMCAP SPREADSHEET
+        maintenance_labor = 0.4 * maintenance_equip # $
+        admin_support = 0.3 * (operational_labor + maintenance_labor) 
         # TODO: sort out what to do with these... not used in pf
         insurance = 0.8
         local_tax = 0.8
-
-
-
-
+        # not used in pf
+       
+        
         # ----------------------------- Emissions/LCA --------------------------
         '''
         ## fuels
@@ -316,9 +337,6 @@ class ConcretePlant:
         ###
 
         # TODO quantify the impact of quarrying, raw materials, etc on emissions
-
-
-
 
         # ------------------------- TODO Other Adjustable Parameters ---------------------------
         # fuel types and compositions
@@ -368,8 +386,6 @@ class ConcretePlant:
         * admixtures use ("air entraining admixture" for lower strength concrete exposed to freeze/thaw)
         * aggregate use (different for lightweight vs. heavy concretes)
 
-
-
         '''
         
         # ------------------------------ ProFAST ------------------------------
@@ -380,13 +396,13 @@ class ConcretePlant:
         pf.set_params('commodity',{"name":'Cement',"unit":"metric tonnes (t)","initial price":1000,"escalation":gen_inflation})
         pf.set_params('capacity',cem_production * 1e6 / 365) #units/day
         pf.set_params('operating life',plant_life)
-        pf.set_params('installation cost',{"value": self.eur_to_usd(installed_costs,1e6),"depr type":"Straight line","depr period":4,"depreciable":False})
-        pf.set_params('non depr assets', self.eur_to_usd(land_cost,1e6)) # assuming Mega EUR
+        pf.set_params('installation cost',{"value": installed_costs,"depr type":"Straight line","depr period":4,"depreciable":False})
+        pf.set_params('non depr assets', land_cost) 
         pf.set_params('long term utilization',plant_capacity_factor)
         
         # TODO: not sure how these fit into the model given in the paper
         pf.set_params('maintenance',{"value":0,"escalation":gen_inflation})
-        pf.set_params('installation months',20) # not sure about this one
+        pf.set_params('installation months',36) # not sure about this one
         pf.set_params('analysis start year',2013) # is this ok? financials are based on 2013 conversion rates
         pf.set_params('credit card fees',0)
         pf.set_params('sales tax',0) 
@@ -413,46 +429,37 @@ class ConcretePlant:
         # ------------------------------ Add capital items to ProFAST ------------------------------
         # NOTE: these are all converted to USD
         # NOTE: did not change the last three arguments
-        pf.add_capital_item(name="crushing plant",cost=self.eur_to_usd(crushing_plant, 1e6),\
-                            depr_type="MACRS",depr_period=7,refurb=[0])
-        pf.add_capital_item(name='storage, conveying raw material',cost=self.eur_to_usd(storage_conveying_raw_material, 1e6),\
-                            depr_type="MACRS",depr_period=7,refurb=[0])
-        pf.add_capital_item(name='grinding plant, raw meal',cost=self.eur_to_usd(grinding_plant_raw_meal,1e6),\
-                            depr_type="MACRS",depr_period=7,refurb=[0])
-        pf.add_capital_item(name='storage, conveyor, silo',cost=self.eur_to_usd(storage_conveyor_silo,1e6),\
-                            depr_type="MACRS",depr_period=7,refurb=[0])
-        pf.add_capital_item(name='kiln plant',cost=self.eur_to_usd(kiln_plant,1e6),\
-                            depr_type="MACRS",depr_period=7,refurb=[0])
-        pf.add_capital_item(name='grinding plant, clinker',cost=self.eur_to_usd(grinding_plant_cli,1e6),\
-                            depr_type="MACRS",depr_period=7,refurb=[0])
-        pf.add_capital_item(name='silo',cost=self.eur_to_usd(silo,1e6),\
-                            depr_type="MACRS",depr_period=7,refurb=[0])
-        pf.add_capital_item(name='packaging plant, conveyor, loading, storing',cost=self.eur_to_usd(packaging_conveyor_loading_storing,1e6),\
-                            depr_type="MACRS",depr_period=7,refurb=[0])
-        pf.add_capital_item(name='mill, silo',cost=coal_mill_silo,\
-                            depr_type="MACRS",depr_period=7,refurb=[0])
+        pf.add_capital_item(name="crushing plant",cost=crushing_plant,depr_type="MACRS",depr_period=7,refurb=[0])
+        pf.add_capital_item(name='storage, conveying raw material',cost=storage_conveying_raw_material,depr_type="MACRS",depr_period=7,refurb=[0])
+        pf.add_capital_item(name='grinding plant, raw meal',cost=grinding_plant_raw_meal,depr_type="MACRS",depr_period=7,refurb=[0])
+        pf.add_capital_item(name='storage, conveyor, silo',cost=storage_conveyor_silo,depr_type="MACRS",depr_period=7,refurb=[0])
+        pf.add_capital_item(name='kiln plant',cost=kiln_plant,depr_type="MACRS",depr_period=7,refurb=[0])
+        pf.add_capital_item(name='grinding plant, clinker',cost=grinding_plant_cli,depr_type="MACRS",depr_period=7,refurb=[0])
+        pf.add_capital_item(name='silo',cost=silo,depr_type="MACRS",depr_period=7,refurb=[0])
+        pf.add_capital_item(name='packaging plant, conveyor, loading, storing',cost=packaging_conveyor_loading_storing,depr_type="MACRS",depr_period=7,refurb=[0])
+        pf.add_capital_item(name='mill, silo',cost=coal_mill_silo,depr_type="MACRS",depr_period=7,refurb=[0])
         
         # ------------------------------ Add fixed costs ------------------------------
         # NOTE: in the document these values were given in EUR/t cem, so I am just going to multiply
         # them by the annual production capacity of the plant (at plant capacity rate)
         # NOTE: operating labor cost includes maintenance labor cost, according to the paper
         pf.add_fixed_cost(name="Annual Operating Labor Cost",usage=1,unit='$/year',\
-                          cost=self.eur_to_usd(operational_labor * cem_production * plant_capacity_factor,1),escalation=gen_inflation)
+                          cost=operational_labor * cem_production * plant_capacity_factor,escalation=gen_inflation)
         # TODO for now, making below be zero, assuming "maintenance" refers to "maintenance materials"
         pf.add_fixed_cost(name="Maintenance Labor Cost",usage=1,unit='$/year',\
-                          cost=0*self.eur_to_usd(maintenance * cem_production * plant_capacity_factor,1),escalation=gen_inflation)
+                          cost=maintenance_labor* cem_production * plant_capacity_factor,escalation=gen_inflation)
         pf.add_fixed_cost(name="Administrative & Support Labor Cost",usage=1,unit='$/year',\
-                          cost=self.eur_to_usd(admin_support * cem_production * plant_capacity_factor,1),escalation=gen_inflation)
+                          cost=admin_support * cem_production * plant_capacity_factor,escalation=gen_inflation)
         pf.add_fixed_cost(name="Property tax and insurance",usage=1,unit='$/year',\
-                          cost=self.eur_to_usd(taxation_insurance * tpc,1),escalation=0.0) 
+                          cost=taxation_insurance * tpc,escalation=0.0) 
         
 
         # ------------------------------ Add feedstocks, note the various cost options ------------------------------
         # NOTE: do not have consumption data, so just setting usage = 1 for now
-        pf.add_feedstock(name='Maintenance Materials',usage=1.0,unit='Units per ton of cement',cost=maintenance,escalation=gen_inflation)
+        pf.add_feedstock(name='Maintenance Materials',usage=1.0,unit='Units per ton of cement',cost=maintenance_equip,escalation=gen_inflation)
         pf.add_feedstock(name='Raw materials',usage=1.0,unit='kg per ton cem',cost=raw_meal * cli_cem_ratio,escalation=gen_inflation)
         pf.add_feedstock(name='coal',usage=coal_uc,unit='kg per ton cement',cost=coal_cost,escalation=gen_inflation)
-        pf.add_feedstock(name='alternative fuel',usage=1,unit='units per ton cem',cost=self.eur_to_usd(alt_fuel_cost,1),escalation=gen_inflation)
+        pf.add_feedstock(name='alternative fuel',usage=1,unit='units per ton cem',cost=alt_fuel_cost,escalation=gen_inflation)
         pf.add_feedstock(name='electricity',usage=electrical_energy,unit='kWh per ton cem',cost=elec_price,escalation=gen_inflation)
         pf.add_feedstock(name='process water',usage=1,unit='units per ton cem',cost=process_water,escalation=gen_inflation)
         pf.add_feedstock(name='Misc.',usage=1,unit='units per ton cem',cost=misc,escalation=gen_inflation)
