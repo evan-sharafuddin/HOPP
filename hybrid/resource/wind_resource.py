@@ -56,10 +56,6 @@ class WindResource(Resource):
 
         self.format_data()
 
-        print('bruh')
-        print(self.filename)
-        print(self.path_resource)
-
     def calculate_heights_to_download(self):
         """
         Given the system hub height, and the available hubheights from WindToolkit,

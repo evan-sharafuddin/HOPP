@@ -126,10 +126,7 @@ class SiteInfo:
             # TODO: allow hub height to be used as an optimization variable
             self.wind_resource = WindResource(data['lat'], data['lon'], data['year'], wind_turbine_hub_ht=hub_height,
                                             filepath=wind_resource_file)
-            print('test')
-            print(wind_resource_file)
-            print(hub_height)
-            print('evan')
+            
             self.n_timesteps = 8760
 
         self.elec_prices = ElectricityPrices(data['lat'], data['lon'], data['year'], filepath=grid_resource_file)
