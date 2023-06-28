@@ -20,6 +20,15 @@ import os
 # om - O&M
 # BAT - best available technology
 
+'''
+Unit conventions (mostly):
+* electricity = kWh
+* fuels = MJ
+* mass = kg
+* money = $
+* functional unit = ton of cement
+
+'''
 # TODO
 # convert variables to dictionaries? Would be easier to convert hard code to user input
 # mark all locations that need to account for scalable plant capacity
@@ -67,12 +76,8 @@ class ConcretePlant:
         }
         
         self.configurations['Cement Production Rate (annual)'] = self.configurations['Clinker Production Rate (annual)'] / self.configurations['Clinker-to-cement ratio']
-        print(self.configurations['Cement Production Rate (annual)'])
-        # NOTE input clinker production, not cement production, as a configuration!
+        # NOTE cement production rate depends on clinker production rate and clinker/cement ratio
 
-        
-        
-    
     def eur_to_usd(self, multiplyer, *costs):
         ''' 
         Converts monetary values from EUR to USD
@@ -148,13 +153,13 @@ class ConcretePlant:
         
 
         # ---------------------------- Profast Parameters -----------------------
-        ## Plant specs
+        ## Plant specs, see __init__()
         plant_cfg = self.configurations
    
-        raw_meal_cli_factor = 1.6 # loss of raw meal during production of clinker... can remove this if know feedstock data for the indiv. 
+        # raw_meal_cli_factor = 1.6 # loss of raw meal during production of clinker... can remove this if know feedstock data for the indiv. 
                                   # components in the raw meal
 
-        #/ TODO verify the reliability of these numbers, lots of different ones coming up in the IEAGHG article
+        #\ TODO verify the reliability of these numbers, lots of different ones coming up in the IEAGHG article
         thermal_energy = 3400e-3 # MJ/kg cli -- might want to fact check this (2010, worldwide, preclaciner/preheater dry kiln)
         electrical_energy = 108 # kWh/t cement (2010, worldwide)
         #/
@@ -171,29 +176,29 @@ class ConcretePlant:
         # emerging emission abatement technology, developing cost (power & water supply)
 
         ### Plant Equipment
-        ## quarry 
-        # TODO
-        ## raw material crushing and prep
-        crushing_plant = 3.5
-        storage_conveying_raw_material = 3.5
-        grinding_plant_raw_meal = 16.8
-        storage_conveyor_silo = 2.1
-        ## pyroprocessing
-        kiln_plant = 11.9
-        grinding_plant_cli = 9.8
-        ## cem production
-        silo = 9.8 
-        packaging_conveyor_loading_storing = 6.3
-        ## coal grinding 
-        coal_mill_silo = 6.3
-
-        equip_costs = crushing_plant + storage_conveying_raw_material + grinding_plant_raw_meal + \
-                    + storage_conveyor_silo + kiln_plant + grinding_plant_cli + \
-                    silo + packaging_conveyor_loading_storing + coal_mill_silo
+        equip_costs = {
+            ## quarry 
+            # TODO
+            ## raw material crushing and prep
+            'crushing plant': 3.5,
+            'storage conveying raw material': 3.5,
+            'grinding plant raw meal': 16.8,
+            'storage conveyor silo': 2.1,
+            ## pyroprocessing
+            'kiln plant': 11.9,
+            'grinding plant cli': 9.8,
+            ## cem production
+            'silo': 9.8,
+            'packaging conveyor loading storing': 6.3,
+            ## coal grinding 
+            'coal mill silo': 6.3,
+        }
+        
+        total_equip_costs = sum(equip_costs.values())
 
         ### installation
         civil_steel_erection_other = 75.5 
-        installed_costs = equip_costs + civil_steel_erection_other
+        installed_costs = total_equip_costs + civil_steel_erection_other
         epc_costs = 10 
         contigency_fees = installed_costs * contingencies_fees
         tpc = installed_costs + epc_costs + contigency_fees
@@ -206,30 +211,25 @@ class ConcretePlant:
         total_capex = tpc + owners_costs + other + interest_during_construction
 
         # ////////// unit conversions ////////////// M€ --> $
-        crushing_plant, storage_conveying_raw_material, grinding_plant_raw_meal, storage_conveyor_silo, kiln_plant, \
-        grinding_plant_cli, silo, packaging_conveyor_loading_storing, coal_mill_silo, equip_costs, \
+        
         civil_steel_erection_other, installed_costs, epc_costs, contigency_fees, tpc, owners_costs, other, \
         interest_during_construction, land_cost, developing_cost, total_capex = \
         self.eur_to_usd(1e6,
-            crushing_plant, storage_conveying_raw_material, grinding_plant_raw_meal, storage_conveyor_silo, kiln_plant, \
-        grinding_plant_cli, silo, packaging_conveyor_loading_storing, coal_mill_silo, equip_costs, \
-        civil_steel_erection_other, installed_costs, epc_costs, contigency_fees, tpc, owners_costs, other, \
+            civil_steel_erection_other, installed_costs, epc_costs, contigency_fees, tpc, owners_costs, other, \
         interest_during_construction, land_cost, developing_cost, total_capex) # 
-        
-        
 
         # ------------------------------ OPEX ------------------------------ 
       
         # ///////////// FEEDSTOCKS /////////////
         lhv = {
-            #/ Source: Fuel LHV values
+            #\ Source: Fuel LHV values
             'coal': 26.122, # MJ/kg, ASSUMING "bituminous coal (wet basis)"
             'natural gas': 47.141, # MJ/kg 
             'hydrogen': 120.21, # MJ/kg
             'pet coke': 29.505, # MJ/kg 
             #/
 
-            #/ "european alternative fuel input" -- IEAGHG
+            #\ "european alternative fuel input" -- IEAGHG
             'animal meal': 18, # MJ/kg
             'sewage sludge': 4, # MJ/kg
             'pretreated domestic wastes': 16, # MJ/kg
@@ -247,8 +247,8 @@ class ConcretePlant:
         
         # fuel compositions (percent thermal input) -- must add up to 1
         frac = {
-            'coal': 0.7,
-            'natural gas': 0,
+            'coal': 0,
+            'natural gas': 0.7,
             'hydrogen': 0,
             'pet coke': 0,
             'alt fuel': 0.3,
@@ -257,15 +257,24 @@ class ConcretePlant:
             raise Exception("Fuel composition fractions must add up to 1")
         
         feed_consumption = {
-            'coal': thermal_energy * frac['coal'] / lhv['coal'] * plant_cfg['Clinker-to-cement ratio'], # kg coal/kg cem
-            'alt fuel': thermal_energy * frac['alt fuel'] / lhv['alt fuel'] * plant_cfg['Clinker-to-cement ratio'],
+            'coal': thermal_energy * frac['coal'] / lhv['coal'] * plant_cfg['Clinker-to-cement ratio'] * 1e3, # kg coal/ton cem
+            'natural gas': thermal_energy * frac['natural gas'] / lhv['natural gas'] * plant_cfg['Clinker-to-cement ratio'] * 1e3,
+            'hydrogen': thermal_energy * frac['hydrogen'] / lhv['hydrogen'] * plant_cfg['Clinker-to-cement ratio'] * 1e3,
+            'pet coke': thermal_energy * frac['pet coke'] / lhv['pet coke'] * plant_cfg['Clinker-to-cement ratio'] * 1e3,
+            'alt fuel': thermal_energy * frac['alt fuel'] / lhv['alt fuel'] * plant_cfg['Clinker-to-cement ratio'] * 1e3,
             # TODO might want to search for better values (these are from IEAGHG)
         } 
 
+        # TODO pass in LCOH
+        lcoh = 1
+
+        # 2.81 $/MMBtu
         feed_cost = {
             # Fuels
-            'coal': 3e-3 * lhv['coal'] * 1e3, # €/GJ coal --> €/ton coal
-            'nat gas': 6e-3 * lhv['natural gas'] * 1e3, # €/ton coal
+            'coal': 3e-3 * lhv['coal'], # €/GJ coal --> €/kg coal
+            'natural gas': 6e-3 * lhv['natural gas'], # €/kg ng
+            'hydrogen': lcoh, # TODO want in $/kg
+            'pet coke': self.btu_to_j(1, 2.81) * lhv['pet coke'],  # $/MMBtu --> $/MJ --> $/kg coke
             'alt fuel': 1, # €/ton cement
         
             # Raw materials
@@ -303,18 +312,16 @@ class ConcretePlant:
         # ///////////// unit conversions //////////// € --> $ 
 
         for key, value in feed_cost.items():
-            print(key)
-            if key == 'electricity': # this has already been converted
-                print(key)
-                continue
-            print(key,'?') 
+            if key == 'electricity' or key == 'pet coke': # these have already been converted
+                continue 
+
             feed_cost[key] = self.eur_to_usd(1, value)
         
     
         # ------------ fixed -----------------
         ## fixed ($/year)
         
-        #/ CEMCAP spreadsheet
+        #\ CEMCAP spreadsheet
         num_workers = 100
         cost_per_worker = 60 # k€/person/year
         operational_labor = self.eur_to_usd(1e3, num_workers * cost_per_worker) # k€ --> $
@@ -342,22 +349,31 @@ class ConcretePlant:
         ## raw materials and waste products?
 
         '''
+        
 
-        ### source: https://www.sciencedirect.com/science/article/pii/S0959652622014445
+        #\ source: Emission factors for fuel
         # ef = emission factor
-        pet_coke_ef, natural_gas_ef, coal_ef, waste_ef, tire_ef, solvent_ef = \
-            self.btu_to_j(1e-6 * 1e3, 106976, 59413, 89920, 145882, 60876, 72298) # kg/J
+        ef = {
+            'pet coke': 106976,
+            'natural gas': 59413,
+            'coal': 89920,
+            'waste': 145882,
+            'tire': 60876,
+            'solvent': 72298,
+        }
 
-        print(f'pet coke ef: {pet_coke_ef}')
+        # convert units
+        for key, value in ef.items():
+            ef[key] = self.btu_to_j(1e-6 * 1e3, value) # g/MMBTU --> kg/J
             
         calcination_emissions = 553 # kg/tonne cem, assuming cli/cement ratio of 0.95 
+        #/
 
-        # NOTE ignorning other emissions (fuel for quarrying, etc)
-        ###
-
-        ### source: https://emissionsindex.org/
+        #\ source: Emission factors for electricity
         electricity_ef = 355 # kg/kWh
-        ###
+        #/
+
+        ef['electricity'] = electricity_ef
 
         # TODO quantify the impact of quarrying, raw materials, etc on emissions
 
@@ -394,7 +410,7 @@ class ConcretePlant:
         '''
 
 
-        # ------------------------- Fixed Parameters -------------------------------
+        # ------------------------- Fixed Parameters (structural things to keep in mind?) -------------------------------
         # strength of concrete (only choose known cement compositions that will achieve this strength)
         # preheater and precalciner (already implemented in a lot of plants)
 
@@ -452,15 +468,8 @@ class ConcretePlant:
         # ------------------------------ Add capital items to ProFAST ------------------------------
         # NOTE: these are all converted to USD
         # NOTE: did not change the last three arguments
-        pf.add_capital_item(name="crushing plant",cost=crushing_plant,depr_type="MACRS",depr_period=7,refurb=[0])
-        pf.add_capital_item(name='storage, conveying raw material',cost=storage_conveying_raw_material,depr_type="MACRS",depr_period=7,refurb=[0])
-        pf.add_capital_item(name='grinding plant, raw meal',cost=grinding_plant_raw_meal,depr_type="MACRS",depr_period=7,refurb=[0])
-        pf.add_capital_item(name='storage, conveyor, silo',cost=storage_conveyor_silo,depr_type="MACRS",depr_period=7,refurb=[0])
-        pf.add_capital_item(name='kiln plant',cost=kiln_plant,depr_type="MACRS",depr_period=7,refurb=[0])
-        pf.add_capital_item(name='grinding plant, clinker',cost=grinding_plant_cli,depr_type="MACRS",depr_period=7,refurb=[0])
-        pf.add_capital_item(name='silo',cost=silo,depr_type="MACRS",depr_period=7,refurb=[0])
-        pf.add_capital_item(name='packaging plant, conveyor, loading, storing',cost=packaging_conveyor_loading_storing,depr_type="MACRS",depr_period=7,refurb=[0])
-        pf.add_capital_item(name='mill, silo',cost=coal_mill_silo,depr_type="MACRS",depr_period=7,refurb=[0])
+        for key, value in equip_costs():
+            pf.add_capital_item(name=key,cost=value,depr_type="MACRS",depr_period=7,refurb=[0]) # assuming same depreciation type, period, whatever refurb is
         
         # ------------------------------ Add fixed costs ------------------------------
         # NOTE: in the document these values were given in EUR/t cem, so I am just going to multiply
@@ -481,6 +490,9 @@ class ConcretePlant:
         pf.add_feedstock(name='Maintenance Materials',usage=1.0,unit='Units per ton of cement',cost=maintenance_equip / plant_cfg['Cement Production Rate (annual)'],escalation=gen_inflation)
         pf.add_feedstock(name='Raw materials',usage=1.0,unit='kg per ton cem',cost=feed_cost['raw meal'] * plant_cfg['Clinker-to-cement ratio'],escalation=gen_inflation)
         pf.add_feedstock(name='coal',usage=feed_consumption['coal'],unit='kg per ton cement',cost=feed_cost['coal'],escalation=gen_inflation)
+        pf.add_feedstock(name='natural gas',usage=feed_consumption['natural gas'],unit='kg per ton cement',cost=feed_cost['natural gas'],escalation=gen_inflation)
+        pf.add_feedstock(name='pet coke',usage=feed_consumption['pet coke'],unit='kg per ton cement',cost=feed_cost['pet coke'],escalation=gen_inflation)
+        pf.add_feedstock(name='hydrogen',usage=feed_consumption['hydrogen'],unit='kg per ton cement',cost=feed_cost['hydrogen'],escalation=gen_inflation)
         # TODO find cost per MJ for alternative fuel
         pf.add_feedstock(name='alternative fuel',usage=1,unit='units per ton cem',cost=feed_cost['alt fuel'],escalation=gen_inflation)
         pf.add_feedstock(name='electricity',usage=electrical_energy,unit='kWh per ton cem',cost=feed_cost['electricity'],escalation=gen_inflation)
@@ -492,9 +504,11 @@ class ConcretePlant:
 
         # ------------------------------ Organizing Return Values ------------------------------
         summary = pf.summary_vals
-        
+
         price_breakdown = pf.get_cost_breakdown()
         
+        # TODO update manual cost breakdown
+
         # CAPEX
         price_breakdown_crushing_plant = price_breakdown.loc[price_breakdown['Name']=='crushing plant','NPV'].tolist()[0]
         price_breakdown_storage_convey_raw_material = price_breakdown.loc[price_breakdown['Name']=='storage, conveying raw material','NPV'].tolist()[0]  
@@ -613,7 +627,7 @@ class ConcretePlant:
         for category, price in zip(breakdown_categories, breakdown_prices):
             cement_price_breakdown[f'cement price: {category} ($/ton)'] = price
 
-        print(f"price breakdown (manual): {price_breakdown_check}")
+        print(f"price breakdown (manual): {solution['price']}")
         print(f"price breakdown (paper): {self.eur_to_usd(1, 50.9)}")
         print(f"price breakdown (CEMCAP spreadsheet, excluding carbon tax): {self.eur_to_usd(1, 46.02)}")
         print(f"percent error from CEMCAP: {(price_breakdown_check - self.eur_to_usd(1, 46.02))/self.eur_to_usd(1, 46.02) * 100}%")
@@ -636,10 +650,25 @@ if __name__ == '__main__':
     thing = pd.DataFrame(cement_price_breakdown,index=[0]).transpose()
     thing.to_csv(path)
 
+    path = Path('C:\\Users\\esharafu\\Documents\\profast_breakdown.csv')
+    thing = pd.DataFrame(price_breakdown)
+    thing.to_csv(path)
 
 
 
-### outline
+
+
+
+
+
+
+
+
+
+
+
+
+### outline (ignore)
 '''
         ## Feedstocks
         # fuels
