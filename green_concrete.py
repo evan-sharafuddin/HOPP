@@ -74,7 +74,7 @@ class ConcretePlant:
         # "BAT" plant, located in Europe
 
         # TODO: plant capacity is fixed -- would need a different reference to adjust this
-        cli_production = 1.057 # Mt/y
+        cli_production = 1 # Mt/y
         cli_cem_ratio = 73.7e-2 # depends on proportion of SCMs
         cem_production = cli_production / cli_cem_ratio # Mt/y
         
