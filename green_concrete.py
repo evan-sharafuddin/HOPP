@@ -67,7 +67,7 @@ class ConcretePlant:
         }
         
         self.configurations['Cement Production Rate (annual)'] = self.configurations['Clinker Production Rate (annual)'] / self.configurations['Clinker-to-cement ratio']
-
+        print(self.configurations['Cement Production Rate (annual)'])
         # NOTE input clinker production, not cement production, as a configuration!
 
         
@@ -328,12 +328,12 @@ class ConcretePlant:
         
     
         # ------------ fixed -----------------
-        ## fixed ($/ton cem)
+        ## fixed ($/year)
         
         num_workers = 100
-        cost_per_worker = 60 # k€/person
+        cost_per_worker = 60 # k€/person/year
         operational_labor = self.eur_to_usd(1e3, num_workers * cost_per_worker) # $
-        maintenance_equip = self.eur_to_usd(1, 5.09) # $
+        maintenance_equip = self.eur_to_usd(1e6, 5.09) # $
         ### CEMCAP SPREADSHEET
         maintenance_labor = 0.4 * maintenance_equip # $
         admin_support = 0.3 * (operational_labor + maintenance_labor) 
@@ -483,18 +483,18 @@ class ConcretePlant:
         # them by the annual production capacity of the plant (at plant capacity rate)
         # NOTE: operating labor cost includes maintenance labor cost, according to the paper
         pf.add_fixed_cost(name="Annual Operating Labor Cost",usage=1,unit='$/year',\
-                          cost=operational_labor * plant_cfg['Cement Production Rate (annual)'] * plant_cfg['Plant capacity factor'],escalation=gen_inflation)
+                          cost=operational_labor,escalation=gen_inflation)
         pf.add_fixed_cost(name="Maintenance Labor Cost",usage=1,unit='$/year',\
-                          cost=maintenance_labor * plant_cfg['Cement Production Rate (annual)'] * plant_cfg['Plant capacity factor'],escalation=gen_inflation)
+                          cost=maintenance_labor,escalation=gen_inflation)
         pf.add_fixed_cost(name="Administrative & Support Labor Cost",usage=1,unit='$/year',\
-                          cost=admin_support * plant_cfg['Cement Production Rate (annual)'] * plant_cfg['Plant capacity factor'],escalation=gen_inflation)
+                          cost=admin_support,escalation=gen_inflation)
         pf.add_fixed_cost(name="Property tax and insurance",usage=1,unit='$/year',\
                           cost=taxation_insurance * tpc,escalation=0.0) 
         
 
         # ------------------------------ Add feedstocks, note the various cost options ------------------------------
         # NOTE feedstocks without consumption data have a usage of 1 (i.e. already in the desired units)
-        pf.add_feedstock(name='Maintenance Materials',usage=1.0,unit='Units per ton of cement',cost=maintenance_equip,escalation=gen_inflation)
+        pf.add_feedstock(name='Maintenance Materials',usage=1.0,unit='Units per ton of cement',cost=maintenance_equip / plant_cfg['Cement Production Rate (annual)'],escalation=gen_inflation)
         pf.add_feedstock(name='Raw materials',usage=1.0,unit='kg per ton cem',cost=feed_cost['raw meal'] * plant_cfg['Clinker-to-cement ratio'],escalation=gen_inflation)
         pf.add_feedstock(name='coal',usage=feed_consumption['coal'],unit='kg per ton cement',cost=feed_cost['coal'],escalation=gen_inflation)
         # TODO find cost per MJ for alternative fuel
