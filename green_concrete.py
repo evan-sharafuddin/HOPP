@@ -60,12 +60,18 @@ class ConcretePlant:
         vals = []
         for cost in costs:
             vals.append(cost * conversion_factor * multiplyer)
+        
+        if len(vals) == 1:
+            return vals[0]
         return vals
 
     def btu_to_j(self, multiplyer, *vals):
         vals_j = []
         for val in vals:
             vals_j.append(val * 1055.6 * multiplyer)
+
+        if len(vals_j) == 1:
+            return vals_j[0]
         return vals_j
             
     ### TODO Decarbonization pathways for cement ###
@@ -111,7 +117,7 @@ class ConcretePlant:
         ###
 
         plant_life = 25 # yr
-        plant_capacity_factor = 91.3e-2 # seems lower than others I've seen, TODO might want to check this
+        plant_capacity_factor = 91.3e-2 # source: CEMCAP
         cem_production_actual = cem_production * plant_capacity_factor
 
         ## Economic specs
@@ -214,47 +220,59 @@ class ConcretePlant:
         '''
         # //////////// Fuel ////////////
         ### Source: https://courses.engr.illinois.edu/npre470/sp2018/web/Lower_and_Higher_Heating_Values_of_Gas_Liquid_and_Solid_Fuels.pdf
-        coal_lhv = 26.122 # MJ/kg, "bituminous coal (wet basis)"
-        natural_gas_lhv = 47.141 # MJ/kg 
-        hydrogen_lhv = 120.21 # MJ/kg
-        pet_coke_lhv = 29.505 # MJ/kg 
-        ###
+        
+        lhv = {
+            'coal': 26.122, # MJ/kg, "bituminous coal (wet basis)"
+            'natural gas': 47.141, # MJ/kg 
+            'hydrogen': 120.21, # MJ/kg
+            'pet coke': 29.505, # MJ/kg 
+            ###
 
-        # "european alternative fuel input" --- IEAGHG
-        animal_meal_lhv = 18 # MJ/kg
-        sewage_sludge_lhv = 4 # MJ/kg
-        pretreated_domestic_wastes_lhv = 16 # MJ/kg
-        pretreated_industrial_wastes_lhv = (18 + 23) / 2 # MJ/kg (given as range)
-        tires_lhv = 28 # MJ/kg
-        solvents_lhv = (23 + 29) / 2 # MJ/kg (given as range)
+            # "european alternative fuel input" --- IEAGHG
+            'animal meal': 18, # MJ/kg
+            'sewage sludge': 4, # MJ/kg
+            'pretreated domestic wastes': 16, # MJ/kg
+            'pretreated industrial wastes': (18 + 23) / 2, # MJ/kg (given as range)
+            'tires': 28, # MJ/kg
+            'solvents': (23 + 29) / 2, # MJ/kg (given as range)
+        }
 
         # can change this by altering the compositions of each fuel below, or by introducing new alternative fuels
-        alt_fuel_lhv = 0.194 * tires_lhv + 0.117 * solvents_lhv + 0.12 * pretreated_domestic_wastes_lhv \
-        + 0.569 * pretreated_industrial_wastes_lhv # multiplying by each fuel's composition, MJ/kg 
-
+        alt_fuel_lhv = 0.194 * lhv['tires'] + 0.117 * lhv['solvents'] + 0.12 * lhv['pretreated domestic wastes'] \
+        + 0.569 * lhv['pretreated industrial wastes'] # multiplying by each fuel's composition, MJ/kg 
+        
+        lhv['alt fuel'] = alt_fuel_lhv
+        
         # fuel compositions (percent thermal input)
-        coal_frac = 0.7
-        natural_gas_frac = 0
-        hydrogen_frac = 0
-        pet_coke_frac = 0
-        alt_fuel_frac = 0.3
+        frac = {
+            'coal': 0.7,
+            'natural gas': 0,
+            'hydrogen': 0,
+            'pet coke': 0,
+            'alt fuel': 0.3,
+        }
 
         # TODO make sure all these add up to 1
 
         # uc = unit consumption
-        coal_uc = thermal_energy * coal_frac / coal_lhv # kg coal/kg cli
-        alt_fuel_uc = thermal_energy * alt_fuel_frac / alt_fuel_lhv # kg alt fuel/kg cli
+        feed_consumption = {
+            'coal': thermal_energy * frac['coal'] / lhv['coal'], # kg coal/kg cli
+            'alt fuel': thermal_energy * frac['alt fuel'] / lhv['alt fuel'],
+            # TODO might want to search for better values (these are from IEAGHG)
+        } 
 
-        # TODO might want to search for better values (these are from IEAGHG)
-        coal_cost = 3e-3 # €/MJ (paper gave in GJ)
-        nat_gas_cost = 6e-3 # €/MJ
-        alt_fuel_cost = 1 # €/ton cement
-
-        # ///////////// raw materials /////////////
-        # TODO replace with unit costs for each material, not sure if this is necissary though
-        raw_meal = 5 # €/ton cli
-        process_water = 0.014 # €/ton cement
-        misc = 0.8 # €/ton cement
+        # fuel costs
+        feed_cost = {
+            'coal': 3e-3 * lhv['coal'], # €/MJ (paper gave in GJ)
+            'nat gas': 6e-3 * lhv['natural gas'], # €/MJ
+            'alt fuel': 1 * lhv['alt fuel'], # €/ton cement
+        
+            # ///////////// raw materials /////////////
+            # TODO replace with unit costs for each material, not sure if this is necissary though
+            'raw meal': 5 * cli_cem_ratio, # €/ton cement 
+            'process water': 0.014, # €/ton cement
+            'misc': 0.8, # €/ton cement
+        }
 
         # /////////// electricity ////////////////
         # TODO Specify grid cost year for ATB year
@@ -279,22 +297,28 @@ class ConcretePlant:
         renewable_electricity = False
         if renewable_electricity:
             elec_price = 0
+        
+        feed_cost['electricity'] = elec_price
 
         # ////////////// waste ////////////////
         # TODO: cost of cement kiln dust disposal? could be included already in some of the other costs
 
         # ///////////// unit conversions //////////// € --> $ 
-        coal_cost, nat_gas_cost, alt_fuel_cost, raw_meal, process_water, misc, elec_price = \
-        self.eur_to_usd(1,
-            coal_cost, nat_gas_cost, alt_fuel_cost, raw_meal, process_water, misc, elec_price )
+
+        for key, value in feed_cost.items():
+            if key == 'electricity': # this has already been converted
+                continue
+
+            feed_cost[key] = self.eur_to_usd(1, value)
         
+    
         # ------------ fixed -----------------
         ## fixed ($/ton cem)
         
         num_workers = 100
         cost_per_worker = 60 # k€/person
-        operational_labor = self.eur_to_usd(1e3, num_workers * cost_per_worker)[0] # $
-        maintenance_equip = self.eur_to_usd(1, 5.09)[0] # $
+        operational_labor = self.eur_to_usd(1e3, num_workers * cost_per_worker) # $
+        maintenance_equip = self.eur_to_usd(1, 5.09) # $
         ### CEMCAP SPREADSHEET
         maintenance_labor = 0.4 * maintenance_equip # $
         admin_support = 0.3 * (operational_labor + maintenance_labor) 
@@ -445,7 +469,6 @@ class ConcretePlant:
         # NOTE: operating labor cost includes maintenance labor cost, according to the paper
         pf.add_fixed_cost(name="Annual Operating Labor Cost",usage=1,unit='$/year',\
                           cost=operational_labor * cem_production * plant_capacity_factor,escalation=gen_inflation)
-        # TODO for now, making below be zero, assuming "maintenance" refers to "maintenance materials"
         pf.add_fixed_cost(name="Maintenance Labor Cost",usage=1,unit='$/year',\
                           cost=maintenance_labor* cem_production * plant_capacity_factor,escalation=gen_inflation)
         pf.add_fixed_cost(name="Administrative & Support Labor Cost",usage=1,unit='$/year',\
@@ -455,16 +478,15 @@ class ConcretePlant:
         
 
         # ------------------------------ Add feedstocks, note the various cost options ------------------------------
-        # NOTE: do not have consumption data, so just setting usage = 1 for now
+        # NOTE feedstocks without consumption data have a usage of 1 (i.e. already in the desired units)
         pf.add_feedstock(name='Maintenance Materials',usage=1.0,unit='Units per ton of cement',cost=maintenance_equip,escalation=gen_inflation)
-        pf.add_feedstock(name='Raw materials',usage=1.0,unit='kg per ton cem',cost=raw_meal * cli_cem_ratio,escalation=gen_inflation)
-        pf.add_feedstock(name='coal',usage=coal_uc,unit='kg per ton cement',cost=coal_cost,escalation=gen_inflation)
-        pf.add_feedstock(name='alternative fuel',usage=1,unit='units per ton cem',cost=alt_fuel_cost,escalation=gen_inflation)
-        pf.add_feedstock(name='electricity',usage=electrical_energy,unit='kWh per ton cem',cost=elec_price,escalation=gen_inflation)
-        pf.add_feedstock(name='process water',usage=1,unit='units per ton cem',cost=process_water,escalation=gen_inflation)
-        pf.add_feedstock(name='Misc.',usage=1,unit='units per ton cem',cost=misc,escalation=gen_inflation)
-
-       # TODO: any coproducts to add?
+        pf.add_feedstock(name='Raw materials',usage=1.0,unit='kg per ton cem',cost=feed_cost['raw meal'] * cli_cem_ratio,escalation=gen_inflation)
+        pf.add_feedstock(name='coal',usage=feed_consumption['coal'],unit='kg per ton cement',cost=feed_cost['coal'],escalation=gen_inflation)
+        # TODO find cost per MJ for alternative fuel
+        pf.add_feedstock(name='alternative fuel',usage=1,unit='units per ton cem',cost=feed_cost['alt fuel'],escalation=gen_inflation)
+        pf.add_feedstock(name='electricity',usage=electrical_energy,unit='kWh per ton cem',cost=feed_cost['electricity'],escalation=gen_inflation)
+        pf.add_feedstock(name='process water',usage=1,unit='units per ton cem',cost=feed_cost['process water'],escalation=gen_inflation)
+        pf.add_feedstock(name='Misc.',usage=1,unit='units per ton cem',cost=feed_cost['misc'],escalation=gen_inflation)
 
         # ------------------------------ Solve for breakeven price ------------------------------
         solution = pf.solve_price()
@@ -593,8 +615,12 @@ class ConcretePlant:
             cement_price_breakdown[f'cement price: {category} ($/ton)'] = price
 
         print(f"price breakdown (manual): {price_breakdown_check}")
-        print(f"price breakdown (paper): {self.eur_to_usd(50.9,1)}")
-        
+        print(f"price breakdown (paper): {self.eur_to_usd(1, 50.9)}")
+        print(f"price breakdown (CEMCAP spreadsheet, excluding carbon tax): {self.eur_to_usd(1, 46.02)}")
+        print(f"percent error from CEMCAP: {(price_breakdown_check - self.eur_to_usd(1, 46.02))/self.eur_to_usd(1, 46.02) * 100}%")
+        '''
+        possible reasons for the discrepancy from CEMCAP
+        '''
         # TODO what is the point of this line here?
         price_breakdown = price_breakdown.drop(columns=['index','Amount'])
 
@@ -608,7 +634,7 @@ if __name__ == '__main__':
 
     print(solution)
 
-    path = Path('C:\\Users\\esharafu\\Documents\\thing.csv')
+    path = Path('C:\\Users\\esharafu\\Documents\\cement_econ.csv')
     thing = pd.DataFrame(cement_price_breakdown,index=[0]).transpose()
     thing.to_csv(path)
 
