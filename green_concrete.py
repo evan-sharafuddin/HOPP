@@ -150,33 +150,14 @@ class ConcretePlant:
         # ---------------------------- Profast Parameters -----------------------
         ## Plant specs
         plant_cfg = self.configurations
-        
-        
-        # { #hard coded for now
-
-        
-        # 'CSS (Ca looping)': css_ca_looping,
-        # 'CSS (oxyfuel combustion)': css_oxyfuel,
-        # 'Natural gas, pure': natural_gas_pure,
-        # 'Natural gas, hydrogen blend': natural_gas_H2_blend,
-        # 'Renewable electricity': renewable_electricity,
-        # 'Using SCMs': False,
-        # 'ATB year': atb_year,
-        # 'site location': site_location,
-        # 'Clinker Production Rate (annual)': cli_production,
-        # 'Clinker-to-cement ratio': cli_cem_ratio,
-        # 'Plant lifespan': plant_life,
-        # 'Plant capacity factor': plant_capacity_factor,
-        # }
-        # plant_cfg['Cement Production Rate (annual)'] = plant_cfg['Clinker Production Rate (annual)'] / plant_cfg['Clinker-to-cement ratio']
-
+   
         raw_meal_cli_factor = 1.6 # loss of raw meal during production of clinker... can remove this if know feedstock data for the indiv. 
                                   # components in the raw meal
 
-        ### TODO verify the reliability of these numbers, lots of different ones coming up in the IEAGHG article
+        #/ TODO verify the reliability of these numbers, lots of different ones coming up in the IEAGHG article
         thermal_energy = 3400e-3 # MJ/kg cli -- might want to fact check this (2010, worldwide, preclaciner/preheater dry kiln)
         electrical_energy = 108 # kWh/t cement (2010, worldwide)
-        ###
+        #/
 
         ## Economic specs
         contingencies_fees = 1e-2 # fraction of installed costs (CAPEX)
@@ -225,12 +206,12 @@ class ConcretePlant:
         total_capex = tpc + owners_costs + other + interest_during_construction
 
         # ////////// unit conversions ////////////// M€ --> $
-        crushing_plant, storage_conveying_raw_material, grinding_plant_raw_meal, storage_conveying_raw_material, kiln_plant, \
+        crushing_plant, storage_conveying_raw_material, grinding_plant_raw_meal, storage_conveyor_silo, kiln_plant, \
         grinding_plant_cli, silo, packaging_conveyor_loading_storing, coal_mill_silo, equip_costs, \
         civil_steel_erection_other, installed_costs, epc_costs, contigency_fees, tpc, owners_costs, other, \
         interest_during_construction, land_cost, developing_cost, total_capex = \
         self.eur_to_usd(1e6,
-            crushing_plant, storage_conveying_raw_material, grinding_plant_raw_meal, storage_conveying_raw_material, kiln_plant, \
+            crushing_plant, storage_conveying_raw_material, grinding_plant_raw_meal, storage_conveyor_silo, kiln_plant, \
         grinding_plant_cli, silo, packaging_conveyor_loading_storing, coal_mill_silo, equip_costs, \
         civil_steel_erection_other, installed_costs, epc_costs, contigency_fees, tpc, owners_costs, other, \
         interest_during_construction, land_cost, developing_cost, total_capex) # 
@@ -248,13 +229,14 @@ class ConcretePlant:
             'pet coke': 29.505, # MJ/kg 
             #/
 
-            # "european alternative fuel input" -- IEAGHG
+            #/ "european alternative fuel input" -- IEAGHG
             'animal meal': 18, # MJ/kg
             'sewage sludge': 4, # MJ/kg
             'pretreated domestic wastes': 16, # MJ/kg
             'pretreated industrial wastes': (18 + 23) / 2, # MJ/kg (given as range)
             'tires': 28, # MJ/kg
             'solvents': (23 + 29) / 2, # MJ/kg (given as range)
+            #/
         }
 
         # can change this by altering the compositions of each fuel below, or by introducing new alternative fuels
@@ -275,16 +257,16 @@ class ConcretePlant:
             raise Exception("Fuel composition fractions must add up to 1")
         
         feed_consumption = {
-            'coal': thermal_energy * frac['coal'] / lhv['coal'], # kg coal/kg cli
-            'alt fuel': thermal_energy * frac['alt fuel'] / lhv['alt fuel'],
+            'coal': thermal_energy * frac['coal'] / lhv['coal'] * plant_cfg['Clinker-to-cement ratio'], # kg coal/kg cem
+            'alt fuel': thermal_energy * frac['alt fuel'] / lhv['alt fuel'] * plant_cfg['Clinker-to-cement ratio'],
             # TODO might want to search for better values (these are from IEAGHG)
         } 
 
         feed_cost = {
             # Fuels
-            'coal': 3e-3 * lhv['coal'], # €/MJ (paper gave in GJ)
-            'nat gas': 6e-3 * lhv['natural gas'], # €/MJ
-            'alt fuel': 1 * lhv['alt fuel'], # €/ton cement
+            'coal': 3e-3 * lhv['coal'] * 1e3, # €/GJ coal --> €/ton coal
+            'nat gas': 6e-3 * lhv['natural gas'] * 1e3, # €/ton coal
+            'alt fuel': 1, # €/ton cement
         
             # Raw materials
             # TODO replace with unit costs for each material, not sure if this is necissary though
@@ -321,27 +303,29 @@ class ConcretePlant:
         # ///////////// unit conversions //////////// € --> $ 
 
         for key, value in feed_cost.items():
+            print(key)
             if key == 'electricity': # this has already been converted
+                print(key)
                 continue
-
+            print(key,'?') 
             feed_cost[key] = self.eur_to_usd(1, value)
         
     
         # ------------ fixed -----------------
         ## fixed ($/year)
         
+        #/ CEMCAP spreadsheet
         num_workers = 100
         cost_per_worker = 60 # k€/person/year
-        operational_labor = self.eur_to_usd(1e3, num_workers * cost_per_worker) # $
-        maintenance_equip = self.eur_to_usd(1e6, 5.09) # $
-        ### CEMCAP SPREADSHEET
+        operational_labor = self.eur_to_usd(1e3, num_workers * cost_per_worker) # k€ --> $
+        maintenance_equip = self.eur_to_usd(1e6, 5.09) # M€ --> $
         maintenance_labor = 0.4 * maintenance_equip # $
         admin_support = 0.3 * (operational_labor + maintenance_labor) 
         # TODO: sort out what to do with these... not used in pf
         insurance = 0.8
         local_tax = 0.8
         # not used in pf
-       
+        #/
         
         # ----------------------------- Emissions/LCA --------------------------
         '''
@@ -433,7 +417,7 @@ class ConcretePlant:
         
         gen_inflation = 0.00
         pf.set_params('commodity',{"name":'Cement',"unit":"metric tonnes (t)","initial price":1000,"escalation":gen_inflation})
-        pf.set_params('capacity',plant_cfg['Cement Production Rate (annual)'] / 365) #units/day
+        pf.set_params('capacity',plant_cfg['Cement Production Rate (annual)'] / 365) # convert from ton/yr --> ton/day
         pf.set_params('operating life',plant_cfg['Plant lifespan'])
         pf.set_params('installation cost',{"value": installed_costs,"depr type":"Straight line","depr period":4,"depreciable":False})
         pf.set_params('non depr assets', land_cost) 
@@ -455,10 +439,10 @@ class ConcretePlant:
         pf.set_params('tax losses monetized',True)
         pf.set_params('operating incentives taxable',True)
         pf.set_params('general inflation rate',gen_inflation)
-        pf.set_params('leverage after tax nominal discount rate',0.00) # 0.0824
-        pf.set_params('debt equity ratio of initial financing',0.00) # 1.38
+        pf.set_params('leverage after tax nominal discount rate',0) # 0.0824
+        pf.set_params('debt equity ratio of initial financing',0) # 1.38
         pf.set_params('debt type','Revolving debt')
-        pf.set_params('debt interest rate',0.00) # 0.0489
+        pf.set_params('debt interest rate',0) # 0.0489
         pf.set_params('cash onhand percent',1)
         pf.set_params('admin expense percent',0)
         pf.set_params('end of proj sale non depr assets',land_cost*(1+gen_inflation)**plant_cfg['Plant lifespan'])
