@@ -40,8 +40,7 @@ Unit conventions (mostly):
 # * "It is worth noting that the development and land costs are not considered in the project estimates."
 # * TPC calculations exclude "land property (in particula rthe quaqrry), emerging emission abatement technology 
 # (e.g. SCR) and developing cost (power and water supply)"
-# * Production Costs: "excl. freight, raw material deposit, land property, permits etc. The rang eof production costs
-# is based on different utilization rates from 70 to 90 %"
+# * Production Costs: "excl. freight, raw material deposit, land property, permits etc."
 
 
 class ConcretePlant:
@@ -52,19 +51,22 @@ class ConcretePlant:
         
     """
 
-    def __init__(self, css_ca_looping=False, css_oxyfuel=False, natural_gas_pure=False, natural_gas_H2_blend=False, \
+    def __init__(self, css_ca_looping=False, css_oxyfuel=False, natural_gas_pure=False, natural_gas_H2_blend_10 =False, \
+                 natural_gas_H2_blend_40=False, heidelberg_blend=False, \
                  renewable_electricity=False, SCMs=False, atb_year=2035, site_location='IA', cli_production=1e6, \
                  cli_cem_ratio=73.7e-2, plant_life=25, plant_capacity_factor = 91.3e-2):
                  # source of plant_capacity_factor: CEMCAP
         
-        if css_ca_looping and css_oxyfuel or natural_gas_pure and natural_gas_H2_blend:
+        if (css_ca_looping and css_oxyfuel) or (natural_gas_pure and natural_gas_H2_blend_10 and natural_gas_H2_blend_40 and heidelberg_blend):
             raise Exception("Invalid configuration -- make sure only one option is true for CSS and/or natural gas")
         
         self.configurations = {
             'CSS (Ca looping)': css_ca_looping,
             'CSS (oxyfuel combustion)': css_oxyfuel,
             'Natural gas, pure': natural_gas_pure,
-            'Natural gas, hydrogen blend': natural_gas_H2_blend,
+            'Natural gas, hydrogen blend (10%)': natural_gas_H2_blend_10,
+            'Natural gas, hydrogen blend (40%)': natural_gas_H2_blend_40,
+            'Heidelberg blend': heidelberg_blend,
             'Renewable electricity': renewable_electricity,
             'Using SCMs': False,
             'ATB year': atb_year,
@@ -157,7 +159,7 @@ class ConcretePlant:
         plant_cfg = self.configurations
    
         # raw_meal_cli_factor = 1.6 # loss of raw meal during production of clinker... can remove this if know feedstock data for the indiv. 
-                                  # components in the raw meal
+                                    # components in the raw meal
 
         #\ TODO verify the reliability of these numbers, lots of different ones coming up in the IEAGHG article
         thermal_energy = 3400e-3 # MJ/kg cli -- might want to fact check this (2010, worldwide, preclaciner/preheater dry kiln)
@@ -181,17 +183,17 @@ class ConcretePlant:
             # TODO
             ## raw material crushing and prep
             'crushing plant': 3.5,
-            'storage conveying raw material': 3.5,
-            'grinding plant raw meal': 16.8,
-            'storage conveyor silo': 2.1,
+            'storage, conveying raw material': 3.5,
+            'grinding plant, raw meal': 16.8,
+            'storage, conveyor, silo': 2.1,
             ## pyroprocessing
             'kiln plant': 11.9,
-            'grinding plant cli': 9.8,
+            'grinding plant, clinker': 9.8,
             ## cem production
             'silo': 9.8,
-            'packaging conveyor loading storing': 6.3,
+            'packaging plant, conveyor, loading, storing': 6.3,
             ## coal grinding 
-            'coal mill silo': 6.3,
+            'coal mill, silo': 6.3,
         }
         
         total_equip_costs = sum(equip_costs.values())
@@ -314,11 +316,10 @@ class ConcretePlant:
         for key, value in feed_cost.items():
             if key == 'electricity' or key == 'pet coke': # these have already been converted
                 continue 
-
             feed_cost[key] = self.eur_to_usd(1, value)
         
     
-        # ------------ fixed -----------------
+        # //////////////// fixed //////////////
         ## fixed ($/year)
         
         #\ CEMCAP spreadsheet
@@ -328,10 +329,6 @@ class ConcretePlant:
         maintenance_equip = self.eur_to_usd(1e6, 5.09) # M€ --> $
         maintenance_labor = 0.4 * maintenance_equip # $
         admin_support = 0.3 * (operational_labor + maintenance_labor) 
-        # TODO: sort out what to do with these... not used in pf
-        insurance = 0.8
-        local_tax = 0.8
-        # not used in pf
         #/
         
         # ----------------------------- Emissions/LCA --------------------------
@@ -441,50 +438,53 @@ class ConcretePlant:
         
         # TODO: not sure how these fit into the model given in the paper
         pf.set_params('maintenance',{"value":0,"escalation":gen_inflation})
-        pf.set_params('installation months',36) # not sure about this one
+        pf.set_params('installation months',36) # source: CEMCAP
         pf.set_params('analysis start year',2013) # is this ok? financials are based on 2013 conversion rates
+
+            #\
         pf.set_params('credit card fees',0)
         pf.set_params('sales tax',0) 
+            #/ assuming these are relevant only for the sale of the product?
+
         pf.set_params('rent',{'value':0,'escalation':gen_inflation})
+            # is this different from land cost?
         pf.set_params('property tax and insurance percent',0)
 
-        # TODO: do not understand what these mean/don't know what to do with them
         pf.set_params('total income tax rate',0.27)
         pf.set_params('capital gains tax rate',0.15)
+        #\
         pf.set_params('sell undepreciated cap',True)
         pf.set_params('tax losses monetized',True)
         pf.set_params('operating incentives taxable',True)
+        #/ leave these as True?
+
         pf.set_params('general inflation rate',gen_inflation)
-        pf.set_params('leverage after tax nominal discount rate',0) # 0.0824
-        pf.set_params('debt equity ratio of initial financing',0) # 1.38
+        pf.set_params('leverage after tax nominal discount rate',0.0824) # 0.0824
+        pf.set_params('debt equity ratio of initial financing',1.5) # 1.38
         pf.set_params('debt type','Revolving debt')
-        pf.set_params('debt interest rate',0) # 0.0489
+        pf.set_params('debt interest rate',0.0489) # 0.0489
         pf.set_params('cash onhand percent',1)
         pf.set_params('admin expense percent',0)
         pf.set_params('end of proj sale non depr assets',land_cost*(1+gen_inflation)**plant_cfg['Plant lifespan'])
-        pf.set_params('demand rampup',0) # 5.3
+        pf.set_params('demand rampup',5.3) # 5.3
         pf.set_params('license and permit',{'value':00,'escalation':gen_inflation})
-        
+
         # ------------------------------ Add capital items to ProFAST ------------------------------
         # NOTE: these are all converted to USD
         # NOTE: did not change the last three arguments
-        for key, value in equip_costs():
-            pf.add_capital_item(name=key,cost=value,depr_type="MACRS",depr_period=7,refurb=[0]) # assuming same depreciation type, period, whatever refurb is
+        for key, value in equip_costs.items():
+            pf.add_capital_item(name=key,cost=value,depr_type="MACRS",depr_period=7,refurb=[0.5]) # assuming same depreciation type, period, whatever refurb is
+        # ?depr_type, depr_period, refurb???
         
         # ------------------------------ Add fixed costs ------------------------------
         # NOTE: in the document these values were given in EUR/t cem, so I am just going to multiply
         # them by the annual production capacity of the plant (at plant capacity rate)
         # NOTE: operating labor cost includes maintenance labor cost, according to the paper
-        pf.add_fixed_cost(name="Annual Operating Labor Cost",usage=1,unit='$/year',\
-                          cost=operational_labor,escalation=gen_inflation)
-        pf.add_fixed_cost(name="Maintenance Labor Cost",usage=1,unit='$/year',\
-                          cost=maintenance_labor,escalation=gen_inflation)
-        pf.add_fixed_cost(name="Administrative & Support Labor Cost",usage=1,unit='$/year',\
-                          cost=admin_support,escalation=gen_inflation)
-        pf.add_fixed_cost(name="Property tax and insurance",usage=1,unit='$/year',\
-                          cost=taxation_insurance * tpc,escalation=0.0) 
+        pf.add_fixed_cost(name="Annual Operating Labor Cost",usage=1,unit='$/year', cost=operational_labor,escalation=gen_inflation)
+        pf.add_fixed_cost(name="Maintenance Labor Cost",usage=1,unit='$/year', cost=maintenance_labor,escalation=gen_inflation)
+        pf.add_fixed_cost(name="Administrative & Support Labor Cost",usage=1,unit='$/year', cost=admin_support,escalation=gen_inflation)
+        pf.add_fixed_cost(name="Property tax and insurance",usage=1,unit='$/year', cost=taxation_insurance * tpc,escalation=0.0) 
         
-
         # ------------------------------ Add feedstocks, note the various cost options ------------------------------
         # NOTE feedstocks without consumption data have a usage of 1 (i.e. already in the desired units)
         pf.add_feedstock(name='Maintenance Materials',usage=1.0,unit='Units per ton of cement',cost=maintenance_equip / plant_cfg['Cement Production Rate (annual)'],escalation=gen_inflation)
@@ -518,7 +518,7 @@ class ConcretePlant:
         price_breakdown_grinding_plant_cli = price_breakdown.loc[price_breakdown['Name']=='grinding plant, clinker','NPV'].tolist()[0] 
         price_breakdown_silo = price_breakdown.loc[price_breakdown['Name']=='silo','NPV'].tolist()[0] 
         price_breakdown_packaging_conveyor_loading = price_breakdown.loc[price_breakdown['Name']=='packaging plant, conveyor, loading, storing','NPV'].tolist()[0]  
-        price_breakdown_mill_silo = price_breakdown.loc[price_breakdown['Name']=='mill, silo','NPV'].tolist()[0]
+        price_breakdown_mill_silo = price_breakdown.loc[price_breakdown['Name']=='coal mill, silo','NPV'].tolist()[0]
         price_breakdown_installation = price_breakdown.loc[price_breakdown['Name']=='Installation cost','NPV'].tolist()[0]
     
         # fixed OPEX
@@ -630,7 +630,7 @@ class ConcretePlant:
         print(f"price breakdown (manual): {solution['price']}")
         print(f"price breakdown (paper): {self.eur_to_usd(1, 50.9)}")
         print(f"price breakdown (CEMCAP spreadsheet, excluding carbon tax): {self.eur_to_usd(1, 46.02)}")
-        print(f"percent error from CEMCAP: {(price_breakdown_check - self.eur_to_usd(1, 46.02))/self.eur_to_usd(1, 46.02) * 100}%")
+        print(f"percent error from CEMCAP: {(solution['price'] - self.eur_to_usd(1, 46.02))/self.eur_to_usd(1, 46.02) * 100}%")
         '''
         possible reasons for the discrepancy from CEMCAP
         '''
