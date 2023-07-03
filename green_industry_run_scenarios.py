@@ -31,15 +31,14 @@ from hopp_tools_steel import hoppDict
 import yaml
 import run_RODeO
 import run_profast_for_hydrogen
-
-from green_concrete import ConcretePlant
-
+import run_profast_for_steel
 import distributed_pipe_cost_analysis
 #import hopp_tools_run_wind_solar
 import LCA_single_scenario
 import LCA_single_scenario_ProFAST
 from green_steel_ammonia_solar_parametric_sweep import solar_storage_param_sweep
 # from hybrid.PEM_Model_2Push import run_PEM_master
+from green_concrete import ConcretePlant
 
 def batch_generator_kernel(arg_list):
 
@@ -49,7 +48,7 @@ def batch_generator_kernel(arg_list):
      direct_coupling,electrolyzer_cost_case,electrolyzer_degradation_power_increase,wind_plant_degradation_power_decrease,\
     steel_annual_production_rate_target_tpy,parent_path,results_dir,fin_sum_dir,energy_profile_dir,price_breakdown_dir,rodeo_output_dir,floris_dir,path,\
      save_hybrid_plant_yaml,save_model_input_yaml,save_model_output_yaml,number_pem_stacks,run_pv_battery_sweep,electrolyzer_degradation_penalty,\
-    pem_control_type,storage_capacity_multiplier] = arg_list
+    pem_control_type,storage_capacity_multiplier, cement_plant] = arg_list
     
     
     from hybrid.sites import flatirons_site as sample_site # For some reason we have to pull this inside the definition
@@ -323,25 +322,35 @@ def batch_generator_kernel(arg_list):
 
 # Establish wind farm and electrolyzer sizing
 
+    ################\ Steel & Ammonia (no changes)
     # Calculate target hydrogen and electricity demand
     hydrogen_consumption_for_steel = 0.06596 # metric tonnes of hydrogen/metric tonne of steel production
     
     # Annual hydrogen production target to meet steel production target
     steel_ammonia_plant_cf = 0.9
-    hydrogen_production_target_kgpy = steel_annual_production_rate_target_tpy*1000*hydrogen_consumption_for_steel/steel_ammonia_plant_cf
+    hydrogen_production_target_kgpy_steel = steel_annual_production_rate_target_tpy*1000*hydrogen_consumption_for_steel/steel_ammonia_plant_cf
 
     # Calculate equivalent ammona production target
     hydrogen_consumption_for_ammonia = 0.197284403              # kg of hydrogen/kg of ammonia production
-    ammonia_production_target_kgpy = hydrogen_production_target_kgpy/hydrogen_consumption_for_ammonia*steel_ammonia_plant_cf
-    
-    # NOTE: this value below is higher (i.e. efficency is assumed to be worse) than actual BOL, so this is why BOL instead of EOL used in 376
+    ammonia_production_target_kgpy = hydrogen_production_target_kgpy_steel/hydrogen_consumption_for_ammonia*steel_ammonia_plant_cf
+    ################/
+
+    ###############\ ADDED CEMENT HERE
+    if cement_plant.fuel_frac['hydrogen'] != 0:
+        hydrogen_consumption_for_cement = cement_plant.feed_consumption['hydrogen']
+    else:
+        hydrogen_consumption_for_cement = 0
+
+    hydrogen_production_target_kgpy_cement = \
+        hydrogen_consumption_for_cement * cement_plant.config['Cement Production Rate (annual)'] / cement_plant.config['Clinker-to-cement ratio']
+    #################/
+
+     # NOTE: this value below is higher (i.e. efficency is assumed to be worse) than actual BOL, so this is why BOL instead of EOL used in 376
     electrolyzer_energy_kWh_per_kg_estimate_BOL = 54.61 # Eventually need to re-arrange things to get this from set_electrolyzer_info 54.55
-
-
     electrolyzer_energy_kWh_per_kg_estimate_EOL = electrolyzer_energy_kWh_per_kg_estimate_BOL*(1+electrolyzer_degradation_power_increase)
 
     # Annual electricity target to meet hydrogen production target - use this to calculate renewable plant sizing
-    #electricity_production_target_MWhpy = hydrogen_production_target_kgpy*electrolyzer_energy_kWh_per_kg_estimate_BOL/1000
+    #electricity_production_target_MWhpy = hydrogen_production_target_kgpy_steel*electrolyzer_energy_kWh_per_kg_estimate_BOL/1000
 
     # Estimate required electrolyzer capacity
     if floris == False: 
@@ -362,8 +371,11 @@ def batch_generator_kernel(arg_list):
             # If grid-connected, base capacity off of constant full-power operation (steel/ammonia plant CF is incorporated above)
             cf_estimate = 1
 
+        ###########\ ADDED CEMENT HERE
         # Electrolyzer rated hydrogen production capacity - independent of degradation
-        hydrogen_production_capacity_required_kgphr = hydrogen_production_target_kgpy/(8760*cf_estimate)
+        hydrogen_production_capacity_required_kgphr = (hydrogen_production_target_kgpy_steel + hydrogen_production_target_kgpy_cement) \
+                                                        / (8760*cf_estimate) 
+        ############/                                            
 
         # Electrolyzer power requirement at BOL - namplate capacity in MWe?
         electrolyzer_capacity_BOL_MW = hydrogen_production_capacity_required_kgphr*electrolyzer_energy_kWh_per_kg_estimate_BOL/1000
@@ -397,7 +409,7 @@ def batch_generator_kernel(arg_list):
         electrolyzer_capacity_BOL_MW = electrolyzer_capacity_EOL_MW/(1+electrolyzer_degradation_power_increase)
 
         # if grid_connection_scenario != 'off-grid':
-        #     hydrogen_production_capacity_required_kgphr = hydrogen_production_target_kgpy/(8760)
+        #     hydrogen_production_capacity_required_kgphr = hydrogen_production_target_kgpy_steel/(8760)
         # else:
         hydrogen_production_capacity_required_kgphr = electrolyzer_capacity_BOL_MW*1000/electrolyzer_energy_kWh_per_kg_estimate_BOL
 
@@ -500,7 +512,6 @@ def batch_generator_kernel(arg_list):
             combined_pv_wind_curtailment_hopp,energy_shortfall_hopp,energy_to_electrolyzer,hybrid_plant,solar_size_mw,\
             storage_size_mw,storage_size_mwh,renewable_plant_cost,lcoe,cost_to_buy_from_grid, profit_from_selling_to_grid,\
             cf_wind_annuals,cf_solar_annuals,wind_itc_total=solar_storage_param_sweep(inputs_for_sweep,save_param_sweep_best_case,save_param_sweep_general_info,solar_sizes_mw,storage_sizes_mw,storage_sizes_mwh)
-            []
 
             # Might not need everything below
             capex_multiplier = site_df['CapEx Multiplier']
@@ -746,7 +757,6 @@ def batch_generator_kernel(arg_list):
         # Eventually replace with calculations   
         if site_name == 'TX':
             cabling_material_cost = 44553030
-
         if site_name == 'IA':
             cabling_material_cost = 44514220
         if site_name == 'IN':
@@ -952,6 +962,8 @@ def batch_generator_kernel(arg_list):
         
         #print('LCOH with policy:', lcoh)
     
+
+    ###############\ TODO ADDED CEMENT HERE
     # Step 7: Calculate break-even cost of steel production without oxygen and heat integration
     lime_unit_cost = site_df['Lime ($/metric tonne)'] + site_df['Lime Transport ($/metric tonne)']
     carbon_unit_cost = site_df['Carbon ($/metric tonne)'] + site_df['Carbon Transport ($/metric tonne)']
@@ -1115,4 +1127,5 @@ def batch_generator_kernel(arg_list):
                             profast_ammonia_price_breakdown,
                             hopp_dict) 
 
-  
+    ###################/
+    

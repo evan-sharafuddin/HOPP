@@ -90,6 +90,119 @@ class ConcretePlant:
         self.config['Contingencies and fees'] = contingencies_fees
         self.config['Taxation and insurance'] = taxation_insurance
 
+        # fuel compositions (percent thermal input) -- must add up to 1
+
+        '''
+        SOURCES:
+        Canada: Synergizing hydrogen and cement industries for Canada's climate plan - case study
+        IEAGHG: https://ieaghg.org/publications/technical-reports/reports-list/9-technical-reports/1016-2013-19-deployment-of-ccs-in-the-cement-industry 
+        '''
+            # COMPOSITION 1: Canada Reference (100% coal)
+        
+        fuel_comp = {
+            'C1': {
+                'coal': 1,
+                'natural gas': 0,
+                'hydrogen': 0,
+                'pet coke': 0,
+                'alt fuel (IEAGHG mix)': 0,
+                'animal meal': 0,
+                'sewage sludge': 0,
+                'solvents': 0,
+                'SRF (wet)': 0,
+                'MBM (wet)': 0,
+                'glycerin': 0,
+            },
+
+            # COMPOSITION 2: IEAGHG Reference (70% coal, 30% alernative fuel mix)
+            'C2': {
+                'coal': 0.7,
+                'natural gas': 0,
+                'hydrogen': 0,
+                'pet coke': 0,
+                'alt fuel (IEAGHG mix)': 0.3,
+                'animal meal': 0,
+                'sewage sludge': 0,
+                'solvents': 0,
+                'SRF (wet)': 0,
+                'MBM (wet)': 0,
+                'glycerin': 0,
+            },
+
+            # COMPOSITION 3: Canada Natural Gas Substitution
+            'C3': {
+                'coal': 0.5,
+                'natural gas': 0.5,
+                'hydrogen': 0,
+                'pet coke': 0,
+                'alt fuel (IEAGHG mix)': 0,
+                'animal meal': 0,
+                'sewage sludge': 0,
+                'solvents': 0,
+                'SRF (wet)': 0,
+                'MBM (wet)': 0,
+                'glycerin': 0,
+            },
+
+            # COMPOSITION 4: Canada Hydrogen-Enriched Natural Gas Substitution
+            # TODO when finding consumption values need to consider that LHV for hydrogen and NG are given as volume, but coal is given in an energy basis
+
+            'C4': {
+                'coal': 0.5,
+                'natural gas': 0.45,
+                'hydrogen': 0.05,
+                'pet coke': 0,
+                'alt fuel (IEAGHG mix)': 0,
+                'animal meal': 0,
+                'sewage sludge': 0,
+                'solvents': 0,
+                'SRF (wet)': 0,
+                'MBM (wet)': 0,
+                'glycerin': 0,
+            },      
+
+            # COMPOSITION 5: Experimental Climate Neutral Plant: https://www.heidelbergmaterials.com/en/pr-01-10-2021
+            # TODO is composition based on mass/volume or energy?
+            'C5': {
+                'coal': 0,
+                'natural gas': 0,
+                'hydrogen': 0.39,
+                'pet coke': 0,
+                'alt fuel (IEAGHG mix)': 0,
+                'animal meal': 0,
+                'sewage sludge': 0,
+                'solvents': 0,
+                'SRF (wet)': 0,
+                'MBM (wet)': 0.12,
+                'glycerin': 0.49,
+            },
+        }
+
+    
+        ###\ NOTE converting NG and hydrogen from volume to energy basis --> CHECK THIS OR FIND DIFFERENT SOURCE
+        from sympy import symbols, Eq, solve
+        # x = energy fraction of natural gas
+        # y = energy fraction of hydrogen gas
+        x, y = symbols('x y')
+
+        # densities and specific energies for the fuels
+        rho_ng = 0.717 # kg/m^3 https://www.cs.mcgill.ca/~rwest/wikispeedia/wpcd/wp/n/Natural_gas.htm
+        rho_h2 = 0.08376 # kg/m^3 https://www1.eere.energy.gov/hydrogenandfuelcells/tech_validation/pdfs/fcm01r0.pdf
+        e_ng = 47.141 # see LHV's in opex()
+        e_h2 = 120.21 # see LHV's in opex()
+
+        # equations
+        eq1 = Eq(x + y, 0.5)
+        eq2 = Eq(x / (rho_ng * e_ng) - 10 * y / (rho_h2 * e_h2), 0)
+
+        solution = solve((eq1, eq2), (x, y))
+        
+        fuel_comp['C4']['natural gas'] = float(solution[x])
+        fuel_comp['C4']['hydrogen'] = float(solution[y])
+        ###/
+
+        self.fuel_frac = fuel_comp[self.config['Fuel Mixture']]
+
 
         # ---------------------------- HOPP Configurations -----------------------
         
@@ -237,121 +350,7 @@ class ConcretePlant:
         lhv['alt fuel (IEAGHG mix)'] = alt_fuel_lhv
         ###/
 
-        # fuel compositions (percent thermal input) -- must add up to 1
-
-        '''
-        SOURCES:
-        Canada: Synergizing hydrogen and cement industries for Canada's climate plan - case study
-        IEAGHG: https://ieaghg.org/publications/technical-reports/reports-list/9-technical-reports/1016-2013-19-deployment-of-ccs-in-the-cement-industry 
-        '''
-            # COMPOSITION 1: Canada Reference (100% coal)
-        
-        fuel_comp = {
-            'C1': {
-                'coal': 1,
-                'natural gas': 0,
-                'hydrogen': 0,
-                'pet coke': 0,
-                'alt fuel (IEAGHG mix)': 0,
-                'animal meal': 0,
-                'sewage sludge': 0,
-                'solvents': 0,
-                'SRF (wet)': 0,
-                'MBM (wet)': 0,
-                'glycerin': 0,
-            },
-
-            # COMPOSITION 2: IEAGHG Reference (70% coal, 30% alernative fuel mix)
-            'C2': {
-                'coal': 0.7,
-                'natural gas': 0,
-                'hydrogen': 0,
-                'pet coke': 0,
-                'alt fuel (IEAGHG mix)': 0.3,
-                'animal meal': 0,
-                'sewage sludge': 0,
-                'solvents': 0,
-                'SRF (wet)': 0,
-                'MBM (wet)': 0,
-                'glycerin': 0,
-            },
-
-            # COMPOSITION 3: Canada Natural Gas Substitution
-            'C3': {
-                'coal': 0.5,
-                'natural gas': 0.5,
-                'hydrogen': 0,
-                'pet coke': 0,
-                'alt fuel (IEAGHG mix)': 0,
-                'animal meal': 0,
-                'sewage sludge': 0,
-                'solvents': 0,
-                'SRF (wet)': 0,
-                'MBM (wet)': 0,
-                'glycerin': 0,
-            },
-
-            # COMPOSITION 4: Canada Hydrogen-Enriched Natural Gas Substitution
-            # TODO when finding consumption values need to consider that LHV for hydrogen and NG are given as volume, but coal is given in an energy basis
-
-            'C4': {
-                'coal': 0.5,
-                'natural gas': 0.45,
-                'hydrogen': 0.05,
-                'pet coke': 0,
-                'alt fuel (IEAGHG mix)': 0,
-                'animal meal': 0,
-                'sewage sludge': 0,
-                'solvents': 0,
-                'SRF (wet)': 0,
-                'MBM (wet)': 0,
-                'glycerin': 0,
-            },      
-
-            # COMPOSITION 5: Experimental Climate Neutral Plant: https://www.heidelbergmaterials.com/en/pr-01-10-2021
-            # TODO is composition based on mass/volume or energy?
-            'C5': {
-                'coal': 0,
-                'natural gas': 0,
-                'hydrogen': 0.39,
-                'pet coke': 0,
-                'alt fuel (IEAGHG mix)': 0,
-                'animal meal': 0,
-                'sewage sludge': 0,
-                'solvents': 0,
-                'SRF (wet)': 0,
-                'MBM (wet)': 0.12,
-                'glycerin': 0.49,
-            }
-
-        }
-
-        
-        ###\ NOTE converting NG and hydrogen from volume to energy basis --> CHECK THIS OR FIND DIFFERENT SOURCE
-        from sympy import symbols, Eq, solve
-        # x = energy fraction of natural gas
-        # y = energy fraction of hydrogen gas
-        x, y = symbols('x y')
-
-        # densities and specific energies for the fuels
-        rho_ng = 0.717 # kg/m^3 https://www.cs.mcgill.ca/~rwest/wikispeedia/wpcd/wp/n/Natural_gas.htm
-        rho_h2 = 0.08376 # kg/m^3 https://www1.eere.energy.gov/hydrogenandfuelcells/tech_validation/pdfs/fcm01r0.pdf
-        e_ng = lhv['natural gas']
-        e_h2 = lhv['hydrogen']
-
-        # equations
-        eq1 = Eq(x + y, 0.5)
-        eq2 = Eq(x / (rho_ng * e_ng) - 10 * y / (rho_h2 * e_h2), 0)
-
-        solution = solve((eq1, eq2), (x, y))
-        
-        fuel_comp['C4']['natural gas'] = float(solution[x])
-        fuel_comp['C4']['hydrogen'] = float(solution[y])
-        ###/
-
-
-        # select the correct fuel cconsumption dictionary
-        fuel_frac = fuel_comp[config['Fuel Mixture']]
+        fuel_frac = self.fuel_frac
 
         if sum(fuel_frac.values()) != 1:
             raise Exception("Fuel composition fractions must add up to 1")
@@ -692,7 +691,7 @@ class ConcretePlant:
         # TODO update manual cost breakdown
 
         # CAPEX
-        print(price_breakdown.loc[price_breakdown['Name']=='crushing plant','NPV'].tolist()[0])
+    
         # price_breakdown_crushing_plant = price_breakdown.loc[price_breakdown['Name']=='crushing plant','NPV'].tolist()[0]
         # price_breakdown_storage_convey_raw_material = price_breakdown.loc[price_breakdown['Name']=='storage, conveying raw material','NPV'].tolist()[0]  
         # price_breakdown_grinding_plant_raw_meal = price_breakdown.loc[price_breakdown['Name']=='grinding plant, raw meal','NPV'].tolist()[0] 
