@@ -63,10 +63,7 @@ class ConcretePlant:
         self.configurations = {
             'CSS (Ca looping)': css_ca_looping,
             'CSS (oxyfuel combustion)': css_oxyfuel,
-            'Natural gas, pure': natural_gas_pure,
-            'Natural gas, hydrogen blend (10%)': natural_gas_H2_blend_10,
-            'Natural gas, hydrogen blend (40%)': natural_gas_H2_blend_40,
-            'Heidelberg blend': heidelberg_blend,
+            'Fuel Mixture': 'C5',
             'Renewable electricity': renewable_electricity,
             'Using SCMs': False,
             'ATB year': atb_year,
@@ -143,15 +140,7 @@ class ConcretePlant:
         """
 
         # TODO pass in as configurations
-        configurations = {
-            'CSS (Ca looping)': False,
-            'CSS (oxyfuel combustion)': False,
-            'Natural gas, pure': False,
-            'Natural gas, hydrogen blend': False,
-            'Renewable electricity': False,
-            'ATB year': 2035,
-            'site location': 'IA',
-        }
+
         
 
         # ---------------------------- Profast Parameters -----------------------
@@ -224,20 +213,33 @@ class ConcretePlant:
       
         # ///////////// FEEDSTOCKS /////////////
         lhv = {
-            #\ Source: Fuel LHV values
+            #\ Source: Fuel LHV values; Canada paper (see below) for volume based LHVs
             'coal': 26.122, # MJ/kg, ASSUMING "bituminous coal (wet basis)"
-            'natural gas': 47.141, # MJ/kg 
+
+            # TODO having these be dictionaries messes up the code, need to fix
+            'natural gas': 47.141, # MJ/kg
             'hydrogen': 120.21, # MJ/kg
+            
             'pet coke': 29.505, # MJ/kg 
             #/
 
             #\ "european alternative fuel input" -- IEAGHG
             'animal meal': 18, # MJ/kg
-            'sewage sludge': 4, # MJ/kg
+            'sewage sludge': 4, # MJ/kg (wide range exists, including heating value for the dry substance...)
+                # https://www.sludge2energy.de/sewage-sludge/calorific-value-energy-content/#:~:text=The%20dry%20substance%2Dbased%20(DS,planning%20a%20sludge2energy%20plant%20concept.
             'pretreated domestic wastes': 16, # MJ/kg
             'pretreated industrial wastes': (18 + 23) / 2, # MJ/kg (given as range)
-            'tires': 28, # MJ/kg
+            'tires': 28, # MJ/kg # TODO this might be too conservative
             'solvents': (23 + 29) / 2, # MJ/kg (given as range)
+            #/
+
+            #\ https://backend.orbit.dtu.dk/ws/portalfiles/portal/161972551/808873_PhD_thesis_Morten_Nedergaard_Pedersen_fil_fra_trykkeri.pdf, table 3-4
+            'SRF (wet)': 23.2 * (1 - 0.167), # MJ/kg as recieved, Solid Recovered Fuel or Refused Derived Fuel (RDF)
+            'MBM (wet)': 19.4 * (1 - 0.04), # MJ/kg as recieved, Meat and Bone Meal
+            #/
+
+            #\ https://www.researchgate.net/publication/270899362_Glycerol_Production_consumption_prices_characterization_and_new_trends_in_combustion
+            'glycerin': 16 # MJ/kg NOTE this value might depend on the production of GLYCEROL, which makes up 95% of glycerin
             #/
         }
 
@@ -245,7 +247,7 @@ class ConcretePlant:
         alt_fuel_lhv = 0.194 * lhv['tires'] + 0.117 * lhv['solvents'] + 0.12 * lhv['pretreated domestic wastes'] \
         + 0.569 * lhv['pretreated industrial wastes'] # multiplying by each fuel's composition, MJ/kg 
         
-        lhv['alt fuel'] = alt_fuel_lhv
+        lhv['alt fuel (IEAGHG mix)'] = alt_fuel_lhv
         
         # fuel compositions (percent thermal input) -- must add up to 1
         frac = {
@@ -253,38 +255,182 @@ class ConcretePlant:
             'natural gas': 0.7,
             'hydrogen': 0,
             'pet coke': 0,
-            'alt fuel': 0.3,
+            'alt fuel (IEAGHG mix)': 0.3,
+            'animal meal': 0,
+            'sewage sludge': 0,
+            'solvents': 0,
+            'SRF (wet)': 0,
+            'MBM (wet)': 0,
+            'glycerin': 0,
         }
+
+
+        '''
+        SOURCES:
+        Canada: Synergizing hydrogen and cement industries for Canada's climate plan - case study
+        IEAGHG: https://ieaghg.org/publications/technical-reports/reports-list/9-technical-reports/1016-2013-19-deployment-of-ccs-in-the-cement-industry 
+        '''
+            # COMPOSITION 1: Canada Reference (100% coal)
+        
+        fuel_comp = {
+            'C1': {
+                'coal': 1,
+                'natural gas': 0,
+                'hydrogen': 0,
+                'pet coke': 0,
+                'alt fuel (IEAGHG mix)': 0,
+                'animal meal': 0,
+                'sewage sludge': 0,
+                'solvents': 0,
+                'SRF (wet)': 0,
+                'MBM (wet)': 0,
+                'glycerin': 0,
+            },
+
+            # COMPOSITION 2: IEAGHG Reference (70% coal, 30% alernative fuel mix)
+            'C2': {
+                'coal': 0.7,
+                'natural gas': 0,
+                'hydrogen': 0,
+                'pet coke': 0,
+                'alt fuel (IEAGHG mix)': 0.3,
+                'animal meal': 0,
+                'sewage sludge': 0,
+                'solvents': 0,
+                'SRF (wet)': 0,
+                'MBM (wet)': 0,
+                'glycerin': 0,
+            },
+
+            # COMPOSITION 3: Canada Natural Gas Substitution
+            'C3': {
+                'coal': 0.5,
+                'natural gas': 0.5,
+                'hydrogen': 0,
+                'pet coke': 0,
+                'alt fuel (IEAGHG mix)': 0,
+                'animal meal': 0,
+                'sewage sludge': 0,
+                'solvents': 0,
+                'SRF (wet)': 0,
+                'MBM (wet)': 0,
+                'glycerin': 0,
+            },
+
+            # COMPOSITION 4: Canada Hydrogen-Enriched Natural Gas Substitution
+            # TODO when finding consumption values need to consider that LHV for hydrogen and NG are given as volume, but coal is given in an energy basis
+
+            'C4': {
+                'coal': 0.5,
+                'natural gas': 0.45,
+                'hydrogen': 0.05,
+                'pet coke': 0,
+                'alt fuel (IEAGHG mix)': 0,
+                'animal meal': 0,
+                'sewage sludge': 0,
+                'solvents': 0,
+                'SRF (wet)': 0,
+                'MBM (wet)': 0,
+                'glycerin': 0,
+            },      
+
+            # COMPOSITION 5: Experimental Climate Neutral Plant: https://www.heidelbergmaterials.com/en/pr-01-10-2021
+            # TODO is composition based on mass/volume or energy?
+            'C5': {
+                'coal': 0,
+                'natural gas': 0,
+                'hydrogen': 0.39,
+                'pet coke': 0,
+                'alt fuel (IEAGHG mix)': 0,
+                'animal meal': 0,
+                'sewage sludge': 0,
+                'solvents': 0,
+                'SRF (wet)': 0,
+                'MBM (wet)': 0.12,
+                'glycerin': 0.49,
+            }
+
+        }
+
+        
+    
+
+        #\ NOTE converting NG and hydrogen from volume to energy basis --> CHECK THIS OR FIND DIFFERENT SOURCE
+        from sympy import symbols, Eq, solve
+        # x = energy fraction of natural gas
+        # y = energy fraction of hydrogen gas
+        x, y = symbols('x y')
+
+        # densities and specific energies for the fuels
+        rho_ng = 0.717 # kg/m^3 https://www.cs.mcgill.ca/~rwest/wikispeedia/wpcd/wp/n/Natural_gas.htm
+        rho_h2 = 0.08376 # kg/m^3 https://www1.eere.energy.gov/hydrogenandfuelcells/tech_validation/pdfs/fcm01r0.pdf
+        e_ng = lhv['natural gas']
+        e_h2 = lhv['hydrogen']
+
+        # equations
+        eq1 = Eq(x + y, 0.5)
+        eq2 = Eq(x / (rho_ng * e_ng) - 10 * y / (rho_h2 * e_h2), 0)
+
+        solution = solve((eq1, eq2), (x, y))
+        
+        fuel_comp['C4']['natural gas'] = float(solution[x])
+        fuel_comp['C4']['hydrogen'] = float(solution[y])
+
+        print(plant_cfg['Fuel Mixture'])
+
+        
+        #/
+
+        frac = fuel_comp[plant_cfg['Fuel Mixture']]
+
         if sum(frac.values()) != 1:
             raise Exception("Fuel composition fractions must add up to 1")
         
-        feed_consumption = {
-            'coal': thermal_energy * frac['coal'] / lhv['coal'] * plant_cfg['Clinker-to-cement ratio'] * 1e3, # kg coal/ton cem
-            'natural gas': thermal_energy * frac['natural gas'] / lhv['natural gas'] * plant_cfg['Clinker-to-cement ratio'] * 1e3,
-            'hydrogen': thermal_energy * frac['hydrogen'] / lhv['hydrogen'] * plant_cfg['Clinker-to-cement ratio'] * 1e3,
-            'pet coke': thermal_energy * frac['pet coke'] / lhv['pet coke'] * plant_cfg['Clinker-to-cement ratio'] * 1e3,
-            'alt fuel': thermal_energy * frac['alt fuel'] / lhv['alt fuel'] * plant_cfg['Clinker-to-cement ratio'] * 1e3,
-            # TODO might want to search for better values (these are from IEAGHG)
-        } 
+
+        # create feed consumption rates dict
+        feed_consumption = dict()
+        for key in frac.keys():
+            if key not in lhv.keys():
+                print(key)
+                feed_consumption[key] = 1 # TODO change this if know specific feed consumptions for meal, water, etc
+            else:
+                feed_consumption[key] = thermal_energy * frac[key] / lhv[key] * plant_cfg['Clinker-to-cement ratio'] * 1e3 # kg feed/ton cement
+                print(feed_consumption[key])
+        # overwrite IEAGHG mix value (since cost data assumes consumption ratio of 1)
+        feed_consumption['alt fuel (IEAGHG mix)'] = 1
+        
+        # add consumption ratios for raw meal, process water and misc
+        for key in ('raw meal', 'process water', 'misc'):
+            feed_consumption[key] = 1
+
+        # add electricity 
+        feed_consumption['electricity'] = electrical_energy
 
         # TODO pass in LCOH
         lcoh = 1
 
-        # 2.81 $/MMBtu
-        feed_cost = {
+        feed_cost = { # NOTE 0 means not implemented
             # Fuels
             'coal': 3e-3 * lhv['coal'], # €/GJ coal --> €/kg coal
             'natural gas': 6e-3 * lhv['natural gas'], # €/kg ng
             'hydrogen': lcoh, # TODO want in $/kg
             'pet coke': self.btu_to_j(1, 2.81) * lhv['pet coke'],  # $/MMBtu --> $/MJ --> $/kg coke
-            'alt fuel': 1, # €/ton cement
-        
+            'alt fuel (IEAGHG mix)': 1, # €/ton cement
+            'animal meal': 0,
+            'sewage sludge': 0,
+            'solvents': 0,
+            'SRF (wet)': 0,
+            'MBM (wet)': 0,
+            'glycerin': (2812 + 2955) / 2 / 1e6, # https://www.procurementresource.com/resource-center/glycerin-price-trends#:~:text=In%20North%20America%2C%20the%20price,USD%2FMT%20in%20March%202022.
             # Raw materials
-            # TODO replace with unit costs for each material, not sure if this is necissary though
             'raw meal': 5 * plant_cfg['Clinker-to-cement ratio'], # €/ton cement 
             'process water': 0.014, # €/ton cement
             'misc': 0.8, # €/ton cement
+
+            # TODO add oxygen & others required for CSS
         }
+
+
 
         # Electricity
         
@@ -303,8 +449,8 @@ class ConcretePlant:
         elec_price *= 1e-3 # $/kWh
 
         # TODO pass in as configurations
-        if configurations['Renewable electricity']:
-            elec_price = 0
+        # if configurations['Renewable electricity']:
+        #     elec_price = 0
         
         feed_cost['electricity'] = elec_price
 
@@ -314,10 +460,19 @@ class ConcretePlant:
         # ///////////// unit conversions //////////// € --> $ 
 
         for key, value in feed_cost.items():
-            if key == 'electricity' or key == 'pet coke': # these have already been converted
+            if key == 'electricity' or key == 'pet coke' or value is None: # these have already been converted
                 continue 
             feed_cost[key] = self.eur_to_usd(1, value)
         
+        # add units
+        feed_units = dict()
+        for key, value in feed_consumption.items():
+            if key == 'electricity':
+                feed_units[key] = 'kWh'
+            elif value == 1:
+                feed_units[key] = 'units'
+            else:
+                feed_units[key] = 'kg'
     
         # //////////////// fixed //////////////
         ## fixed ($/year)
@@ -331,6 +486,8 @@ class ConcretePlant:
         admin_support = 0.3 * (operational_labor + maintenance_labor) 
         #/
         
+        if not ((len(feed_cost) and len(feed_consumption)) and (len(feed_cost) and len(feed_units))):
+            raise Exception('check length of dicts')
         # ----------------------------- Emissions/LCA --------------------------
         '''
         ## fuels
@@ -346,23 +503,52 @@ class ConcretePlant:
         ## raw materials and waste products?
 
         '''
-        
-
-        #\ source: Emission factors for fuel
-        # ef = emission factor
+    
         ef = {
-            'pet coke': 106976,
-            'natural gas': 59413,
-            'coal': 89920,
-            'waste': 145882,
-            'tire': 60876,
-            'solvent': 72298,
+            #\ source: Emission factors for fuel
+            # ef = emission factor (g/MMBtu --> g/MJ; from the above source)
+            'coal': self.btu_to_j(1, 89920),
+            'natural gas': self.btu_to_j(1, 59413),
+            'hydrogen': None,
+            'pet coke': self.btu_to_j(1, 106976),
+            'waste': self.btu_to_j(1, 145882),
+            'tire': self.btu_to_j(1, 60876),
+            'solvent': self.btu_to_j(1, 72298),
+            #/
+
+            #\ source: https://backend.orbit.dtu.dk/ws/portalfiles/portal/161972551/808873_PhD_thesis_Morten_Nedergaard_Pedersen_fil_fra_trykkeri.pdf (table 3-2)
+            # TODO look more into the specifics of these emission reportings
+            '''
+                Carbon-neutral fuels, as defined by the European commission, are essentially biomass 
+                which include agricultural and forestry biomass, biodegradable municipal waste, animal
+                waste, paper waste [20] (Table 3). Certain authors argue that, in fact, burning these
+                carbon-neutral waste can be even regarded as a GHG sink because they would 
+                otherwise decay to form methane which is much a more powerful GHG than CO2[17], 
+                [21]. Waste materials derived from fossil fuels such as solvent, plastics, used 
+                tyres are not regarded as carbon-neutral. However, it is important to note that
+                transferring waste fuels from incineration plants to cement kiln results in a 
+                significant net CO2 reduction because cement kilns are more efficient. Another
+                advantage is that no residues are generated since the ashes are completely 
+                incorporated in clinker [21]
+            '''
+            'SRF (wet)': 9,
+            'MBM (wet)': 0,
+            #/
+
+            #\ https://www.sciencedirect.com/science/article/pii/S1540748910003342#:~:text=Glycerol%20has%20a%20very%20high,gasoline%2C%20respectively%20%5B5%5D.
+            'glycerin':  0.073 * 1e3 / lhv['glycerin'], # g CO2/g glycerol --> g CO2/kg glycerol --> g CO2/MJ glycerol
+            # NOTE this is an incredibly crude estimate -- want to find a better source that is more applicable to cement/concrete
+            #   see section 3.1 for assumptions/measurement setup
+            #/
         }
 
         # convert units
         for key, value in ef.items():
+            if value is None:
+                continue
             ef[key] = self.btu_to_j(1e-6 * 1e3, value) # g/MMBTU --> kg/J
-            
+        
+        #\ source: Emission factors for fuel  
         calcination_emissions = 553 # kg/tonne cem, assuming cli/cement ratio of 0.95 
         #/
 
@@ -487,18 +673,13 @@ class ConcretePlant:
         
         # ------------------------------ Add feedstocks, note the various cost options ------------------------------
         # NOTE feedstocks without consumption data have a usage of 1 (i.e. already in the desired units)
+        for key, value in feed_units.items():
+            pf.add_feedstock(name=key, usage=feed_consumption[key], unit=f'{feed_units[key]} per ton cement',cost=feed_cost[key],escalation=gen_inflation)
+
+        # TODO add these to dictionary
         pf.add_feedstock(name='Maintenance Materials',usage=1.0,unit='Units per ton of cement',cost=maintenance_equip / plant_cfg['Cement Production Rate (annual)'],escalation=gen_inflation)
         pf.add_feedstock(name='Raw materials',usage=1.0,unit='kg per ton cem',cost=feed_cost['raw meal'] * plant_cfg['Clinker-to-cement ratio'],escalation=gen_inflation)
-        pf.add_feedstock(name='coal',usage=feed_consumption['coal'],unit='kg per ton cement',cost=feed_cost['coal'],escalation=gen_inflation)
-        pf.add_feedstock(name='natural gas',usage=feed_consumption['natural gas'],unit='kg per ton cement',cost=feed_cost['natural gas'],escalation=gen_inflation)
-        pf.add_feedstock(name='pet coke',usage=feed_consumption['pet coke'],unit='kg per ton cement',cost=feed_cost['pet coke'],escalation=gen_inflation)
-        pf.add_feedstock(name='hydrogen',usage=feed_consumption['hydrogen'],unit='kg per ton cement',cost=feed_cost['hydrogen'],escalation=gen_inflation)
-        # TODO find cost per MJ for alternative fuel
-        pf.add_feedstock(name='alternative fuel',usage=1,unit='units per ton cem',cost=feed_cost['alt fuel'],escalation=gen_inflation)
-        pf.add_feedstock(name='electricity',usage=electrical_energy,unit='kWh per ton cem',cost=feed_cost['electricity'],escalation=gen_inflation)
-        pf.add_feedstock(name='process water',usage=1,unit='units per ton cem',cost=feed_cost['process water'],escalation=gen_inflation)
-        pf.add_feedstock(name='Misc.',usage=1,unit='units per ton cem',cost=feed_cost['misc'],escalation=gen_inflation)
-
+        
         # ------------------------------ Solve for breakeven price ------------------------------
         solution = pf.solve_price()
 
@@ -510,122 +691,122 @@ class ConcretePlant:
         # TODO update manual cost breakdown
 
         # CAPEX
-        price_breakdown_crushing_plant = price_breakdown.loc[price_breakdown['Name']=='crushing plant','NPV'].tolist()[0]
-        price_breakdown_storage_convey_raw_material = price_breakdown.loc[price_breakdown['Name']=='storage, conveying raw material','NPV'].tolist()[0]  
-        price_breakdown_grinding_plant_raw_meal = price_breakdown.loc[price_breakdown['Name']=='grinding plant, raw meal','NPV'].tolist()[0] 
-        price_breakdown_storage_conveyor_silo = price_breakdown.loc[price_breakdown['Name']=='storage, conveyor, silo','NPV'].tolist()[0]     
-        price_breakdown_kiln_plant = price_breakdown.loc[price_breakdown['Name']=='kiln plant','NPV'].tolist()[0] 
-        price_breakdown_grinding_plant_cli = price_breakdown.loc[price_breakdown['Name']=='grinding plant, clinker','NPV'].tolist()[0] 
-        price_breakdown_silo = price_breakdown.loc[price_breakdown['Name']=='silo','NPV'].tolist()[0] 
-        price_breakdown_packaging_conveyor_loading = price_breakdown.loc[price_breakdown['Name']=='packaging plant, conveyor, loading, storing','NPV'].tolist()[0]  
-        price_breakdown_mill_silo = price_breakdown.loc[price_breakdown['Name']=='coal mill, silo','NPV'].tolist()[0]
-        price_breakdown_installation = price_breakdown.loc[price_breakdown['Name']=='Installation cost','NPV'].tolist()[0]
+        # price_breakdown_crushing_plant = price_breakdown.loc[price_breakdown['Name']=='crushing plant','NPV'].tolist()[0]
+        # price_breakdown_storage_convey_raw_material = price_breakdown.loc[price_breakdown['Name']=='storage, conveying raw material','NPV'].tolist()[0]  
+        # price_breakdown_grinding_plant_raw_meal = price_breakdown.loc[price_breakdown['Name']=='grinding plant, raw meal','NPV'].tolist()[0] 
+        # price_breakdown_storage_conveyor_silo = price_breakdown.loc[price_breakdown['Name']=='storage, conveyor, silo','NPV'].tolist()[0]     
+        # price_breakdown_kiln_plant = price_breakdown.loc[price_breakdown['Name']=='kiln plant','NPV'].tolist()[0] 
+        # price_breakdown_grinding_plant_cli = price_breakdown.loc[price_breakdown['Name']=='grinding plant, clinker','NPV'].tolist()[0] 
+        # price_breakdown_silo = price_breakdown.loc[price_breakdown['Name']=='silo','NPV'].tolist()[0] 
+        # price_breakdown_packaging_conveyor_loading = price_breakdown.loc[price_breakdown['Name']=='packaging plant, conveyor, loading, storing','NPV'].tolist()[0]  
+        # price_breakdown_mill_silo = price_breakdown.loc[price_breakdown['Name']=='coal mill, silo','NPV'].tolist()[0]
+        # price_breakdown_installation = price_breakdown.loc[price_breakdown['Name']=='Installation cost','NPV'].tolist()[0]
     
-        # fixed OPEX
-        price_breakdown_labor_cost_annual = price_breakdown.loc[price_breakdown['Name']=='Annual Operating Labor Cost','NPV'].tolist()[0]  
-        price_breakdown_labor_cost_maintenance = price_breakdown.loc[price_breakdown['Name']=='Maintenance Labor Cost','NPV'].tolist()[0]  
-        price_breakdown_labor_cost_admin_support = price_breakdown.loc[price_breakdown['Name']=='Administrative & Support Labor Cost','NPV'].tolist()[0] 
-        price_breakdown_proptax_ins = price_breakdown.loc[price_breakdown['Name']=='Property tax and insurance','NPV'].tolist()[0]
+        # # fixed OPEX
+        # price_breakdown_labor_cost_annual = price_breakdown.loc[price_breakdown['Name']=='Annual Operating Labor Cost','NPV'].tolist()[0]  
+        # price_breakdown_labor_cost_maintenance = price_breakdown.loc[price_breakdown['Name']=='Maintenance Labor Cost','NPV'].tolist()[0]  
+        # price_breakdown_labor_cost_admin_support = price_breakdown.loc[price_breakdown['Name']=='Administrative & Support Labor Cost','NPV'].tolist()[0] 
+        # price_breakdown_proptax_ins = price_breakdown.loc[price_breakdown['Name']=='Property tax and insurance','NPV'].tolist()[0]
         
-        # variable OPEX
-        price_breakdown_maintenance_materials = price_breakdown.loc[price_breakdown['Name']=='Maintenance Materials','NPV'].tolist()[0]  
-        price_breakdown_water = price_breakdown.loc[price_breakdown['Name']=='process water','NPV'].tolist()[0] 
-        price_breakdown_raw_materials = price_breakdown.loc[price_breakdown['Name']=='Raw materials','NPV'].tolist()[0]
-        price_breakdown_coal = price_breakdown.loc[price_breakdown['Name']=='coal','NPV'].tolist()[0]
-        price_breakdown_alt_fuel = price_breakdown.loc[price_breakdown['Name']=='alternative fuel','NPV'].tolist()[0]
-        price_breakdown_electricity = price_breakdown.loc[price_breakdown['Name']=='electricity','NPV'].tolist()[0]
-        price_breakdown_misc = price_breakdown.loc[price_breakdown['Name']=='Misc.','NPV'].tolist()[0]
-        price_breakdown_taxes = price_breakdown.loc[price_breakdown['Name']=='Income taxes payable','NPV'].tolist()[0]\
-            - price_breakdown.loc[price_breakdown['Name'] == 'Monetized tax losses','NPV'].tolist()[0]\
+        # # variable OPEX
+        # price_breakdown_maintenance_materials = price_breakdown.loc[price_breakdown['Name']=='Maintenance Materials','NPV'].tolist()[0]  
+        # price_breakdown_water = price_breakdown.loc[price_breakdown['Name']=='process water','NPV'].tolist()[0] 
+        # price_breakdown_raw_materials = price_breakdown.loc[price_breakdown['Name']=='Raw materials','NPV'].tolist()[0]
+        # price_breakdown_coal = price_breakdown.loc[price_breakdown['Name']=='coal','NPV'].tolist()[0]
+        # price_breakdown_alt_fuel = price_breakdown.loc[price_breakdown['Name']=='alternative fuel','NPV'].tolist()[0]
+        # price_breakdown_electricity = price_breakdown.loc[price_breakdown['Name']=='electricity','NPV'].tolist()[0]
+        # price_breakdown_misc = price_breakdown.loc[price_breakdown['Name']=='Misc.','NPV'].tolist()[0]
+        # price_breakdown_taxes = price_breakdown.loc[price_breakdown['Name']=='Income taxes payable','NPV'].tolist()[0]\
+        #     - price_breakdown.loc[price_breakdown['Name'] == 'Monetized tax losses','NPV'].tolist()[0]\
 
-        if gen_inflation > 0:
-            price_breakdown_taxes = price_breakdown_taxes + price_breakdown.loc[price_breakdown['Name']=='Capital gains taxes payable','NPV'].tolist()[0]
+        # if gen_inflation > 0:
+        #     price_breakdown_taxes = price_breakdown_taxes + price_breakdown.loc[price_breakdown['Name']=='Capital gains taxes payable','NPV'].tolist()[0]
 
-        # TODO look into (331-342) further -- probably has something to do with the parameters I'm confused about
-        # Calculate financial expense associated with equipment
-        price_breakdown_financial_equipment = price_breakdown.loc[price_breakdown['Name']=='Repayment of debt','NPV'].tolist()[0]\
-            + price_breakdown.loc[price_breakdown['Name']=='Interest expense','NPV'].tolist()[0]\
-            + price_breakdown.loc[price_breakdown['Name']=='Dividends paid','NPV'].tolist()[0]\
-            - price_breakdown.loc[price_breakdown['Name']=='Inflow of debt','NPV'].tolist()[0]\
-            - price_breakdown.loc[price_breakdown['Name']=='Inflow of equity','NPV'].tolist()[0]    
+        # # TODO look into (331-342) further -- probably has something to do with the parameters I'm confused about
+        # # Calculate financial expense associated with equipment
+        # price_breakdown_financial_equipment = price_breakdown.loc[price_breakdown['Name']=='Repayment of debt','NPV'].tolist()[0]\
+        #     + price_breakdown.loc[price_breakdown['Name']=='Interest expense','NPV'].tolist()[0]\
+        #     + price_breakdown.loc[price_breakdown['Name']=='Dividends paid','NPV'].tolist()[0]\
+        #     - price_breakdown.loc[price_breakdown['Name']=='Inflow of debt','NPV'].tolist()[0]\
+        #     - price_breakdown.loc[price_breakdown['Name']=='Inflow of equity','NPV'].tolist()[0]    
             
-        # Calculate remaining financial expenses
-        price_breakdown_financial_remaining = price_breakdown.loc[price_breakdown['Name']=='Non-depreciable assets','NPV'].tolist()[0]\
-            + price_breakdown.loc[price_breakdown['Name']=='Cash on hand reserve','NPV'].tolist()[0]\
-            + price_breakdown.loc[price_breakdown['Name']=='Property tax and insurance','NPV'].tolist()[0]\
-            - price_breakdown.loc[price_breakdown['Name']=='Sale of non-depreciable assets','NPV'].tolist()[0]\
-            - price_breakdown.loc[price_breakdown['Name']=='Cash on hand recovery','NPV'].tolist()[0]
+        # # Calculate remaining financial expenses
+        # price_breakdown_financial_remaining = price_breakdown.loc[price_breakdown['Name']=='Non-depreciable assets','NPV'].tolist()[0]\
+        #     + price_breakdown.loc[price_breakdown['Name']=='Cash on hand reserve','NPV'].tolist()[0]\
+        #     + price_breakdown.loc[price_breakdown['Name']=='Property tax and insurance','NPV'].tolist()[0]\
+        #     - price_breakdown.loc[price_breakdown['Name']=='Sale of non-depreciable assets','NPV'].tolist()[0]\
+        #     - price_breakdown.loc[price_breakdown['Name']=='Cash on hand recovery','NPV'].tolist()[0]
         
-        # list containing all of the prices established above
-        breakdown_prices = [price_breakdown_crushing_plant, 
-                            price_breakdown_storage_convey_raw_material, 
-                            price_breakdown_grinding_plant_raw_meal, 
-                            price_breakdown_storage_conveyor_silo, 
-                            price_breakdown_kiln_plant, 
-                            price_breakdown_grinding_plant_cli, 
-                            price_breakdown_silo, 
-                            price_breakdown_packaging_conveyor_loading, 
-                            price_breakdown_mill_silo, 
-                            price_breakdown_installation, 
-                            price_breakdown_labor_cost_annual, 
-                            price_breakdown_labor_cost_maintenance, 
-                            price_breakdown_labor_cost_admin_support, 
-                            price_breakdown_proptax_ins, 
-                            price_breakdown_maintenance_materials, 
-                            price_breakdown_water, 
-                            price_breakdown_raw_materials, 
-                            price_breakdown_coal, 
-                            price_breakdown_alt_fuel, 
-                            price_breakdown_electricity, 
-                            price_breakdown_misc, 
-                            price_breakdown_taxes, 
-                            price_breakdown_financial_equipment, 
-                            price_breakdown_financial_remaining]
+        # # list containing all of the prices established above
+        # breakdown_prices = [price_breakdown_crushing_plant, 
+        #                     price_breakdown_storage_convey_raw_material, 
+        #                     price_breakdown_grinding_plant_raw_meal, 
+        #                     price_breakdown_storage_conveyor_silo, 
+        #                     price_breakdown_kiln_plant, 
+        #                     price_breakdown_grinding_plant_cli, 
+        #                     price_breakdown_silo, 
+        #                     price_breakdown_packaging_conveyor_loading, 
+        #                     price_breakdown_mill_silo, 
+        #                     price_breakdown_installation, 
+        #                     price_breakdown_labor_cost_annual, 
+        #                     price_breakdown_labor_cost_maintenance, 
+        #                     price_breakdown_labor_cost_admin_support, 
+        #                     price_breakdown_proptax_ins, 
+        #                     price_breakdown_maintenance_materials, 
+        #                     price_breakdown_water, 
+        #                     price_breakdown_raw_materials, 
+        #                     price_breakdown_coal, 
+        #                     price_breakdown_alt_fuel, 
+        #                     price_breakdown_electricity, 
+        #                     price_breakdown_misc, 
+        #                     price_breakdown_taxes, 
+        #                     price_breakdown_financial_equipment, 
+        #                     price_breakdown_financial_remaining]
                     
-        price_breakdown_check = sum(breakdown_prices)
+        # price_breakdown_check = sum(breakdown_prices)
 
        
-        # a neater way to implement is add to price_breakdowns but I am not sure if ProFAST can handle negative costs
-        # TODO above comment might not be an issue, so might not have had to pull out all these values
+        # # a neater way to implement is add to price_breakdowns but I am not sure if ProFAST can handle negative costs
+        # # TODO above comment might not be an issue, so might not have had to pull out all these values
             
-        bos_savings = 0 * (price_breakdown_labor_cost_admin_support) * 0.3 # TODO is this applicable for cement?
+        # bos_savings = 0 * (price_breakdown_labor_cost_admin_support) * 0.3 # TODO is this applicable for cement?
 
-        breakdown_prices.append(price_breakdown_check)
-        breakdown_prices.append(bos_savings) 
+        # breakdown_prices.append(price_breakdown_check)
+        # breakdown_prices.append(bos_savings) 
 
-        breakdown_categories = ['Raw Material Crushing CAPEX',
-                                'Storage, Conveying Raw Material CAPEX',
-                                'Grinding Plant, Raw Meal CAPEX', 
-                                'Storage, Conveyor, Silo CAPEX',
-                                'Kiln Plant CAPEX',
-                                'Grinding Plant, Clinker CAPEX',
-                                'Silo CAPEX',
-                                'Packaging Plant, Conveyor, Loading, Storing CAPEX',
-                                'Mill, Silo CAPEX',
-                                'Installation Cost',
-                                'Annual Operating Labor Cost (including maintenance?)',
-                                'Maintenance Labor Cost (zero at the moment?)',
-                                'Administrative & Support Labor Cost',
-                                'Property tax and insurance',
-                                'Maintenance Materials',
-                                'Process Water',
-                                'Raw Materials',
-                                'coal',
-                                'Alternative Fuel',
-                                'energy', 
-                                'Misc. Variable OPEX',
-                                'Taxes',
-                                'Equipment Financing',
-                                'Remaining Financial',
-                                'Total',
-                                'BOS Savings (?)']
+        # breakdown_categories = ['Raw Material Crushing CAPEX',
+        #                         'Storage, Conveying Raw Material CAPEX',
+        #                         'Grinding Plant, Raw Meal CAPEX', 
+        #                         'Storage, Conveyor, Silo CAPEX',
+        #                         'Kiln Plant CAPEX',
+        #                         'Grinding Plant, Clinker CAPEX',
+        #                         'Silo CAPEX',
+        #                         'Packaging Plant, Conveyor, Loading, Storing CAPEX',
+        #                         'Mill, Silo CAPEX',
+        #                         'Installation Cost',
+        #                         'Annual Operating Labor Cost (including maintenance?)',
+        #                         'Maintenance Labor Cost (zero at the moment?)',
+        #                         'Administrative & Support Labor Cost',
+        #                         'Property tax and insurance',
+        #                         'Maintenance Materials',
+        #                         'Process Water',
+        #                         'Raw Materials',
+        #                         'coal',
+        #                         'Alternative Fuel',
+        #                         'energy', 
+        #                         'Misc. Variable OPEX',
+        #                         'Taxes',
+        #                         'Equipment Financing',
+        #                         'Remaining Financial',
+        #                         'Total',
+        #                         'BOS Savings (?)']
         
-        if len(breakdown_categories) != len(breakdown_prices):
-            raise Exception("categories and prices lists have to be the same length")
+        # if len(breakdown_categories) != len(breakdown_prices):
+        #     raise Exception("categories and prices lists have to be the same length")
 
-        cement_price_breakdown = dict()
-        for category, price in zip(breakdown_categories, breakdown_prices):
-            cement_price_breakdown[f'cement price: {category} ($/ton)'] = price
+        # cement_price_breakdown = dict()
+        # for category, price in zip(breakdown_categories, breakdown_prices):
+        #     cement_price_breakdown[f'cement price: {category} ($/ton)'] = price
 
         print(f"price breakdown (manual): {solution['price']}")
         print(f"price breakdown (paper): {self.eur_to_usd(1, 50.9)}")
@@ -636,6 +817,8 @@ class ConcretePlant:
         '''
         # TODO what is the point of this line here?
         price_breakdown = price_breakdown.drop(columns=['index','Amount'])
+
+        cement_price_breakdown = dict()
 
         cem_production_actual = plant_cfg['Cement Production Rate (annual)'] * plant_cfg['Plant capacity factor']
         return(solution,summary,price_breakdown,cem_production_actual,cement_price_breakdown,total_capex)
