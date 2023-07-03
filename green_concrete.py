@@ -185,6 +185,8 @@ class ConcretePlant:
             'coal mill, silo': 6.3,
         }
         
+        
+
         total_equip_costs = sum(equip_costs.values())
 
         ### installation
@@ -202,7 +204,9 @@ class ConcretePlant:
         total_capex = tpc + owners_costs + other + interest_during_construction
 
         # ////////// unit conversions ////////////// M€ --> $
-        
+        for key, value in equip_costs.items():
+            equip_costs[key] = self.eur_to_usd(1e6, equip_costs[key])
+            
         civil_steel_erection_other, installed_costs, epc_costs, contigency_fees, tpc, owners_costs, other, \
         interest_during_construction, land_cost, developing_cost, total_capex = \
         self.eur_to_usd(1e6,
@@ -625,7 +629,7 @@ class ConcretePlant:
         # TODO: not sure how these fit into the model given in the paper
         pf.set_params('maintenance',{"value":0,"escalation":gen_inflation})
         pf.set_params('installation months',36) # source: CEMCAP
-        pf.set_params('analysis start year',2013) # is this ok? financials are based on 2013 conversion rates
+        pf.set_params('analysis start year',2022) # is this ok? financials are based on 2013 conversion rates
 
             #\
         pf.set_params('credit card fees',0)
@@ -646,7 +650,7 @@ class ConcretePlant:
 
         pf.set_params('general inflation rate',gen_inflation)
         pf.set_params('leverage after tax nominal discount rate',0.0824) # 0.0824
-        pf.set_params('debt equity ratio of initial financing',1.5) # 1.38
+        pf.set_params('debt equity ratio of initial financing',1.38) # 1.38
         pf.set_params('debt type','Revolving debt')
         pf.set_params('debt interest rate',0.0489) # 0.0489
         pf.set_params('cash onhand percent',1)
@@ -691,6 +695,7 @@ class ConcretePlant:
         # TODO update manual cost breakdown
 
         # CAPEX
+        print(price_breakdown.loc[price_breakdown['Name']=='crushing plant','NPV'].tolist()[0])
         # price_breakdown_crushing_plant = price_breakdown.loc[price_breakdown['Name']=='crushing plant','NPV'].tolist()[0]
         # price_breakdown_storage_convey_raw_material = price_breakdown.loc[price_breakdown['Name']=='storage, conveying raw material','NPV'].tolist()[0]  
         # price_breakdown_grinding_plant_raw_meal = price_breakdown.loc[price_breakdown['Name']=='grinding plant, raw meal','NPV'].tolist()[0] 
