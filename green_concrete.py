@@ -51,13 +51,13 @@ class ConcretePlant:
         
     """
 
-    def __init__(self, css='None', fuel_mix='C1',\
+    def __init__(self, css='None', fuel_mix='C4',\
                  renewable_electricity=False, SCMs=False, atb_year=2035, site_location='IA', cli_production=1e6, \
-                 cli_cem_ratio=73.7e-2, plant_life=25, plant_capacity_factor = 91.3e-2, lcoh=1):
+                 cli_cem_ratio=73.7e-2, plant_life=25, plant_capacity_factor = 91.3e-2):
                  # source of plant_capacity_factor: CEMCAP
         
         self.config = {
-            'CSS': 'None', # None, Oxyfuel, Calcium Looping
+            'CSS': css, # None, Oxyfuel, Calcium Looping
             'Fuel Mixture': fuel_mix, # C1-C5
             'Renewable electricity': renewable_electricity,
             'Using SCMs': False,
@@ -67,6 +67,7 @@ class ConcretePlant:
             'Clinker-to-cement ratio': cli_cem_ratio,
             'Plant lifespan': plant_life,
             'Plant capacity factor': plant_capacity_factor,
+            'Construction time (months)': 36
         }
         
         self.config['Cement Production Rate (annual)'] = self.config['Clinker Production Rate (annual)'] / self.config['Clinker-to-cement ratio']
@@ -76,9 +77,15 @@ class ConcretePlant:
                                     # components in the raw meal
 
 
-        ###\ TODO verify the reliability of these numbers, lots of different ones coming up in the IEAGHG article
-        thermal_energy = 3400e-3 # MJ/kg cli -- might want to fact check this (2010, worldwide, preclaciner/preheater dry kiln)
-        electrical_energy = 108 # kWh/t cement (2010, worldwide)
+        ###\ https://www.sciencedirect.com/science/article/pii/S0306261922005529#b0150
+        if self.config['CSS'] == 'Oxyfuel':
+            thermal_energy = 3.349 # MJ / kg cli
+            electrical_energy = 150 * self.config['Clinker-to-cement ratio'] # kWh/t cem
+            self.config['Construction time (months)'] = 60
+        else:
+            thermal_energy = 3.136 # MJ/kg cli -- might want to fact check this (2010, worldwide, preclaciner/preheater dry kiln)
+            electrical_energy = 108 # kWh/t cement (2010, worldwide)
+        
         ###/
 
         ## Economic specs
@@ -89,6 +96,234 @@ class ConcretePlant:
         self.config['Electrical energy demand (kWh/t cement)'] = electrical_energy
         self.config['Contingencies and fees'] = contingencies_fees
         self.config['Taxation and insurance'] = taxation_insurance
+        
+        self.equip_costs, self.tpc, self.total_capex, self.installed_costs, self.land_cost = self.capex()
+        
+        self.feed_consumption, self.feed_cost, self.feed_units, self.other_opex = self.opex()
+        self.operational_labor, self.maintenance_equip, self.maintenance_labor, self.admin_support = self.other_opex
+
+        # ---------------------------- HOPP Configurations -----------------------
+        
+
+    def eur2013(self, multiplyer, *costs):
+        ''' 
+        Converts monetary values from EUR to USD
+
+        multiplyer argument allows you to account for prefix (ex: M, k)
+
+        works for individual values or an iterable of values
+
+        NOTE: conversion factor is the average from 2013, which was the cost basis
+        year given in the paper
+
+        source: https://www.exchangerates.org.uk/EUR-USD-spot-exchange-rates-history-2013.html
+    
+        '''
+        conversion_factor = 1.3284 # USD/EUR
+        vals = []
+        for cost in costs:
+            vals.append(cost * conversion_factor * multiplyer)
+        
+        if len(vals) == 1:
+            return vals[0]
+        return vals
+    
+    def eur2014(self, multiplyer, *costs):
+        ''' 
+        Converts monetary values from EUR to USD
+
+        multiplyer argument allows you to account for prefix (ex: M, k)
+
+        works for individual values or an iterable of values
+
+        NOTE: conversion factor is the average from 2014, which was the cost basis
+        year given in the paper
+
+        source: https://www.exchangerates.org.uk/EUR-USD-spot-exchange-rates-history-2014.html
+    
+        '''
+        conversion_factor = 1.3283 # USD/EUR
+        vals = []
+        for cost in costs:
+            vals.append(cost * conversion_factor * multiplyer)
+        
+        if len(vals) == 1:
+            return vals[0]
+        return vals
+
+    def btu_to_j(self, multiplyer, *vals):
+        '''
+        Converts energy values from BTU to J
+
+        multiplyer argment allows you to account for prefix (ex: M, k)
+
+        '''
+
+        vals_j = []
+        for val in vals:
+            vals_j.append(val * 1055.6 * multiplyer)
+
+        if len(vals_j) == 1:
+            return vals_j[0]
+        return vals_j
+            
+    ### TODO decarbonization pathways
+        # CCS 
+        #   calcium looping
+        #   oxyfuel combustion
+        # substituting coal with natural gas
+        #   pure natural gas
+        #   hydrogen fuel mix
+        # energy efficency measures in kiln, etc (this might already be considered with the precalciner/preheater tech)
+        # renewable electricity (link HOPP)
+
+    def capex(self):
+        # section 5.1
+        # NOTE all values in M€
+        # NOTE currently this does not include land property (in particular the quarry), 
+        # emerging emission abatement technology, developing cost (power & water supply)
+
+        config = self.config
+
+        ### Plant Equipment
+        equip_costs = {
+            ## quarry 
+            # TODO
+            ## raw material crushing and prep
+            'crushing plant': 3.5,
+            'storage, conveying raw material': 3.5,
+            'grinding plant, raw meal': 16.8,
+            'storage, conveyor, silo': 2.1,
+            ## pyroprocessing
+            'kiln plant': 11.9,
+            'grinding plant, clinker': 9.8,
+            ## cem production
+            'silo': 9.8,
+            'packaging plant, conveyor, loading, storing': 6.3,
+            ## coal grinding 
+            'coal mill, silo': 6.3,
+        }
+        
+        total_equip_costs = sum(equip_costs.values()) # for use in calculating equipment costs
+
+        ### installation
+        civil_steel_erection_other = 75.5 
+        installed_costs = total_equip_costs + civil_steel_erection_other
+        epc_costs = 10 
+        contigency_fees = installed_costs * config['Contingencies and fees']
+        tpc = installed_costs + epc_costs + contigency_fees
+        # NOTE according to spreadsheet, tpc = 203.75
+        owners_costs = 11.9
+        other = 8.0 # working capital, start-ups, spare parts
+        interest_during_construction = 6.4
+        land_cost = 0 # TODO
+        total_capex = tpc + owners_costs + other + interest_during_construction + land_cost
+
+        # define variables
+        co2_capture_equip_oxy = dict()
+        total_direct_costs_oxy = float()
+        process_contingency_oxy = float()
+        indirect_costs_oxy = float()
+        owners_costs_oxy = float()
+        project_contingencies_oxy = float() 
+        tpc_oxy = float() 
+
+        if self.config['CSS'] == 'Oxyfuel':
+            # https://www.mdpi.com/1996-1073/12/3/542#app1-energies-12-00542 -- supplementary materials
+            ''' 
+            NOTES:
+            * EC (equipment cost) + IC (installation cost) = TDC (total direct cost)
+            * cost basis = 2014 EUR 
+            * values coded in are first in kEUR but converted to $
+            * 'false air' = air that has leaked into the flue gas (which ideally would've been 
+            pure water and carbon dioxide)
+            '''
+            ### CAPEX
+            # NOTE these are equipment costs and not direct costs
+            co2_capture_equip_oxy = {
+                # Oxyfuel core process units
+                'OXY: Clinker cooler, kiln hood and sealings (core process)': 2944 + 102 + 160 + 160,
+                'OXY: Fans, compressors and blowers (core process)': 233 + 355 + 74 + 1880,
+                'OXY: Other equipment (core process)': 70 + 441 + 1013 + 19461,
+                # Oxyfuel waste heat recovery system
+                'OXY: Heat exchangers (waste heat recovery)': 33 + 1376 + 77 + 198 + 45 + 79 + 781 + 520 + 24 + 337,
+                'OXY: Tanks and vessels (waste heat recovery)': 800,
+                'OXY: Electric generators (waste heat recovery)': 3984,
+                'OXY: Pumps (waste heat recovery)': 156,
+                # CO2 Purification unit (CPU)
+                'OXY: Fans, compressors and expanders (CPU)': 17369 + 2572 + 696,
+                'OXY: Tanks and vessels (CPU)': 252 + 179 + 117 + 118 + 99,
+                'OXY: Heat exchangers (CPU)': 37 + 31 * 3 + 30 + 75 + 849,
+                'OXY: Pumps (CPU)': 351,
+                'OXY: Other equipment (CPU)': 112,
+                'OXY: Cooling tower (CPU)': 588,
+            }
+
+            total_direct_costs_oxy = 71595 # sum of the direct costs column in supplementary materials
+            process_contingency_oxy = total_direct_costs_oxy * (0.3 + 0.12)
+            indirect_costs_oxy = total_direct_costs_oxy * 0.14
+            owners_costs_oxy = total_direct_costs_oxy * 0.07
+            project_contingencies_oxy = total_direct_costs_oxy * 0.15
+            tpc_oxy = total_direct_costs_oxy + process_contingency_oxy + indirect_costs_oxy \
+                + owners_costs_oxy + project_contingencies_oxy
+
+        # ////////// unit conversions ////////////// € --> $
+        for key, value in equip_costs.items():
+            equip_costs[key] = self.eur2013(1e6, equip_costs[key])
+        
+        for key, value in co2_capture_equip_oxy.items():
+            co2_capture_equip_oxy[key] = self.eur2014(1e3, value)
+        tpc, total_capex, installed_costs, land_cost = self.eur2013(1e6, tpc, total_capex, installed_costs, land_cost)
+        tpc_oxy, total_direct_costs_oxy = self.eur2014(1e3, tpc_oxy, total_direct_costs_oxy) 
+        
+
+        # update reference plant CAPEX TODO only considering tpc and equipment for now
+        equip_costs.update(co2_capture_equip_oxy)
+        tpc += tpc_oxy
+        total_capex += tpc_oxy
+        installed_costs += total_direct_costs_oxy
+
+        return equip_costs, tpc, total_capex, installed_costs, land_cost 
+
+    def opex(self): # includes alternate fuel mixtures
+        config = self.config
+      
+        # ///////////// FEEDSTOCKS /////////////
+        lhv = {
+            ###\ Source: Fuel LHV values; Canada paper (see below) for volume based LHVs
+            'coal': 26.122, # MJ/kg, ASSUMING "bituminous coal (wet basis)"
+            'natural gas': 47.141, # MJ/kg
+            'hydrogen': 120.21, # MJ/kg
+            'pet coke': 29.505, # MJ/kg 
+            ###/
+
+            ###\ "european alternative fuel input" -- IEAGHG
+            'animal meal': 18, # MJ/kg
+            'sewage sludge': 4, # MJ/kg (wide range exists, including heating value for the dry substance...)
+                # https://www.sludge2energy.de/sewage-sludge/calorific-value-energy-content/#:~:text=The%20dry%20substance%2Dbased%20(DS,planning%20a%20sludge2energy%20plant%20concept.
+            'pretreated domestic wastes': 16, # MJ/kg
+            'pretreated industrial wastes': (18 + 23) / 2, # MJ/kg (given as range)
+            'tires': 28, # MJ/kg # TODO this might be too conservative
+            'solvents': (23 + 29) / 2, # MJ/kg (given as range)
+            ###/
+
+            ###\ https://backend.orbit.dtu.dk/ws/portalfiles/portal/161972551/808873_PhD_thesis_Morten_Nedergaard_Pedersen_fil_fra_trykkeri.pdf, table 3-4
+            'SRF (wet)': 23.2 * (1 - 0.167), # MJ/kg as recieved, Solid Recovered Fuel or Refused Derived Fuel (RDF)
+            'MBM (wet)': 19.4 * (1 - 0.04), # MJ/kg as recieved, Meat and Bone Meal
+            ###/
+
+            ###\ https://www.researchgate.net/publication/270899362_Glycerol_Production_consumption_prices_characterization_and_new_trends_in_combustion
+            'glycerin': 16 # MJ/kg NOTE this value might depend on the production of GLYCEROL, which makes up 95% of glycerin
+            ###/
+        }
+
+        ###\ TODO is this even necissary?
+        # can change this by altering the compositions of each fuel below, or by introducing new alternative fuels
+        alt_fuel_lhv = 0.194 * lhv['tires'] + 0.117 * lhv['solvents'] + 0.12 * lhv['pretreated domestic wastes'] \
+        + 0.569 * lhv['pretreated industrial wastes'] # multiplying by each fuel's composition, MJ/kg 
+        
+        lhv['alt fuel (IEAGHG mix)'] = alt_fuel_lhv
+        ###/
 
         # fuel compositions (percent thermal input) -- must add up to 1
 
@@ -178,7 +413,6 @@ class ConcretePlant:
             },
         }
 
-    
         ###\ NOTE converting NG and hydrogen from volume to energy basis --> CHECK THIS OR FIND DIFFERENT SOURCE
         from sympy import symbols, Eq, solve
         # x = energy fraction of natural gas
@@ -201,156 +435,7 @@ class ConcretePlant:
         fuel_comp['C4']['hydrogen'] = float(solution[y])
         ###/
 
-        self.fuel_frac = fuel_comp[self.config['Fuel Mixture']]
-
-
-        # ---------------------------- HOPP Configurations -----------------------
-        
-
-    def eur_to_usd(self, multiplyer, *costs):
-        ''' 
-        Converts monetary values from EUR to USD
-
-        multiplyer argument allows you to account for prefix (ex: M, k)
-
-        works for individual values or an iterable of values
-
-        NOTE: conversion factor is the average from 2014, which was the cost basis
-        year given in the paper
-
-        source: https://www.exchangerates.org.uk/EUR-USD-spot-exchange-rates-history-2013.html
-    
-        '''
-        conversion_factor = 1.3284 # USD/EUR
-        vals = []
-        for cost in costs:
-            vals.append(cost * conversion_factor * multiplyer)
-        
-        if len(vals) == 1:
-            return vals[0]
-        return vals
-
-    def btu_to_j(self, multiplyer, *vals):
-        '''
-        Converts energy values from BTU to J
-
-        multiplyer argment allows you to account for prefix (ex: M, k)
-
-        '''
-
-        vals_j = []
-        for val in vals:
-            vals_j.append(val * 1055.6 * multiplyer)
-
-        if len(vals_j) == 1:
-            return vals_j[0]
-        return vals_j
-            
-    ### TODO decarbonization pathways
-        # CCS 
-        #   calcium looping
-        #   oxyfuel combustion
-        # substituting coal with natural gas
-        #   pure natural gas
-        #   hydrogen fuel mix
-        # energy efficency measures in kiln, etc (this might already be considered with the precalciner/preheater tech)
-        # renewable electricity (link HOPP)
-
-    def capex(self):
-        # section 5.1
-        # NOTE all values in M€
-        # NOTE currently this does not include land property (in particular the quarry), 
-        # emerging emission abatement technology, developing cost (power & water supply)
-
-        config = self.config
-
-        ### Plant Equipment
-        equip_costs = {
-            ## quarry 
-            # TODO
-            ## raw material crushing and prep
-            'crushing plant': 3.5,
-            'storage, conveying raw material': 3.5,
-            'grinding plant, raw meal': 16.8,
-            'storage, conveyor, silo': 2.1,
-            ## pyroprocessing
-            'kiln plant': 11.9,
-            'grinding plant, clinker': 9.8,
-            ## cem production
-            'silo': 9.8,
-            'packaging plant, conveyor, loading, storing': 6.3,
-            ## coal grinding 
-            'coal mill, silo': 6.3,
-        }
-        
-        total_equip_costs = sum(equip_costs.values()) # for use in calculating equipment costs
-
-        ### installation
-        civil_steel_erection_other = 75.5 
-        installed_costs = total_equip_costs + civil_steel_erection_other
-        epc_costs = 10 
-        contigency_fees = installed_costs * config['Contingencies and fees']
-        tpc = installed_costs + epc_costs + contigency_fees
-        # NOTE according to spreadsheet, tpc = 203.75
-        owners_costs = 11.9
-        other = 8.0 # working capital, start-ups, spare parts
-        interest_during_construction = 6.4
-        land_cost = 0 # TODO
-        developing_cost = 0 # TODO
-        total_capex = tpc + owners_costs + other + interest_during_construction
-
-        # ////////// unit conversions ////////////// M€ --> $
-        for key, value in equip_costs.items():
-            equip_costs[key] = self.eur_to_usd(1e6, equip_costs[key])
-
-        other_capex = \
-        self.eur_to_usd(1e6,
-            civil_steel_erection_other, installed_costs, epc_costs, contigency_fees, tpc, owners_costs, other, \
-        interest_during_construction, land_cost, developing_cost, total_capex) # 
-
-        return equip_costs, other_capex
-
-    def opex(self): # includes alternate fuel mixtures
-        config = self.config
-      
-        # ///////////// FEEDSTOCKS /////////////
-        lhv = {
-            ###\ Source: Fuel LHV values; Canada paper (see below) for volume based LHVs
-            'coal': 26.122, # MJ/kg, ASSUMING "bituminous coal (wet basis)"
-            'natural gas': 47.141, # MJ/kg
-            'hydrogen': 120.21, # MJ/kg
-            'pet coke': 29.505, # MJ/kg 
-            ###/
-
-            ###\ "european alternative fuel input" -- IEAGHG
-            'animal meal': 18, # MJ/kg
-            'sewage sludge': 4, # MJ/kg (wide range exists, including heating value for the dry substance...)
-                # https://www.sludge2energy.de/sewage-sludge/calorific-value-energy-content/#:~:text=The%20dry%20substance%2Dbased%20(DS,planning%20a%20sludge2energy%20plant%20concept.
-            'pretreated domestic wastes': 16, # MJ/kg
-            'pretreated industrial wastes': (18 + 23) / 2, # MJ/kg (given as range)
-            'tires': 28, # MJ/kg # TODO this might be too conservative
-            'solvents': (23 + 29) / 2, # MJ/kg (given as range)
-            ###/
-
-            ###\ https://backend.orbit.dtu.dk/ws/portalfiles/portal/161972551/808873_PhD_thesis_Morten_Nedergaard_Pedersen_fil_fra_trykkeri.pdf, table 3-4
-            'SRF (wet)': 23.2 * (1 - 0.167), # MJ/kg as recieved, Solid Recovered Fuel or Refused Derived Fuel (RDF)
-            'MBM (wet)': 19.4 * (1 - 0.04), # MJ/kg as recieved, Meat and Bone Meal
-            ###/
-
-            ###\ https://www.researchgate.net/publication/270899362_Glycerol_Production_consumption_prices_characterization_and_new_trends_in_combustion
-            'glycerin': 16 # MJ/kg NOTE this value might depend on the production of GLYCEROL, which makes up 95% of glycerin
-            ###/
-        }
-
-        ###\ TODO is this even necissary?
-        # can change this by altering the compositions of each fuel below, or by introducing new alternative fuels
-        alt_fuel_lhv = 0.194 * lhv['tires'] + 0.117 * lhv['solvents'] + 0.12 * lhv['pretreated domestic wastes'] \
-        + 0.569 * lhv['pretreated industrial wastes'] # multiplying by each fuel's composition, MJ/kg 
-        
-        lhv['alt fuel (IEAGHG mix)'] = alt_fuel_lhv
-        ###/
-
-        fuel_frac = self.fuel_frac
+        fuel_frac = fuel_comp[config['Fuel Mixture']]
 
         if sum(fuel_frac.values()) != 1:
             raise Exception("Fuel composition fractions must add up to 1")
@@ -365,17 +450,27 @@ class ConcretePlant:
         # overwrite IEAGHG mix value (since cost data assumes consumption ratio of 1)
         feed_consumption['alt fuel (IEAGHG mix)'] = 1
         
-        # add consumption ratios for raw meal, process water and misc
-        for key in ('raw meal', 'process water', 'misc'):
-            feed_consumption[key] = 1
+        # add additional feeds 
+        feed_consumption.update({
+            'raw meal': 1,
+            'process water': 1,
+            'misc': 1,
+        })
 
+        if self.config['CSS'] == 'Oxyfuel':
+            feed_consumption['oxygen'] = 191 * self.config['Clinker-to-cement ratio'] # Nm^3/t cement (NOTE Nm^3 = "normal cubic meter")
+            feed_consumption['cooling water make-up'] = 1
+        else:
+            feed_consumption['oxygen'] = 0
+            feed_consumption['cooling water make-up'] = 0
+            
         # add electricity 
         feed_consumption['electricity'] = config['Electrical energy demand (kWh/t cement)']
 
         # TODO pass in LCOH
         lcoh = 1
 
-        feed_cost = { # NOTE 0 means not implemented
+        feed_cost = {
             # Fuels
             'coal': 3e-3 * lhv['coal'], # €/GJ coal --> €/kg coal
             'natural gas': 6e-3 * lhv['natural gas'], # €/kg ng
@@ -392,8 +487,8 @@ class ConcretePlant:
             'raw meal': 5 * config['Clinker-to-cement ratio'], # €/ton cement 
             'process water': 0.014, # €/ton cement
             'misc': 0.8, # €/ton cement
-
-            # TODO add oxygen & others required for CSS
+            'oxygen': 0, # ASSUMPTION
+            'cooling water make-up': 0.3, # €/ton cement
         }
 
 
@@ -428,26 +523,38 @@ class ConcretePlant:
         for key, value in feed_cost.items():
             if key == 'electricity' or key == 'pet coke' or value is None: # these have already been converted
                 continue 
-            feed_cost[key] = self.eur_to_usd(1, value)
+            feed_cost[key] = self.eur2013(1, value)
         
         # add units
-        feed_units = dict()
-        for key, value in feed_consumption.items():
-            if key == 'electricity':
-                feed_units[key] = 'kWh'
-            elif value == 1:
-                feed_units[key] = 'units'
-            else:
-                feed_units[key] = 'kg'
-    
+        feed_units = {
+        # Fuels
+            'coal': 'kg',
+            'natural gas': 'kg',
+            'hydrogen': 'kg', # TODO is this right?
+            'pet coke': 'kg',
+            'alt fuel (IEAGHG mix)': 'units',
+            'animal meal': 'n/a',
+            'sewage sludge': 'n/a',
+            'solvents': 'n/a',
+            'SRF (wet)': 'n/a',
+            'MBM (wet)': 'n/a',
+            'glycerin': 'kg',
+            # Raw materials
+            'raw meal': 'units', 
+            'process water': 'units',
+            'misc': 'units',
+            'oxygen': 'Nm^3', # TODO might want to change this
+            'cooling water make-up': 'units',
+        }
+
         # //////////////// fixed //////////////
         ## fixed ($/year)
         
         ###\ CEMCAP spreadsheet
         num_workers = 100
-        cost_per_worker = 60 # k€/person/year
-        operational_labor = self.eur_to_usd(1e3, num_workers * cost_per_worker) # k€ --> $
-        maintenance_equip = self.eur_to_usd(1e6, 5.09) # M€ --> $
+        cost_per_worker = 60 # kEUR/worker/year
+        operational_labor = self.eur2013(1e3, num_workers * cost_per_worker) # k€ --> $
+        maintenance_equip = self.eur2013(1e6, 5.09) # M€ --> $
         maintenance_labor = 0.4 * maintenance_equip # $
         admin_support = 0.3 * (operational_labor + maintenance_labor) 
         ###/
@@ -455,6 +562,11 @@ class ConcretePlant:
         other_opex = [operational_labor, maintenance_equip, maintenance_labor, admin_support]
         return feed_consumption, feed_cost, feed_units, other_opex
     
+    
+        
+
+
+
     def lca(self):
         
         # ----------------------------- Emissions/LCA --------------------------
@@ -529,7 +641,12 @@ class ConcretePlant:
 
         # TODO quantify the impact of quarrying, raw materials, etc on emissions
 
-    def run_profast_for_cement(self):
+    def run_profast_for_cement(
+        self,
+        hopp_dict=None,
+        lcoh=6.79, 
+        hydrogen_annual_production=1e20,  # default value, ensures there is always plenty of hydrogen  
+    ):
         """
         Performs a techno-economic analysis on a BAT cement plant
 
@@ -543,19 +660,34 @@ class ConcretePlant:
             * Emission Factors for fuel (https://www.sciencedirect.com/science/article/pii/S0959652622014445)
             * Emission factors for electricity (https://emissionsindex.org/)
         """
+        print(self.feed_consumption['hydrogen'])
+        if hopp_dict is not None and hopp_dict.save_model_input_yaml:
+            input_dict = { # TODO make sure this is in the right format
+                'levelized_cost_hydrogen': lcoh,
+                'hydrogen_annual_production': hydrogen_annual_production,
+                'configuration dictionary': self.config,
+                'atb_year': self.config['ATB year'],
+                'site_name': self.config['site location'],
+            }
 
-        ## Plant specs, see __init__()
-        config = self.config
+            hopp_dict.add('Models', {'steel_LCOS': {'input_dict': input_dict}})
 
-        equip_costs, other_capex = self.capex()
-        civil_steel_erection_other, installed_costs, epc_costs, contigency_fees, tpc, owners_costs, other, \
-        interest_during_construction, land_cost, developing_cost, total_capex = other_capex
-
-        feed_consumption, feed_cost, feed_units, other_opex = self.opex()
-        operational_labor, maintenance_equip, maintenance_labor, admin_support = other_opex
-
+        # TODO is this necissary?
+        if self.feed_consumption['hydrogen']  != 0:
+            # determine if hydrogen is limiting the production of cement, and the resulting plant capacity
+            max_cement_production_capacity_mtpy = min(self.config['Cement Production Rate (annual)'] / self.config['Plant capacity factor'], \
+                                                  hydrogen_annual_production / self.feed_consumption['hydrogen'])
+           
+            print(self.config['Cement Production Rate (annual)']/self.config['Plant capacity factor'])
+        else:
+            max_cement_production_capacity_mtpy = self.config['Cement Production Rate (annual)'] # ton/year
+        
+        # TODO cleaner way to do this?
+        self.feed_cost['hydrogen'] = lcoh
+        print(f'cost of hydrogen: {self.feed_cost["hydrogen"]}')
+       
         # ------------------------- Carbon Capture Options -------------------------
-        # //////////// Oxyfuel Combustion ////////////////
+        
 
         # //////////// Calcium Looping ///////////////
 
@@ -616,15 +748,15 @@ class ConcretePlant:
         
         gen_inflation = 0.00
         pf.set_params('commodity',{"name":'Cement',"unit":"metric tonnes (t)","initial price":1000,"escalation":gen_inflation})
-        pf.set_params('capacity',config['Cement Production Rate (annual)'] / 365) # convert from ton/yr --> ton/day
-        pf.set_params('operating life',config['Plant lifespan'])
-        pf.set_params('installation cost',{"value": installed_costs,"depr type":"Straight line","depr period":4,"depreciable":False})
-        pf.set_params('non depr assets', land_cost) 
-        pf.set_params('long term utilization',config['Plant capacity factor'])
+        pf.set_params('capacity',max_cement_production_capacity_mtpy / 365) # convert from ton/yr --> ton/day
+        pf.set_params('operating life',self.config['Plant lifespan'])
+        pf.set_params('installation cost',{"value": self.installed_costs,"depr type":"Straight line","depr period":4,"depreciable":False})
+        pf.set_params('non depr assets', self.land_cost) 
+        pf.set_params('long term utilization',self.config['Plant capacity factor'])
         
         # TODO: not sure how these fit into the model given in the paper
         pf.set_params('maintenance',{"value":0,"escalation":gen_inflation})
-        pf.set_params('installation months',36) # source: CEMCAP
+        pf.set_params('installation months', self.config['Construction time (months)']) # source: CEMCAP
         pf.set_params('analysis start year',2022) # is this ok? financials are based on 2013 conversion rates
 
             ###\
@@ -651,14 +783,14 @@ class ConcretePlant:
         pf.set_params('debt interest rate',0.0489) # 0.0489
         pf.set_params('cash onhand percent',1)
         pf.set_params('admin expense percent',0)
-        pf.set_params('end of proj sale non depr assets',land_cost*(1+gen_inflation)**config['Plant lifespan'])
+        pf.set_params('end of proj sale non depr assets',self.land_cost*(1+gen_inflation)**self.config['Plant lifespan'])
         pf.set_params('demand rampup',5.3) # 5.3
         pf.set_params('license and permit',{'value':00,'escalation':gen_inflation})
 
         # ------------------------------ Add capital items to ProFAST ------------------------------
         # NOTE: these are all converted to USD
         # NOTE: did not change the last three arguments
-        for key, value in equip_costs.items():
+        for key, value in self.equip_costs.items():
             pf.add_capital_item(name=key,cost=value,depr_type="MACRS",depr_period=7,refurb=[0.5]) # assuming same depreciation type, period, whatever refurb is
         # ?depr_type, depr_period, refurb???
         
@@ -666,19 +798,19 @@ class ConcretePlant:
         # NOTE: in the document these values were given in EUR/t cem, so I am just going to multiply
         # them by the annual production capacity of the plant (at plant capacity rate)
         # NOTE: operating labor cost includes maintenance labor cost, according to the paper
-        pf.add_fixed_cost(name="Annual Operating Labor Cost",usage=1,unit='$/year', cost=operational_labor,escalation=gen_inflation)
-        pf.add_fixed_cost(name="Maintenance Labor Cost",usage=1,unit='$/year', cost=maintenance_labor,escalation=gen_inflation)
-        pf.add_fixed_cost(name="Administrative & Support Labor Cost",usage=1,unit='$/year', cost=admin_support,escalation=gen_inflation)
-        pf.add_fixed_cost(name="Property tax and insurance",usage=1,unit='$/year', cost=config['Taxation and insurance'] * tpc,escalation=0.0) 
+        pf.add_fixed_cost(name="Annual Operating Labor Cost",usage=1,unit='$/year', cost=self.operational_labor,escalation=gen_inflation)
+        pf.add_fixed_cost(name="Maintenance Labor Cost",usage=1,unit='$/year', cost=self.maintenance_labor,escalation=gen_inflation)
+        pf.add_fixed_cost(name="Administrative & Support Labor Cost",usage=1,unit='$/year', cost=self.admin_support,escalation=gen_inflation)
+        pf.add_fixed_cost(name="Property tax and insurance",usage=1,unit='$/year', cost=self.config['Taxation and insurance'] * self.tpc,escalation=0.0) 
         
         # ------------------------------ Add feedstocks, note the various cost options ------------------------------
         # NOTE feedstocks without consumption data have a usage of 1 (i.e. already in the desired units)
-        for key, value in feed_units.items():
-            pf.add_feedstock(name=key, usage=feed_consumption[key], unit=f'{feed_units[key]} per ton cement',cost=feed_cost[key],escalation=gen_inflation)
+        for key, value in self.feed_units.items():
+            pf.add_feedstock(name=key, usage=self.feed_consumption[key], unit=f'{self.feed_units[key]} per ton cement',cost=self.feed_cost[key],escalation=gen_inflation)
 
         # TODO add these to dictionary
-        pf.add_feedstock(name='Maintenance Materials',usage=1.0,unit='Units per ton of cement',cost=maintenance_equip / config['Cement Production Rate (annual)'],escalation=gen_inflation)
-        pf.add_feedstock(name='Raw materials',usage=1.0,unit='kg per ton cem',cost=feed_cost['raw meal'] * config['Clinker-to-cement ratio'],escalation=gen_inflation)
+        pf.add_feedstock(name='Maintenance Materials',usage=1.0,unit='Units per ton of cement',cost=self.maintenance_equip / self.config['Cement Production Rate (annual)'],escalation=gen_inflation)
+        pf.add_feedstock(name='Raw materials',usage=1.0,unit='kg per ton cem',cost=self.feed_cost['raw meal'] * self.config['Clinker-to-cement ratio'],escalation=gen_inflation)
         
         # ------------------------------ Solve for breakeven price ------------------------------
         solution = pf.solve_price()
@@ -810,37 +942,136 @@ class ConcretePlant:
         #     cement_price_breakdown[f'cement price: {category} ($/ton)'] = price
 
         print(f"price breakdown (manual): {solution['price']}")
-        print(f"price breakdown (paper): {self.eur_to_usd(1, 50.9)}")
-        print(f"price breakdown (CEMCAP spreadsheet, excluding carbon tax): {self.eur_to_usd(1, 46.02)}")
-        print(f"percent error from CEMCAP: {(solution['price'] - self.eur_to_usd(1, 46.02))/self.eur_to_usd(1, 46.02) * 100}%")
+        print(f"price breakdown (paper): {self.eur2013(1, 50.9)}")
+        print(f"price breakdown (CEMCAP spreadsheet, excluding carbon tax): {self.eur2013(1, 46.02)}")
+        print(f"percent error from CEMCAP: {(solution['price'] - self.eur2013(1, 46.02))/self.eur2013(1, 46.02) * 100}%")
         '''
         possible reasons for the discrepancy from CEMCAP
         '''
         # TODO what is the point of this line here?
         price_breakdown = price_breakdown.drop(columns=['index','Amount'])
 
-        cement_price_breakdown = dict()
+        cement_price_breakdown = dict() # TODO fix the commented code so that includes the new stuff
 
-        cem_production_actual = config['Cement Production Rate (annual)'] * config['Plant capacity factor']
-        return(solution,summary,price_breakdown,cem_production_actual,cement_price_breakdown,total_capex)
+        cement_annual_capacity = self.config['Cement Production Rate (annual)'] * self.config['Plant capacity factor']
+        
+        # return(solution,summary,price_breakdown,cement_annual_capacity,cement_price_breakdown,total_capex)
+
+        # steel_economics_from_profast,
+        # steel_economics_summary,
+        # profast_steel_price_breakdown,
+        # steel_annual_capacity,
+        # steel_price_breakdown,
+        # steel_plant_capex
+ 
+        cement_breakeven_price = solution.get('price')
+
+        # Calculate margin of what is possible given hydrogen production and actual steel demand
+        #steel_production_capacity_margin_mtpy = hydrogen_annual_production/1000/hydrogen_consumption_for_steel - steel_annual_capacity
+        cement_production_capacity_margin_pc = (hydrogen_annual_production / 1000 / self.feed_consumption['hydrogen'] - cement_annual_capacity) \
+                                                / cement_annual_capacity * 100
+
+
+        if hopp_dict is not None and hopp_dict.save_model_output_yaml:
+            output_dict = {
+                'steel_economics_from_profast': solution,
+                'steel_economics_summary': summary,
+                'steel_breakeven_price': cement_breakeven_price,
+                'steel_annual_capacity': cement_annual_capacity,
+                'steel_price_breakdown': cement_price_breakdown,
+                'steel_plant_capex': self.total_capex,
+            }
+
+            hopp_dict.add('Models', {'steel_LCOS': {'output_dict': output_dict}})
+
+
+        ###\ write files (for testing)
+        path = Path('C:\\Users\\esharafu\\Documents\\cement_econ.csv')
+        thing = pd.DataFrame(cement_price_breakdown,index=[0]).transpose()
+        thing.to_csv(path)
+
+        path = Path('C:\\Users\\esharafu\\Documents\\profast_breakdown.csv')
+        thing = pd.DataFrame(price_breakdown)
+        thing.to_csv(path)
+        ###/
+
+        return hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
+            cement_annual_capacity, cement_production_capacity_margin_pc, cement_price_breakdown
 
 
 if __name__ == '__main__':
-    plant = ConcretePlant()
-    (solution, summary, price_breakdown, cem_production_actual, cement_price_breakdown, total_capex) = \
+    plant = ConcretePlant(css='None')
+    hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
+    cement_annual_capacity, cement_production_capacity_margin_pc, cement_price_breakdown = \
     plant.run_profast_for_cement()
 
-    path = Path('C:\\Users\\esharafu\\Documents\\cement_econ.csv')
-    thing = pd.DataFrame(cement_price_breakdown,index=[0]).transpose()
-    thing.to_csv(path)
-
-    path = Path('C:\\Users\\esharafu\\Documents\\profast_breakdown.csv')
-    thing = pd.DataFrame(price_breakdown)
-    thing.to_csv(path)
 
 
 
+def __oxy_combustion_css(self): # TODO currently implementing this into __init__()
+        # //////////// Oxyfuel Combustion ////////////////
+        # https://www.mdpi.com/1996-1073/12/3/542#app1-energies-12-00542 -- supplementary materials
+        ''' 
+        NOTES:
+        * EC (equipment cost) + IC (installation cost) = TDC (total direct cost)
+        * cost basis = 2014 EUR 
+        * values coded in are first in kEUR but converted to $
+        * 'false air' = air that has leaked into the flue gas (which ideally would've been 
+        pure water and carbon dioxide)
+        '''
+        ### Plant info
+        economic_life = 25 # years (TODO include??)
+        construction_time_oxy = 3 # years
+        discount_rate_oxy = 0.08
+        # TODO where does this fit it?
+            # Allocation of CO2 capture construction costs by year 1 (%) = 40/30/30
+       
+        ### CAPEX
+        # NOTE these are equipment costs and not direct costs
+        co2_capture_equip_oxy = {
+            # Oxyfuel core process units
+            'OXY: Clinker cooler, kiln hood and sealings (core process)': 2944 + 102 + 160 + 160,
+            'OXY: Fans, compressors and blowers (core process)': 233 + 355 + 74 + 1880,
+            'OXY: Other equipment (core process)': 70 + 441 + 1013 + 19461,
+            # Oxyfuel waste heat recovery system
+            'OXY: Heat exchangers (waste heat recovery)': 33 + 1376 + 77 + 198 + 45 + 79 + 781 + 520 + 24 + 337,
+            'OXY: Tanks and vessels (waste heat recovery)': 800,
+            'OXY: Electric generators (waste heat recovery)': 3984,
+            'OXY: Pumps (waste heat recovery)': 156,
+            # CO2 Purification unit (CPU)
+            'OXY: Fans, compressors and expanders (CPU)': 17369 + 2572 + 696,
+            'OXY: Tanks and vessels (CPU)': 252 + 179 + 117 + 118 + 99,
+            'OXY: Heat exchangers (CPU)': 37 + 31 * 3 + 30 + 75 + 849,
+            'OXY: Pumps (CPU)': 351,
+            'OXY: Other equipment (CPU)': 112,
+            'OXY: Cooling tower (CPU)': 588,
+        }
 
+        total_direct_costs_oxy = 71595 # sum of the direct costs column in supplementary materials
+        process_contingency_oxy = total_direct_costs_oxy * (0.3 + 0.12)
+        indirect_costs_oxy = total_direct_costs_oxy * 0.14
+        owners_costs_oxy = total_direct_costs_oxy * 0.07
+        project_contingencies_oxy = total_direct_costs_oxy * 0.15
+
+        tpc_oxy = total_direct_costs_oxy + process_contingency_oxy + indirect_costs_oxy \
+            + owners_costs_oxy + project_contingencies_oxy
+        
+        ### OPEX
+        # Fixed
+        annual_maintenance_cost_oxy = tpc_oxy * 0.025
+        maintenance_labor_oxy = annual_maintenance_cost_oxy * 0.4
+        taxes_insurance_oxy = tpc_oxy * 0.02
+        num_workers_oxy = 20 
+        cost_per_worker_oxy = 60 # k€/person/year
+        operational_labor_oxy = num_workers_oxy * cost_per_worker_oxy 
+        admin_support_oxy = 0.3 * (operational_labor_oxy + maintenance_labor_oxy) 
+
+        # Variable 
+        ###\ https://www.sciencedirect.com/science/article/pii/S0306261922005529#b0150
+        thermal_energy_demand_oxy = 3.349 # MJ / kg cli
+        electricity_demand_oxy = 150 * self.config['Clinker-to-cement ratio'] # kWh/t cem
+        o2_frac_oxy = 191 * self.config['Clinker-to-cement ratio'] # Nm^3/t cement (NOTE Nm^3 = "normal cubic meter")
+        ###/
 
 
 

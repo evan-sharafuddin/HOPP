@@ -336,7 +336,7 @@ def batch_generator_kernel(arg_list):
     ################/
 
     ###############\ ADDED CEMENT HERE
-    if cement_plant.fuel_frac['hydrogen'] != 0:
+    if cement_plant.feed_consumption['hydrogen'] != 0:
         hydrogen_consumption_for_cement = cement_plant.feed_consumption['hydrogen']
     else:
         hydrogen_consumption_for_cement = 0
@@ -964,6 +964,11 @@ def batch_generator_kernel(arg_list):
     
 
     ###############\ TODO ADDED CEMENT HERE
+        # have the correct amount of hydrogen required for cement, all I have to do is
+        # call the run_profast_for_cement function here -- the only thing the rest of HOPP
+        # is doing is gettign that hydrogen, the other stuff is stand alone (until I 
+        # implement electricity, O2, etc)
+
     # Step 7: Calculate break-even cost of steel production without oxygen and heat integration
     lime_unit_cost = site_df['Lime ($/metric tonne)'] + site_df['Lime Transport ($/metric tonne)']
     carbon_unit_cost = site_df['Carbon ($/metric tonne)'] + site_df['Carbon Transport ($/metric tonne)']
@@ -994,6 +999,12 @@ def batch_generator_kernel(arg_list):
                                                                                                             iron_based_catalyst_cost,
                                                                                                             oxygen_cost, 
                                                                                                             atb_year,site_name)
+    
+    # ADDED CEMENT HERE
+    hopp_dict, cement_econ_from_profast, cement_econ_summary, profast_cement_price_breakdown, \
+        cement_breakeven_price, cement_annual_production_mtpy, cement_production_capacity_margin_pc, \
+        cement_price_breakdown = cement_plant.run_profast_for_cement(hopp_dict, lcoh, hydrogen_annual_production)
+    
             
     # Step 7: Write outputs to file
     
@@ -1125,6 +1136,12 @@ def batch_generator_kernel(arg_list):
                             profast_h2_price_breakdown,
                             profast_steel_price_breakdown,
                             profast_ammonia_price_breakdown,
+                            # TODO ADDED CEMENT HERE
+                            # cement_annual_production_mtpy,
+                            # cement_production_capacity_margin_pc,
+                            # cement_breakeven_price,
+                            # cement_price_breakdown,
+                            # cement_breakeven_price,
                             hopp_dict) 
 
     ###################/

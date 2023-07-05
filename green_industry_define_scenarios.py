@@ -34,11 +34,13 @@ import run_RODeO
 import run_profast_for_hydrogen
 import run_profast_for_steel
 
-from green_cement_concrete_run_scenarios import batch_generator_kernel
+from green_industry_run_scenarios import batch_generator_kernel
 from green_concrete import ConcretePlant
 
-###\ Create concrete/cement plant
+###### CONFIGURATIONS FOR CEMENT PLANT GO HERE
 cement_plant = ConcretePlant()
+######
+
 warnings.filterwarnings("ignore")
 sys.path.append('')
 
@@ -89,8 +91,10 @@ save_hybrid_plant_yaml = True # hybrid_plant requires special processing of the 
 save_model_input_yaml = True # saves the inputs for each model/major function
 save_model_output_yaml = True # saves the outputs for each model/major function
 
-# cement production rate (derived from clinker production rate and clinker-to-cement ratio)
-cement_annual_production_rate_target_tpy = cement_plant.configurations['Cement Production Rate (annual)']
+# Target steel production rate. Note that this is the production after taking into account
+# steel plant capacity factor. E.g., if CF is 0.9, divide the number below by 0.9 to get
+# the total steel plant capacity used for economic calculations
+steel_annual_production_rate_target_tpy = 1000000
 
 if __name__ == '__main__':
 #-------------------- Define scenarios to run----------------------------------
@@ -154,14 +158,8 @@ if __name__ == '__main__':
                             arg_list.append([policy, i, atb_year, site_location, electrolysis_scale,run_RODeO_selector,floris,\
                                             grid_connection_scenario,grid_price_scenario,\
                                             direct_coupling,electrolyzer_cost_case,electrolyzer_degradation_power_increase,wind_plant_degradation_power_decrease,\
-                                                cement_annual_production_rate_target_tpy,parent_path,results_dir,fin_sum_dir,energy_profile_dir,price_breakdown_dir,rodeo_output_dir,floris_dir,renewable_cost_path,\
+                                                steel_annual_production_rate_target_tpy,parent_path,results_dir,fin_sum_dir,energy_profile_dir,price_breakdown_dir,rodeo_output_dir,floris_dir,renewable_cost_path,\
                                             save_hybrid_plant_yaml,save_model_input_yaml,save_model_output_yaml,num_pem_stacks,run_solar_param_sweep,electrolyzer_degradation_penalty,\
-                                                pem_control_type,storage_capacity_multiplier,cement_plant])
+                                                pem_control_type,storage_capacity_multiplier, cement_plant])
     for runs in range(len(arg_list)):
         batch_generator_kernel(arg_list[runs])
-    []
-
-# ------------------ Run HOPP-RODeO/PyFAST Framework to get LCOH ---------------            
-    # with Pool(processes=8) as pool:
-    #         pool.map(batch_generator_kernel, arg_list)
-            
