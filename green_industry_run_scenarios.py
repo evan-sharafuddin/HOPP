@@ -38,7 +38,7 @@ import LCA_single_scenario
 import LCA_single_scenario_ProFAST
 from green_steel_ammonia_solar_parametric_sweep import solar_storage_param_sweep
 # from hybrid.PEM_Model_2Push import run_PEM_master
-from green_concrete import ConcretePlant
+from green_concrete.concrete_plant import ConcretePlant
 
 def batch_generator_kernel(arg_list):
 
@@ -369,6 +369,7 @@ def batch_generator_kernel(arg_list):
 
         else:
             # If grid-connected, base capacity off of constant full-power operation (steel/ammonia plant CF is incorporated above)
+            # NOTE for cement I am going to be using grid connected scenario
             cf_estimate = 1
 
         ###########\ ADDED CEMENT HERE
@@ -382,15 +383,21 @@ def batch_generator_kernel(arg_list):
 
         # Electrolyzer power requirement at EOL
         electrolyzer_capacity_EOL_MW = hydrogen_production_capacity_required_kgphr*electrolyzer_energy_kWh_per_kg_estimate_EOL/1000
+        
+        ############\ ADDED CEMENT HERE
+        cement_electricity_consumption_MW = cement_plant.feed_consumption['electricity'] \
+              * cement_plant.config['Cement Production Rate (annual)'] / 8760 / 1000 # kWh/t cement --> MW 
 
         # Size wind plant for providing power to electrolyzer at EOL. Do not size wind plant here to consider wind degradation
         # because we are not actually modeling wind plant degradation; if we size it in here we will have more wind generation
         # than we would in reality becaue the model does not take into account degradation. Wind plant degradation can be factored
         # into capital cost later.
-        n_turbines = int(np.ceil(np.ceil(electrolyzer_capacity_EOL_MW)/turbine_rating))
-        wind_size_mw = n_turbines*turbine_rating
-        wind_size_mw = electrolyzer_capacity_EOL_MW
 
+        ############\ ADDED CEMENT HERE
+        n_turbines = int(np.ceil(np.ceil(electrolyzer_capacity_EOL_MW + cement_electricity_consumption_MW)/turbine_rating))
+        wind_size_mw = n_turbines*turbine_rating
+        # wind_size_mw = electrolyzer_capacity_EOL_MW + cement_electricity_consumption_MW
+        ###############/
         #wind_size_mw = electrolyzer_capacity_EOL_MW*1.08
 
         # # End of life required electrolyzer capacity in MW
@@ -403,6 +410,8 @@ def batch_generator_kernel(arg_list):
         # # into account here (where it will influence amount of electricity available for hydrogen production)
         # wind_size_mw = electrolyzer_capacity_BOL_MW
         # #wind_size_mw = electrolyzer_capacity_EOL_MW*1.08
+    
+    ############\ NOTE IGNORING THIS FOR CEMENT
     else:
         wind_size_mw = nTurbs*turbine_rating
         electrolyzer_capacity_EOL_MW = wind_size_mw
@@ -412,7 +421,7 @@ def batch_generator_kernel(arg_list):
         #     hydrogen_production_capacity_required_kgphr = hydrogen_production_target_kgpy_steel/(8760)
         # else:
         hydrogen_production_capacity_required_kgphr = electrolyzer_capacity_BOL_MW*1000/electrolyzer_energy_kWh_per_kg_estimate_BOL
-
+    ##############/
 
     interconnection_size_mw = wind_size_mw # this makes sense because wind_size_mw captures extra electricity needed by electrolzyer at end of life
     #electrolyzer_size_mw = np.ceil(electrolyzer_capacity_EOL_MW)
@@ -1003,7 +1012,7 @@ def batch_generator_kernel(arg_list):
     # ADDED CEMENT HERE
     hopp_dict, cement_econ_from_profast, cement_econ_summary, profast_cement_price_breakdown, \
         cement_breakeven_price, cement_annual_production_mtpy, cement_production_capacity_margin_pc, \
-        cement_price_breakdown = cement_plant.run_profast_for_cement(hopp_dict, lcoh, hydrogen_annual_production)
+        cement_price_breakdown = cement_plant.run_pf(hopp_dict, lcoh, hydrogen_annual_production)
     
             
     # Step 7: Write outputs to file

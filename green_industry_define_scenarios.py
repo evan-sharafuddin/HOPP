@@ -1,5 +1,6 @@
 import os
 import sys
+import warnings
 from dotenv import load_dotenv
 import pandas as pd
 import numpy as np
@@ -35,7 +36,7 @@ import run_profast_for_hydrogen
 import run_profast_for_steel
 
 from green_industry_run_scenarios import batch_generator_kernel
-from green_concrete import ConcretePlant
+from green_concrete.concrete_plant import ConcretePlant
 
 ###### CONFIGURATIONS FOR CEMENT PLANT GO HERE
 cement_plant = ConcretePlant()
@@ -54,7 +55,11 @@ price_breakdown_dir = parent_path + '/examples/H2_Analysis/Phase1B/ProFAST_price
 floris_dir = parent_path + '/floris_input_files/'
 orbit_path = ('examples/H2_Analysis/OSW_H2_sites_turbines_and_costs.xlsx')
 renewable_cost_path = ('examples/H2_Analysis/green_steel_site_renewable_costs_ATB.xlsx')
+
+# NOTE have not implemented FLORIS for green_concrete
 floris = False # otherwise pySAM
+if floris:
+    warnings.warn("FLORIS isn't implemented to work properly with cement hydrogen...")
 
 # Turn to False to run ProFAST for hydrogen LCOH (ALWAYS FALSE)
 run_RODeO_selector = False
@@ -132,9 +137,9 @@ if __name__ == '__main__':
                           ]
     
     grid_connection_cases = [
-                            'off-grid',
+                            # 'off-grid',
                             # 'grid-only',
-                            #'hybrid-grid'
+                            'hybrid-grid'
                             ]
 
     # adjusts hydrogen storage capacity (see run_scenarios 872)
