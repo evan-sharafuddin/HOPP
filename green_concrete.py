@@ -51,7 +51,7 @@ class ConcretePlant:
         
     """
 
-    def __init__(self, css='None', fuel_mix='C4',\
+    def __init__(self, css='Oxyfuel', fuel_mix='C1',\
                  renewable_electricity=False, SCMs=False, atb_year=2035, site_location='IA', cli_production=1e6, \
                  cli_cem_ratio=73.7e-2, plant_life=25, plant_capacity_factor = 91.3e-2):
                  # source of plant_capacity_factor: CEMCAP
@@ -190,11 +190,11 @@ class ConcretePlant:
 
         # ////////// unit conversions ////////////// € --> $
         for key, value in equip_costs.items():
-            equip_costs[key] = self.eur2013(1e6, value)
+            equip_costs[key] = self.__eur2013(1e6, value)
         for key, value in co2_capture_equip_oxy.items():
-            co2_capture_equip_oxy[key] = self.eur2014(1e3, value)
-        tpc, total_capex, installed_costs, land_cost = self.eur2013(1e6, tpc, total_capex, installed_costs, land_cost)
-        tpc_oxy, total_direct_costs_oxy = self.eur2014(1e3, tpc_oxy, total_direct_costs_oxy) 
+            co2_capture_equip_oxy[key] = self.__eur2014(1e3, value)
+        tpc, total_capex, installed_costs, land_cost = self.__eur2013(1e6, tpc, total_capex, installed_costs, land_cost)
+        tpc_oxy, total_direct_costs_oxy = self.__eur2014(1e3, tpc_oxy, total_direct_costs_oxy) 
         
         if self.config['CSS'] == 'Oxyfuel':
             # update reference plant CAPEX TODO only considering tpc and equipment for now
@@ -395,7 +395,7 @@ class ConcretePlant:
             'coal': 3e-3 * lhv['coal'], # €/GJ coal --> €/kg coal
             'natural gas': 6e-3 * lhv['natural gas'], # €/kg ng
             'hydrogen': lcoh, # TODO want in $/kg
-            'pet coke': self.btu_to_j(1, 2.81) * lhv['pet coke'],  # $/MMBtu --> $/MJ --> $/kg coke
+            'pet coke': self.__btu_to_j(1, 2.81) * lhv['pet coke'],  # $/MMBtu --> $/MJ --> $/kg coke
             'alt fuel (IEAGHG mix)': 1, # €/ton cement
             'animal meal': 0,
             'sewage sludge': 0,
@@ -442,7 +442,7 @@ class ConcretePlant:
         for key, value in feed_cost.items():
             if key == 'electricity' or key == 'pet coke': # these have already been converted
                 continue 
-            feed_cost[key] = self.eur2013(1, value)
+            feed_cost[key] = self.__eur2013(1, value)
         
         # add units
         feed_units = {
@@ -465,6 +465,7 @@ class ConcretePlant:
             'oxygen': 'Nm^3', # TODO might want to change this
             'cooling water make-up': 'units',
             'electricity': 'kWh',
+            'raw meal': 'units',
         }
 
         # //////////////// fixed //////////////
@@ -473,8 +474,8 @@ class ConcretePlant:
         ###\ CEMCAP spreadsheet
         num_workers = 100
         cost_per_worker = 60 # kEUR/worker/year
-        operational_labor = self.eur2013(1e3, num_workers * cost_per_worker) # k€ --> $
-        maintenance_equip = self.eur2013(1e6, 5.09) # M€ --> $
+        operational_labor = self.__eur2013(1e3, num_workers * cost_per_worker) # k€ --> $
+        maintenance_equip = self.__eur2013(1e6, 5.09) # M€ --> $
         maintenance_labor = 0.4 * maintenance_equip # $
         admin_support = 0.3 * (operational_labor + maintenance_labor) 
         ###/
@@ -503,13 +504,13 @@ class ConcretePlant:
         ef = {
             ###\ source: Emission factors for fuel
             # ef = emission factor (g/MMBtu --> g/MJ; from the above source)
-            'coal': self.btu_to_j(1, 89920),
-            'natural gas': self.btu_to_j(1, 59413),
+            'coal': self.__btu_to_j(1, 89920),
+            'natural gas': self.__btu_to_j(1, 59413),
             'hydrogen': None,
-            'pet coke': self.btu_to_j(1, 106976),
-            'waste': self.btu_to_j(1, 145882),
-            'tire': self.btu_to_j(1, 60876),
-            'solvent': self.btu_to_j(1, 72298),
+            'pet coke': self.__btu_to_j(1, 106976),
+            'waste': self.__btu_to_j(1, 145882),
+            'tire': self.__btu_to_j(1, 60876),
+            'solvent': self.__btu_to_j(1, 72298),
             ###/
 
             ###\ source: https://backend.orbit.dtu.dk/ws/portalfiles/portal/161972551/808873_PhD_thesis_Morten_Nedergaard_Pedersen_fil_fra_trykkeri.pdf (table 3-2)
@@ -542,7 +543,7 @@ class ConcretePlant:
         for key, value in ef.items():
             if value is None:
                 continue
-            ef[key] = self.btu_to_j(1e-6 * 1e3, value) # g/MMBTU --> kg/J
+            ef[key] = self.__btu_to_j(1e-6 * 1e3, value) # g/MMBTU --> kg/J
         
         ###\ source: Emission factors for fuel  
         calcination_emissions = 553 # kg/tonne cem, assuming cli/cement ratio of 0.95 
@@ -593,11 +594,6 @@ class ConcretePlant:
                                                   hydrogen_annual_production / self.feed_consumption['hydrogen'])
         else:
             max_cement_production_capacity_mtpy = self.config['Cement Production Rate (annual)'] # ton/year
-         
-        print('checking plant capacity....')
-        print(self.config['Cement Production Rate (annual)'] / self.config['Plant capacity factor'])
-        print(hydrogen_annual_production / self.feed_consumption['hydrogen'])
-        print(f'actual plant capacity: {max_cement_production_capacity_mtpy}')
         
         # TODO cleaner way to do this?
         self.feed_cost['hydrogen'] = lcoh
@@ -723,9 +719,9 @@ class ConcretePlant:
         for key, value in self.feed_units.items():
             pf.add_feedstock(name=key, usage=self.feed_consumption[key], unit=f'{self.feed_units[key]} per ton cement',cost=self.feed_cost[key],escalation=gen_inflation)
 
-        # TODO add these to dictionary
+        # TODO add this to dictionary
         pf.add_feedstock(name='Maintenance Materials',usage=1.0,unit='Units per ton of cement',cost=self.maintenance_equip / self.config['Cement Production Rate (annual)'],escalation=gen_inflation)
-        pf.add_feedstock(name='Raw materials',usage=1.0,unit='kg per ton cem',cost=self.feed_cost['raw meal'] * self.config['Clinker-to-cement ratio'],escalation=gen_inflation)
+
         
         # ------------------------------ Solve for breakeven price ------------------------------
         solution = pf.solve_price()
@@ -748,7 +744,7 @@ class ConcretePlant:
         # price_breakdown_silo = price_breakdown.loc[price_breakdown['Name']=='silo','NPV'].tolist()[0] 
         # price_breakdown_packaging_conveyor_loading = price_breakdown.loc[price_breakdown['Name']=='packaging plant, conveyor, loading, storing','NPV'].tolist()[0]  
         # price_breakdown_mill_silo = price_breakdown.loc[price_breakdown['Name']=='coal mill, silo','NPV'].tolist()[0]
-        # price_breakdown_installation = price_breakdown.loc[price_breakdown['Name']=='Installation cost','NPV'].tolist()[0]
+        # 
     
         # # fixed OPEX
         # price_breakdown_labor_cost_annual = price_breakdown.loc[price_breakdown['Name']=='Annual Operating Labor Cost','NPV'].tolist()[0]  
@@ -856,34 +852,25 @@ class ConcretePlant:
         # for category, price in zip(breakdown_categories, breakdown_prices):
         #     cement_price_breakdown[f'cement price: {category} ($/ton)'] = price
 
-        print(f"price breakdown (manual): {solution['price']}")
-        print(f"price breakdown (paper): {self.eur2013(1, 50.9)}")
-        print(f"price breakdown (CEMCAP spreadsheet, excluding carbon tax): {self.eur2013(1, 46.02)}")
-        print(f"percent error from CEMCAP: {(solution['price'] - self.eur2013(1, 46.02))/self.eur2013(1, 46.02) * 100}%")
+        print(f"price breakdown (ProFAST): {solution['price']}")
+        print(f"price breakdown (paper): {self.__eur2013(1, 50.9)}")
+        print(f"price breakdown (CEMCAP spreadsheet, excluding carbon tax): {self.__eur2013(1, 46.02)}")
+        print(f"percent error from CEMCAP: {(solution['price'] - self.__eur2013(1, 46.02))/self.__eur2013(1, 46.02) * 100}%")
       
         # TODO what is the point of this line here?
         price_breakdown = price_breakdown.drop(columns=['index','Amount'])
 
-        cement_price_breakdown = dict() # TODO fix the commented code so that includes the new stuff
+        price_breakdown_manual = self.__manual_price_breakdown(gen_inflation, price_breakdown)
 
         cement_annual_capacity = self.config['Cement Production Rate (annual)'] * self.config['Plant capacity factor']
-        
-        # return(solution,summary,price_breakdown,cement_annual_capacity,cement_price_breakdown,total_capex)
-
-        # steel_economics_from_profast,
-        # steel_economics_summary,
-        # profast_steel_price_breakdown,
-        # steel_annual_capacity,
-        # steel_price_breakdown,
-        # steel_plant_capex
  
         cement_breakeven_price = solution.get('price')
 
-        # Calculate margin of what is possible given hydrogen production and actual steel demand
-        #steel_production_capacity_margin_mtpy = hydrogen_annual_production/1000/hydrogen_consumption_for_steel - steel_annual_capacity
-        cement_production_capacity_margin_pc = (hydrogen_annual_production / 1000 / self.feed_consumption['hydrogen'] - cement_annual_capacity) \
-                                                / cement_annual_capacity * 100
-
+        # # Calculate margin of what is possible given hydrogen production and actual steel demand
+        # #steel_production_capacity_margin_mtpy = hydrogen_annual_production/1000/hydrogen_consumption_for_steel - steel_annual_capacity
+        # cement_production_capacity_margin_pc = (hydrogen_annual_production / 1000 / self.feed_consumption['hydrogen'] - cement_annual_capacity) \
+        #                                         / cement_annual_capacity * 100
+        cement_production_capacity_margin_pc = 0 # TODO should I implement this?
 
         if hopp_dict is not None and hopp_dict.save_model_output_yaml:
             output_dict = {
@@ -899,9 +886,9 @@ class ConcretePlant:
 
 
         ###\ write files (for testing)
-        # path = Path('C:\\Users\\esharafu\\Documents\\cement_econ.csv')
-        # thing = pd.DataFrame(cement_price_breakdown,index=[0]).transpose()
-        # thing.to_csv(path)
+        path = Path('C:\\Users\\esharafu\\Documents\\cement_econ.csv')
+        thing = pd.DataFrame(price_breakdown_manual,index=[0]).transpose()
+        thing.to_csv(path)
 
         path = Path('C:\\Users\\esharafu\\Documents\\profast_breakdown.csv')
         thing = pd.DataFrame(price_breakdown)
@@ -909,9 +896,95 @@ class ConcretePlant:
         ###/
 
         return hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
-            cement_annual_capacity, cement_production_capacity_margin_pc, cement_price_breakdown
+            cement_annual_capacity, cement_production_capacity_margin_pc, price_breakdown_manual
 
     # ---------- Other Methods ----------
+    def __manual_price_breakdown(self, gen_inflation, price_breakdown):
+
+        price_breakdown_capex = dict()  
+        price_breakdown_feed = dict()
+        
+        # CAPEX
+        for key in self.equip_costs.keys():
+            price_breakdown_capex[key] = price_breakdown.loc[price_breakdown['Name']==key,'NPV'].tolist()[0]
+
+        price_breakdown_installation = price_breakdown.loc[price_breakdown['Name']=='Installation cost','NPV'].tolist()[0]
+    
+        # fixed OPEX
+        price_breakdown_labor_cost_annual = price_breakdown.loc[price_breakdown['Name']=='Annual Operating Labor Cost','NPV'].tolist()[0]  
+        price_breakdown_labor_cost_maintenance = price_breakdown.loc[price_breakdown['Name']=='Maintenance Labor Cost','NPV'].tolist()[0]  
+        price_breakdown_labor_cost_admin_support = price_breakdown.loc[price_breakdown['Name']=='Administrative & Support Labor Cost','NPV'].tolist()[0] 
+        price_breakdown_proptax_ins = price_breakdown.loc[price_breakdown['Name']=='Property tax and insurance','NPV'].tolist()[0]
+        
+        # variable OPEX
+        price_breakdown_maintenance_materials = price_breakdown.loc[price_breakdown['Name']=='Maintenance Materials','NPV'].tolist()[0]  
+        price_breakdown_taxes = price_breakdown.loc[price_breakdown['Name']=='Income taxes payable','NPV'].tolist()[0]\
+            - price_breakdown.loc[price_breakdown['Name'] == 'Monetized tax losses','NPV'].tolist()[0]
+       
+        for key in self.feed_units.keys():
+            price_breakdown_feed[key] = price_breakdown.loc[price_breakdown['Name']==key,'NPV'].tolist()[0]
+        
+        print(len(price_breakdown_feed))
+       
+        if gen_inflation > 0:
+            price_breakdown_taxes = price_breakdown_taxes + price_breakdown.loc[price_breakdown['Name']=='Capital gains taxes payable','NPV'].tolist()[0]
+
+        price_breakdown_financial_equipment = price_breakdown.loc[price_breakdown['Name']=='Repayment of debt','NPV'].tolist()[0]\
+            + price_breakdown.loc[price_breakdown['Name']=='Interest expense','NPV'].tolist()[0]\
+            + price_breakdown.loc[price_breakdown['Name']=='Dividends paid','NPV'].tolist()[0]\
+            - price_breakdown.loc[price_breakdown['Name']=='Inflow of debt','NPV'].tolist()[0]\
+            - price_breakdown.loc[price_breakdown['Name']=='Inflow of equity','NPV'].tolist()[0]    
+            
+        # Calculate remaining financial expenses
+        price_breakdown_financial_remaining = price_breakdown.loc[price_breakdown['Name']=='Non-depreciable assets','NPV'].tolist()[0]\
+            + price_breakdown.loc[price_breakdown['Name']=='Cash on hand reserve','NPV'].tolist()[0]\
+            + price_breakdown.loc[price_breakdown['Name']=='Property tax and insurance','NPV'].tolist()[0]\
+            - price_breakdown.loc[price_breakdown['Name']=='Sale of non-depreciable assets','NPV'].tolist()[0]\
+            - price_breakdown.loc[price_breakdown['Name']=='Cash on hand recovery','NPV'].tolist()[0]
+        
+        # list containing all of the prices established above
+        breakdown_prices = [*price_breakdown_capex.values(), 
+                            price_breakdown_installation,
+                            price_breakdown_labor_cost_annual, 
+                            price_breakdown_labor_cost_maintenance, 
+                            price_breakdown_labor_cost_admin_support, 
+                            price_breakdown_proptax_ins, 
+                            price_breakdown_maintenance_materials, 
+                            *price_breakdown_feed.values(),
+                            price_breakdown_taxes, 
+                            price_breakdown_financial_equipment, 
+                            price_breakdown_financial_remaining]
+                    
+        price_breakdown_check = sum(breakdown_prices)
+            
+        bos_savings = 0 * (price_breakdown_labor_cost_admin_support) * 0.3 # TODO is this applicable for cement?
+
+        breakdown_prices.append(price_breakdown_check)
+        breakdown_prices.append(bos_savings) 
+
+        breakdown_categories = [*[f'{key} CAPEX' for key in price_breakdown_capex.keys()],
+                                'Installation Cost',
+                                'Annual Operating Labor Cost (including maintenance?)',
+                                'Maintenance Labor Cost (zero at the moment?)',
+                                'Administrative & Support Labor Cost',
+                                'Property tax and insurance',
+                                'Maintenance Materials',
+                                *[f'{key} OPEX' for key in price_breakdown_feed.keys()],
+                                'Taxes',
+                                'Equipment Financing',
+                                'Remaining Financial',
+                                'Total',
+                                'BOS Savings (copied from green steel)']
+        
+        if len(breakdown_categories) != len(breakdown_prices):
+            raise Exception("categories and prices lists have to be the same length")
+
+        cement_price_breakdown = dict()
+        for category, price in zip(breakdown_categories, breakdown_prices):
+            cement_price_breakdown[f'cement price: {category} ($/ton)'] = price
+
+        return cement_price_breakdown
+
     def __oxy_combustion_css(self): # TODO currently implementing this into __init__()
         # //////////// Oxyfuel Combustion ////////////////
         # https://www.mdpi.com/1996-1073/12/3/542#app1-energies-12-00542 -- supplementary materials
@@ -977,7 +1050,7 @@ class ConcretePlant:
         o2_frac_oxy = 191 * self.config['Clinker-to-cement ratio'] # Nm^3/t cement (NOTE Nm^3 = "normal cubic meter")
         ###/
 
-    def eur2013(self, multiplyer, *costs):
+    def __eur2013(self, multiplyer, *costs):
         ''' 
         Converts monetary values from EUR to USD
 
@@ -1000,7 +1073,7 @@ class ConcretePlant:
             return vals[0]
         return vals
 
-    def eur2014(self, multiplyer, *costs):
+    def __eur2014(self, multiplyer, *costs):
         ''' 
         Converts monetary values from EUR to USD
 
@@ -1023,7 +1096,7 @@ class ConcretePlant:
             return vals[0]
         return vals
 
-    def btu_to_j(self, multiplyer, *vals):
+    def __btu_to_j(self, multiplyer, *vals):
         '''
         Converts energy values from BTU to J
 
@@ -1041,7 +1114,7 @@ class ConcretePlant:
 
 
 if __name__ == '__main__':
-    plant = ConcretePlant(css='None')
+    plant = ConcretePlant()
     hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
     cement_annual_capacity, cement_production_capacity_margin_pc, cement_price_breakdown = \
     plant.run_profast_for_cement()
