@@ -589,7 +589,7 @@ class ConcretePlant:
         # TODO is this necissary?
         if self.feed_consumption['hydrogen']  != 0:
             # determine if hydrogen is limiting the production of cement, and the resulting plant capacity
-            max_cement_production_capacity_mtpy = min(self.config['Cement Production Rate (annual)'] / self.config['Plant capacity factor'], \
+            max_cement_production_capacity_mtpy = min(self.config['Cement Production Rate (annual)'], \
                                                   hydrogen_annual_production / self.feed_consumption['hydrogen'])
         else:
             max_cement_production_capacity_mtpy = self.config['Cement Production Rate (annual)'] # ton/year
