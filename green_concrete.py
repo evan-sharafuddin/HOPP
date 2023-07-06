@@ -56,6 +56,7 @@ class ConcretePlant:
                  cli_cem_ratio=73.7e-2, plant_life=25, plant_capacity_factor = 91.3e-2):
                  # source of plant_capacity_factor: CEMCAP
         
+        # ------------ Plant Info ------------
         self.config = {
             'CSS': css, # None, Oxyfuel, Calcium Looping
             'Fuel Mixture': fuel_mix, # C1-C5
@@ -72,10 +73,6 @@ class ConcretePlant:
         
         self.config['Cement Production Rate (annual)'] = self.config['Clinker Production Rate (annual)'] / self.config['Clinker-to-cement ratio']
         # NOTE cement production rate depends on clinker production rate and clinker/cement ratio
-       
-        # raw_meal_cli_factor = 1.6 # loss of raw meal during production of clinker... can remove this if know feedstock data for the indiv. 
-                                    # components in the raw meal
-
 
         ###\ https://www.sciencedirect.com/science/article/pii/S0306261922005529#b0150
         if self.config['CSS'] == 'Oxyfuel':
@@ -85,10 +82,8 @@ class ConcretePlant:
         else:
             thermal_energy = 3.136 # MJ/kg cli -- might want to fact check this (2010, worldwide, preclaciner/preheater dry kiln)
             electrical_energy = 108 # kWh/t cement (2010, worldwide)
-        
         ###/
 
-        ## Economic specs
         contingencies_fees = 1e-2 # fraction of installed costs (CAPEX)
         taxation_insurance = 1e-2 # fraction of installed costs, per year (OPEX)
 
@@ -96,86 +91,12 @@ class ConcretePlant:
         self.config['Electrical energy demand (kWh/t cement)'] = electrical_energy
         self.config['Contingencies and fees'] = contingencies_fees
         self.config['Taxation and insurance'] = taxation_insurance
-        
+
+        # ---------- CAPEX and OPEX ----------
         self.equip_costs, self.tpc, self.total_capex, self.installed_costs, self.land_cost = self.capex()
         
         self.feed_consumption, self.feed_cost, self.feed_units, self.other_opex = self.opex()
         self.operational_labor, self.maintenance_equip, self.maintenance_labor, self.admin_support = self.other_opex
-
-        # ---------------------------- HOPP Configurations -----------------------
-        
-
-    def eur2013(self, multiplyer, *costs):
-        ''' 
-        Converts monetary values from EUR to USD
-
-        multiplyer argument allows you to account for prefix (ex: M, k)
-
-        works for individual values or an iterable of values
-
-        NOTE: conversion factor is the average from 2013, which was the cost basis
-        year given in the paper
-
-        source: https://www.exchangerates.org.uk/EUR-USD-spot-exchange-rates-history-2013.html
-    
-        '''
-        conversion_factor = 1.3284 # USD/EUR
-        vals = []
-        for cost in costs:
-            vals.append(cost * conversion_factor * multiplyer)
-        
-        if len(vals) == 1:
-            return vals[0]
-        return vals
-    
-    def eur2014(self, multiplyer, *costs):
-        ''' 
-        Converts monetary values from EUR to USD
-
-        multiplyer argument allows you to account for prefix (ex: M, k)
-
-        works for individual values or an iterable of values
-
-        NOTE: conversion factor is the average from 2014, which was the cost basis
-        year given in the paper
-
-        source: https://www.exchangerates.org.uk/EUR-USD-spot-exchange-rates-history-2014.html
-    
-        '''
-        conversion_factor = 1.3283 # USD/EUR
-        vals = []
-        for cost in costs:
-            vals.append(cost * conversion_factor * multiplyer)
-        
-        if len(vals) == 1:
-            return vals[0]
-        return vals
-
-    def btu_to_j(self, multiplyer, *vals):
-        '''
-        Converts energy values from BTU to J
-
-        multiplyer argment allows you to account for prefix (ex: M, k)
-
-        '''
-
-        vals_j = []
-        for val in vals:
-            vals_j.append(val * 1055.6 * multiplyer)
-
-        if len(vals_j) == 1:
-            return vals_j[0]
-        return vals_j
-            
-    ### TODO decarbonization pathways
-        # CCS 
-        #   calcium looping
-        #   oxyfuel combustion
-        # substituting coal with natural gas
-        #   pure natural gas
-        #   hydrogen fuel mix
-        # energy efficency measures in kiln, etc (this might already be considered with the precalciner/preheater tech)
-        # renewable electricity (link HOPP)
 
     def capex(self):
         # section 5.1
@@ -269,19 +190,18 @@ class ConcretePlant:
 
         # ////////// unit conversions ////////////// € --> $
         for key, value in equip_costs.items():
-            equip_costs[key] = self.eur2013(1e6, equip_costs[key])
-        
+            equip_costs[key] = self.eur2013(1e6, value)
         for key, value in co2_capture_equip_oxy.items():
             co2_capture_equip_oxy[key] = self.eur2014(1e3, value)
         tpc, total_capex, installed_costs, land_cost = self.eur2013(1e6, tpc, total_capex, installed_costs, land_cost)
         tpc_oxy, total_direct_costs_oxy = self.eur2014(1e3, tpc_oxy, total_direct_costs_oxy) 
         
-
-        # update reference plant CAPEX TODO only considering tpc and equipment for now
-        equip_costs.update(co2_capture_equip_oxy)
-        tpc += tpc_oxy
-        total_capex += tpc_oxy
-        installed_costs += total_direct_costs_oxy
+        if self.config['CSS'] == 'Oxyfuel':
+            # update reference plant CAPEX TODO only considering tpc and equipment for now
+            equip_costs.update(co2_capture_equip_oxy)
+            tpc += tpc_oxy
+            total_capex += tpc_oxy
+            installed_costs += total_direct_costs_oxy
 
         return equip_costs, tpc, total_capex, installed_costs, land_cost 
 
@@ -494,7 +414,6 @@ class ConcretePlant:
 
 
         # Electricity
-        
         if config['ATB year'] == 2020:
             grid_year = 2025
         elif config['ATB year'] == 2025:
@@ -521,7 +440,7 @@ class ConcretePlant:
         # ///////////// unit conversions //////////// € --> $ 
 
         for key, value in feed_cost.items():
-            if key == 'electricity' or key == 'pet coke' or value is None: # these have already been converted
+            if key == 'electricity' or key == 'pet coke': # these have already been converted
                 continue 
             feed_cost[key] = self.eur2013(1, value)
         
@@ -545,6 +464,7 @@ class ConcretePlant:
             'misc': 'units',
             'oxygen': 'Nm^3', # TODO might want to change this
             'cooling water make-up': 'units',
+            'electricity': 'kWh',
         }
 
         # //////////////// fixed //////////////
@@ -562,11 +482,6 @@ class ConcretePlant:
         other_opex = [operational_labor, maintenance_equip, maintenance_labor, admin_support]
         return feed_consumption, feed_cost, feed_units, other_opex
     
-    
-        
-
-
-
     def lca(self):
         
         # ----------------------------- Emissions/LCA --------------------------
@@ -660,7 +575,6 @@ class ConcretePlant:
             * Emission Factors for fuel (https://www.sciencedirect.com/science/article/pii/S0959652622014445)
             * Emission factors for electricity (https://emissionsindex.org/)
         """
-        print(self.feed_consumption['hydrogen'])
         if hopp_dict is not None and hopp_dict.save_model_input_yaml:
             input_dict = { # TODO make sure this is in the right format
                 'levelized_cost_hydrogen': lcoh,
@@ -677,14 +591,16 @@ class ConcretePlant:
             # determine if hydrogen is limiting the production of cement, and the resulting plant capacity
             max_cement_production_capacity_mtpy = min(self.config['Cement Production Rate (annual)'] / self.config['Plant capacity factor'], \
                                                   hydrogen_annual_production / self.feed_consumption['hydrogen'])
-           
-            print(self.config['Cement Production Rate (annual)']/self.config['Plant capacity factor'])
         else:
             max_cement_production_capacity_mtpy = self.config['Cement Production Rate (annual)'] # ton/year
+         
+        print('checking plant capacity....')
+        print(self.config['Cement Production Rate (annual)'] / self.config['Plant capacity factor'])
+        print(hydrogen_annual_production / self.feed_consumption['hydrogen'])
+        print(f'actual plant capacity: {max_cement_production_capacity_mtpy}')
         
         # TODO cleaner way to do this?
         self.feed_cost['hydrogen'] = lcoh
-        print(f'cost of hydrogen: {self.feed_cost["hydrogen"]}')
        
         # ------------------------- Carbon Capture Options -------------------------
         
@@ -791,8 +707,7 @@ class ConcretePlant:
         # NOTE: these are all converted to USD
         # NOTE: did not change the last three arguments
         for key, value in self.equip_costs.items():
-            pf.add_capital_item(name=key,cost=value,depr_type="MACRS",depr_period=7,refurb=[0.5]) # assuming same depreciation type, period, whatever refurb is
-        # ?depr_type, depr_period, refurb???
+            pf.add_capital_item(name=key,cost=value,depr_type="MACRS",depr_period=7,refurb=[0]) 
         
         # ------------------------------ Add fixed costs ------------------------------
         # NOTE: in the document these values were given in EUR/t cem, so I am just going to multiply
@@ -945,9 +860,7 @@ class ConcretePlant:
         print(f"price breakdown (paper): {self.eur2013(1, 50.9)}")
         print(f"price breakdown (CEMCAP spreadsheet, excluding carbon tax): {self.eur2013(1, 46.02)}")
         print(f"percent error from CEMCAP: {(solution['price'] - self.eur2013(1, 46.02))/self.eur2013(1, 46.02) * 100}%")
-        '''
-        possible reasons for the discrepancy from CEMCAP
-        '''
+      
         # TODO what is the point of this line here?
         price_breakdown = price_breakdown.drop(columns=['index','Amount'])
 
@@ -986,9 +899,9 @@ class ConcretePlant:
 
 
         ###\ write files (for testing)
-        path = Path('C:\\Users\\esharafu\\Documents\\cement_econ.csv')
-        thing = pd.DataFrame(cement_price_breakdown,index=[0]).transpose()
-        thing.to_csv(path)
+        # path = Path('C:\\Users\\esharafu\\Documents\\cement_econ.csv')
+        # thing = pd.DataFrame(cement_price_breakdown,index=[0]).transpose()
+        # thing.to_csv(path)
 
         path = Path('C:\\Users\\esharafu\\Documents\\profast_breakdown.csv')
         thing = pd.DataFrame(price_breakdown)
@@ -998,17 +911,8 @@ class ConcretePlant:
         return hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
             cement_annual_capacity, cement_production_capacity_margin_pc, cement_price_breakdown
 
-
-if __name__ == '__main__':
-    plant = ConcretePlant(css='None')
-    hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
-    cement_annual_capacity, cement_production_capacity_margin_pc, cement_price_breakdown = \
-    plant.run_profast_for_cement()
-
-
-
-
-def __oxy_combustion_css(self): # TODO currently implementing this into __init__()
+    # ---------- Other Methods ----------
+    def __oxy_combustion_css(self): # TODO currently implementing this into __init__()
         # //////////// Oxyfuel Combustion ////////////////
         # https://www.mdpi.com/1996-1073/12/3/542#app1-energies-12-00542 -- supplementary materials
         ''' 
@@ -1025,7 +929,7 @@ def __oxy_combustion_css(self): # TODO currently implementing this into __init__
         discount_rate_oxy = 0.08
         # TODO where does this fit it?
             # Allocation of CO2 capture construction costs by year 1 (%) = 40/30/30
-       
+    
         ### CAPEX
         # NOTE these are equipment costs and not direct costs
         co2_capture_equip_oxy = {
@@ -1072,6 +976,76 @@ def __oxy_combustion_css(self): # TODO currently implementing this into __init__
         electricity_demand_oxy = 150 * self.config['Clinker-to-cement ratio'] # kWh/t cem
         o2_frac_oxy = 191 * self.config['Clinker-to-cement ratio'] # Nm^3/t cement (NOTE Nm^3 = "normal cubic meter")
         ###/
+
+    def eur2013(self, multiplyer, *costs):
+        ''' 
+        Converts monetary values from EUR to USD
+
+        multiplyer argument allows you to account for prefix (ex: M, k)
+
+        works for individual values or an iterable of values
+
+        NOTE: conversion factor is the average from 2013, which was the cost basis
+        year given in the paper
+
+        source: https://www.exchangerates.org.uk/EUR-USD-spot-exchange-rates-history-2013.html
+
+        '''
+        conversion_factor = 1.3284 # USD/EUR
+        vals = []
+        for cost in costs:
+            vals.append(cost * conversion_factor * multiplyer)
+        
+        if len(vals) == 1:
+            return vals[0]
+        return vals
+
+    def eur2014(self, multiplyer, *costs):
+        ''' 
+        Converts monetary values from EUR to USD
+
+        multiplyer argument allows you to account for prefix (ex: M, k)
+
+        works for individual values or an iterable of values
+
+        NOTE: conversion factor is the average from 2014, which was the cost basis
+        year given in the paper
+
+        source: https://www.exchangerates.org.uk/EUR-USD-spot-exchange-rates-history-2014.html
+
+        '''
+        conversion_factor = 1.3283 # USD/EUR
+        vals = []
+        for cost in costs:
+            vals.append(cost * conversion_factor * multiplyer)
+        
+        if len(vals) == 1:
+            return vals[0]
+        return vals
+
+    def btu_to_j(self, multiplyer, *vals):
+        '''
+        Converts energy values from BTU to J
+
+        multiplyer argment allows you to account for prefix (ex: M, k)
+
+        '''
+
+        vals_j = []
+        for val in vals:
+            vals_j.append(val * 1055.6 * multiplyer)
+
+        if len(vals_j) == 1:
+            return vals_j[0]
+        return vals_j
+
+
+if __name__ == '__main__':
+    plant = ConcretePlant(css='None')
+    hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
+    cement_annual_capacity, cement_production_capacity_margin_pc, cement_price_breakdown = \
+    plant.run_profast_for_cement()
+
 
 
 
