@@ -8,13 +8,17 @@ def opex(self):
 
     Source: CEMCAP and IEAGHG report, unless otherwise specified 
 
+    ADDING A NEW FUEL COMPOSITION
+        1. if using fuels that already exist in feed_units, then 
+        can just add a new sub-dictionary to fuel_comp
+        2. if using a fuel that does not already exist in feed_units,
+        this new fuel must be added to feed_units, lhv, and feed_cost
+
     ''' 
      
     config = self.config
     
-    # ///////////// FEEDSTOCKS /////////////
-
-    # ADD NEW FEED NAMES/UNITS HERE
+    # --------------- Variable OPEX / feedstocks ----------------
     feed_units = {
     # Fuels
         'coal': 'kg',
@@ -88,9 +92,6 @@ def opex(self):
         'cooling water make-up': 0.3, # €/ton cement
     }
 
-
-    # fuel compositions (percent thermal input) -- must add up to 1
- 
     # SOURCES:
     # Canada: Synergizing hydrogen and cement industries for Canada's climate plan - case study
     # IEAGHG: https://ieaghg.org/publications/technical-reports/reports-list/9-technical-reports/1016-2013-19-deployment-of-ccs-in-the-cement-industry 
@@ -201,10 +202,8 @@ def opex(self):
     fuel_comp['C4']['hydrogen'] = float(solution[y])
     ###/
 
+    # select fuel composition configuration to use
     fuel_frac = fuel_comp[config['Fuel Mixture']]
-
-    if sum(fuel_frac.values()) != 1:
-        raise Exception("Fuel composition fractions must add up to 1")
 
     # add fuels to feed_consumption dict
     feed_consumption = dict()
@@ -250,15 +249,13 @@ def opex(self):
     # TODO: cost of cement kiln dust disposal? could be included already in some of the other costs
 
     # ///////////// unit conversions //////////// € --> $ 
-
     for key, value in feed_cost.items():
         if key == 'electricity' or key == 'pet coke' or key == 'glycerin' or value is None: # these have already been converted
             continue 
         feed_cost[key] = eur2013(1, value)
 
-    # //////////////// fixed //////////////
+    # ---------------- Fixed OPEX -----------------
     ## fixed ($/year)
-
     num_workers = 100
     cost_per_worker = 60 # kEUR/worker/year
     operational_labor = eur2013(1e3, num_workers * cost_per_worker) # k€ --> $
@@ -266,7 +263,7 @@ def opex(self):
     maintenance_labor = 0.4 * maintenance_equip # $
     admin_support = 0.3 * (operational_labor + maintenance_labor) 
 
-    # ///////////// tests ///////////////
+    # ------------------ tests -----------------
     for key in feed_consumption.keys():
         if key not in feed_cost.keys() or key not in feed_units.keys():
             raise Exception(f"{key} was found in feed_consumption, but not in either feed_cost or feed_units")
@@ -276,6 +273,7 @@ def opex(self):
     for key in feed_units.keys():
         if key not in feed_cost.keys() or key not in feed_consumption.keys():
             raise Exception(f"{key} was found in feed_units, but not in either feed_cost or feed_consumption")
+    if sum(fuel_frac.values()) != 1:
+        raise Exception("Fuel composition fractions must add up to 1")
         
-    other_opex = [operational_labor, maintenance_equip, maintenance_labor, admin_support]
-    return feed_consumption, feed_cost, feed_units, other_opex
+    return feed_consumption, feed_cost, feed_units, operational_labor, maintenance_equip, maintenance_labor, admin_support

@@ -645,7 +645,8 @@ def run_HOPP(
                     wind_cost_kw, solar_cost_kw, storage_cost_kw, storage_cost_kwh,
                     kw_continuous, load,
                     custom_powercurve,
-                    electrolyzer_size, grid_connected_hopp=True, wind_om_cost_kw=wind_om_cost_kw,solar_om_cost_kw=solar_om_cost_kw)
+                    max(load) / 1e3, grid_connected_hopp=True, wind_om_cost_kw=wind_om_cost_kw,solar_om_cost_kw=solar_om_cost_kw)
+                    # CEMENT: max(load) ARGUMENT USED TO BE electrolyzer_size
     if floris == True: 
         technologies={}
         if run_wind_plant:
@@ -958,6 +959,10 @@ def run_H2_PEM_sim(
     use_degradation_penalty,
     grid_connection_scenario,
     h2_prod_capacity_required_kgphr
+
+    # TODO output seems to assume that electrolyzer power is the total power...
+    # change this so tot_power includes electricity and electrolyzer power
+    
     #electrolyzer_design_eff_kwh_per_kg 
 ):
 
@@ -1055,7 +1060,8 @@ def grid(
     excess_energy,
     buy_price,
     kw_continuous,
-    plot_grid
+    plot_grid,
+    cement_electricity_consumption_kw # ADDED HERE FOR CEMENT
 ):
 
     if hopp_dict.save_model_input_yaml:
@@ -1069,7 +1075,8 @@ def grid(
         }
 
         hopp_dict.add('Models', {'grid': {'input_dict': input_dict}})
-
+    
+    # plot_grid = True
     if plot_grid:
         plt.plot(combined_pv_wind_storage_power_production_hopp[200:300],label="before buy from grid")
         plt.suptitle("Power Signal Before Purchasing From Grid")
@@ -1090,11 +1097,12 @@ def grid(
                 energy_from_the_grid[i] += (kw_continuous-combined_pv_wind_storage_power_production_hopp[i])
                 cost_to_buy_from_grid += energy_from_the_grid[i]*buy_price
                 energy_total[i] = energy_from_the_grid[i] + combined_pv_wind_storage_power_production_hopp[i]
-                energy_to_electrolyzer[i] = kw_continuous
+                energy_to_electrolyzer[i] = kw_continuous - cement_electricity_consumption_kw
             else:
-                energy_to_electrolyzer[i] = kw_continuous
+                energy_to_electrolyzer[i] = kw_continuous - cement_electricity_consumption_kw
                 energy_total[i]=kw_continuous
     else:
+        # NOT IMPLEMENTED FOR CEMENT
         cost_to_buy_from_grid = 0.0
         energy_to_electrolyzer = [x if x < kw_continuous else kw_continuous for x in combined_pv_wind_storage_power_production_hopp]
         energy_total = combined_pv_wind_storage_power_production_hopp
@@ -1103,12 +1111,12 @@ def grid(
 
     if plot_grid:
         plt.figure(figsize=(9,6))
-        plt.plot(energy_total[200:300],"--",label="after buy from grid")
+        plt.plot(energy_total[200:300],"-",label="after buy from grid")
         plt.plot(energy_from_the_grid[200:300], "--", label="energy from the grid")
         plt.plot(energy_to_electrolyzer[200:300],"--",label="energy to electrolyzer")
         plt.legend()
         plt.title('Power available after purchasing from grid (if enabled)')
-        # plt.show()
+        plt.show()
 
     if hopp_dict.save_model_output_yaml:
         ouput_dict = {

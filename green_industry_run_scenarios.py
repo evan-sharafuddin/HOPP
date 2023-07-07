@@ -450,9 +450,17 @@ def batch_generator_kernel(arg_list):
         # else:
         #     n_pem_clusters = number_pem_stacks
 
-    kw_continuous = electrolyzer_size_mw * 1000
-    load = [kw_continuous for x in
+    print(electrolyzer_size_mw)
+    print(cement_electricity_consumption_MW)
+    print(wind_size_mw)
+
+    kw_continuous = (electrolyzer_size_mw + cement_electricity_consumption_MW) * 1000
+
+    ###\ CHANGING THIS FOR CEMENT
+    load = [kw_continuous for _ in
             range(0, 8760)]  # * (sin(x) + pi) Set desired/required load profile for plant
+    ###/
+    
     if battery_for_minimum_electrolyzer_op:
         battery_dispatch_load = list(0.1*np.array(load))
     else:
@@ -711,6 +719,7 @@ def batch_generator_kernel(arg_list):
                 buy_price,
                 kw_continuous,
                 plot_grid,
+                cement_electricity_consumption_MW * 1e3,
             )
 
     # else:
@@ -835,6 +844,8 @@ def batch_generator_kernel(arg_list):
         # Currently only works for offgrid
         #grid_string = 'offgrid'    
         #scenario_name = 'steel_'+str(atb_year)+'_'+ site_location.replace(' ','-') +'_'+turbine_model+'_'+grid_string
+        
+        # TODO go into hopp tools steel here to continue troubleshooting electricity stuff
         
         #Run the H2_PEM model to get hourly hydrogen output, capacity factor, water consumption, etc.
         h2_model = 'Simple'

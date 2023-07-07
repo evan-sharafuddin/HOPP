@@ -75,7 +75,7 @@ class ConcretePlant:
             self.equip_costs: holds names and costs of each major capital component
             self.tpc: total plant cost (equipment, installation, contingencies, etc)
             self.total_capex: includes land and owners cost TODO seems to be equal to tpc for oxyfuel data
-            self.installed_costs: i.e. total direct costs (equipment + installation)
+            self.total_direct_costs: i.e. installed costs (equipment + installation)
             self.land_cost: TODO model does not currently account for this 
 
         VARIABLE OPEX
@@ -93,7 +93,7 @@ class ConcretePlant:
     def __init__(
         self, 
         css='None', 
-        fuel_mix='C5',
+        fuel_mix='C1',
         renewable_electricity=False, 
         SCMs=False, 
         atb_year=2035, 
@@ -105,44 +105,64 @@ class ConcretePlant:
     ): 
         
         # ------------ Plant Info ------------
-        self.config = {
-            'CSS': css, # None, Oxyfuel, Calcium Looping
-            'Fuel Mixture': fuel_mix, # C1-C5
-            'Renewable electricity': renewable_electricity,
-            'Using SCMs': SCMs,
-            'ATB year': atb_year,
-            'site location': site_location,
-            'Clinker Production Rate (annual)': cli_production,
-            'Clinker-to-cement ratio': cli_cem_ratio,
-            'Plant lifespan': plant_life,
-            'Plant capacity factor': plant_capacity_factor,
-            'Construction time (months)': 36,
-            'Contingencies and fees': 1e-2, # fraction of installed costs (CAPEX)
-            'Taxation and insurance': 1e-2, # fraction of installed costs, per year (OPEX)
-            ###\ see below
-            'Thermal energy demand (MJ/kg clinker)': None,
-            'Electrical energy demand (kWh/t clinker)': None,
-            ###/
-        }
+        if css == 'None':
+            self.config = {
+                'CSS': css, # None, Oxyfuel, Calcium Looping
+                'Fuel Mixture': fuel_mix, # C1-C5
+                'Renewable electricity': renewable_electricity,
+                'Using SCMs': SCMs,
+                'ATB year': atb_year,
+                'site location': site_location,
+                'Clinker Production Rate (annual)': cli_production,
+                'Clinker-to-cement ratio': cli_cem_ratio,
+                'Cement Production Rate (annual)': cli_production / cli_cem_ratio,
+                'Plant lifespan': plant_life,
+                'Plant capacity factor': plant_capacity_factor,
+                'Contingencies and fees': 1e-2, # fraction of installed costs (CAPEX)
+                'Taxation and insurance': 1e-2, # fraction of installed costs, per year (OPEX)
+                'Construction time (months)': 36,
+                'Thermal energy demand (MJ/kg clinker)': 3.136, # MJ/kg cli 
+                'Electrical energy demand (kWh/t cement)': 132 * cli_cem_ratio, # kWh/t cement 
+            }
         
-        self.config['Cement Production Rate (annual)'] = self.config['Clinker Production Rate (annual)'] / self.config['Clinker-to-cement ratio']
-
-        # ---------- OXYFUEL -----------
-        # https://www.sciencedirect.com/science/article/pii/S0306261922005529#b0150
-        if self.config['CSS'] == 'Oxyfuel':
-            self.config['Thermal energy demand (MJ/kg clinker)'] = 3.349 # MJ / kg cli
-            self.config['Electrical energy demand (kWh/t cement)'] = 132 * 1.67 * self.config['Clinker-to-cement ratio'] # kWh/t cem, using 67% increase claimed in article
-            self.config['Construction time (months)'] = 60
+        elif css == 'Oxyfuel':
+            self.config = {
+                'CSS': css, # None, Oxyfuel, Calcium Looping
+                'Fuel Mixture': fuel_mix, # C1-C5
+                'Renewable electricity': renewable_electricity,
+                'Using SCMs': SCMs,
+                'ATB year': atb_year,
+                'site location': site_location,
+                'Clinker Production Rate (annual)': cli_production,
+                'Clinker-to-cement ratio': cli_cem_ratio,
+                'Cement Production Rate (annual)': cli_production / cli_cem_ratio,
+                'Plant lifespan': plant_life,
+                'Plant capacity factor': plant_capacity_factor,
+                'Contingencies and fees': 1e-2, # fraction of installed costs (CAPEX)
+                'Taxation and insurance': 1e-2, # fraction of installed costs, per year (OPEX)
+                # https://www.sciencedirect.com/science/article/pii/S0306261922005529#b0150
+                'Construction time (months)': 60, # combined plant and carbon capture system construction
+                'Thermal energy demand (MJ/kg clinker)': 3.349, # MJ / kg cli
+                'Electrical energy demand (kWh/t cement)': 132 * 1.67 * cli_cem_ratio, # kWh/t cem, using 67% increase claimed in article
+            }
+        
         else:
-            self.config['Thermal energy demand (MJ/kg clinker)'] = 3.136 # MJ/kg cli 
-            self.config['Electrical energy demand (kWh/t cement)'] = 132 * self.config['Clinker-to-cement ratio'] # kWh/t cement 
+            raise Exception('Invalid CSS Scenario.')
 
         # ---------- CAPEX and OPEX ----------
-        self.equip_costs, self.tpc, self.total_capex, self.installed_costs, self.land_cost = self.__capex_helper()
+        (self.equip_costs, 
+         self.tpc, 
+         self.total_capex, 
+         self.total_direct_costs, 
+         self.land_cost) = self.__capex_helper()
         
-        self.feed_consumption, self.feed_cost, self.feed_units, other_opex = self.__opex_helper()
-        self.operational_labor, self.maintenance_equip, self.maintenance_labor, self.admin_support = other_opex
-
+        (self.feed_consumption, 
+         self.feed_cost, 
+         self.feed_units, 
+         self.operational_labor, 
+         self.maintenance_equip, 
+         self.maintenance_labor, 
+         self.admin_support) = self.__opex_helper()
 
     # See files for documentation on these functions
     def __capex_helper(self):

@@ -63,6 +63,8 @@ class SimpleDispatch():
         # print('Battery Generation: ', np.sum(battery_used))
         # print('Amount of energy going to the grid: ', np.sum(excess_energy))
         # print('==============================================')
+        
+        
         return battery_used, excess_energy, battery_SOC
 
 

@@ -28,7 +28,6 @@ def run_profast_for_cement(
 
         hopp_dict.add('Models', {'steel_LCOS': {'input_dict': input_dict}})
 
-    # TODO is this necissary?
     if self.feed_consumption['hydrogen']  != 0:
         # determine if hydrogen is limiting the production of cement, and the resulting plant capacity
         max_cement_production_capacity_mtpy = min(self.config['Cement Production Rate (annual)'], \
@@ -46,7 +45,8 @@ def run_profast_for_cement(
     pf.set_params('commodity',{"name":'Cement',"unit":"metric tonnes (t)","initial price":1000,"escalation":gen_inflation})
     pf.set_params('capacity',max_cement_production_capacity_mtpy / 365) # convert from ton/yr --> ton/day
     pf.set_params('operating life',self.config['Plant lifespan'])
-    pf.set_params('installation cost',{"value": self.installed_costs,"depr type":"Straight line","depr period":4,"depreciable":False})
+    # NOTE direct costs = equipment costs + installation costs
+    pf.set_params('installation cost',{"value": self.total_direct_costs - sum(self.equip_costs.values()),"depr type":"Straight line","depr period":4,"depreciable":False})
     pf.set_params('non depr assets', self.land_cost) 
     pf.set_params('long term utilization',self.config['Plant capacity factor'])
     pf.set_params('maintenance',{"value":0,"escalation":gen_inflation})
@@ -102,8 +102,7 @@ def run_profast_for_cement(
     print(f"price breakdown (CEMCAP spreadsheet, excluding carbon tax): {eur2013(1, 46.02)}")
     print(f"percent error from CEMCAP: {(solution['price'] - eur2013(1, 46.02))/eur2013(1, 46.02) * 100}%")
     
-    # TODO what is the point of this line here?
-    price_breakdown = price_breakdown.drop(columns=['index','Amount'])
+    price_breakdown = price_breakdown.drop(columns=['index', 'Amount'])
     price_breakdown_manual = self.manual_price_breakdown_helper(gen_inflation, price_breakdown)
     cement_annual_capacity = self.config['Cement Production Rate (annual)'] * self.config['Plant capacity factor']
     cement_breakeven_price = solution.get('price')
@@ -112,6 +111,8 @@ def run_profast_for_cement(
     # #steel_production_capacity_margin_mtpy = hydrogen_annual_production/1000/hydrogen_consumption_for_steel - steel_annual_capacity
     # cement_production_capacity_margin_pc = (hydrogen_annual_production / 1000 / self.feed_consumption['hydrogen'] - cement_annual_capacity) \
     #                                         / cement_annual_capacity * 100
+
+    # hydrogen_annual_production: kg/yr
     
     cement_production_capacity_margin_pc = 0 # TODO should I implement this?
 
