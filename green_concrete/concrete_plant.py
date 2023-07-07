@@ -93,7 +93,7 @@ class ConcretePlant:
     def __init__(
         self, 
         css='None', 
-        fuel_mix='C1',
+        fuel_mix='C5',
         renewable_electricity=False, 
         SCMs=False, 
         atb_year=2035, 

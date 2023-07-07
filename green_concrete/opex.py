@@ -4,7 +4,7 @@ import os
 
 def opex(self): 
     '''
-    Calculates and assigns CapEx values to a ConcretePlant instance
+    Calculates and assigns OpEx values to a ConcretePlant instance
 
     Source: CEMCAP and IEAGHG report, unless otherwise specified 
 
@@ -19,7 +19,7 @@ def opex(self):
     # Fuels
         'coal': 'kg',
         'natural gas': 'kg',
-        'hydrogen': 'kg', # TODO is this right?
+        'hydrogen': 'kg', 
         'pet coke': 'kg',
         'alt fuel (IEAGHG mix)': 'units',
         'animal meal': 'n/a',

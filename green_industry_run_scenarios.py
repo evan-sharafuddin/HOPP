@@ -145,16 +145,16 @@ def batch_generator_kernel(arg_list):
         storage_sizes_mwh = [0,100,400,400]
     else:
         solar_sizes_mw = [0,100,250,500]
-        storage_sizes_mw = [0,50,50,100]
-        storage_sizes_mwh = [0,50,200,200]
+        storage_sizes_mw = [0] # [0,50,50,100]
+        storage_sizes_mwh = [0] # [0,50,200,200]
     
     save_param_sweep_general_info=True
     save_param_sweep_best_case=True
 
     #THESE ARE WORKING VARIABLES NOW
     solar_size_mw = 200 # "installed solar capacity"
-    storage_size_mw = 100 
-    storage_size_mwh = 400 # (discharge time 4 hr)
+    storage_size_mw = 0 # 100
+    storage_size_mwh = 0 # 400 # (discharge time 4 hr)
     battery_for_minimum_electrolyzer_op=True #If true, then dispatch battery (if on) to supply minimum power for operation to PEM, otherwise use it for rated PEM power
 
     if electrolyzer_degradation_penalty==True:
@@ -340,9 +340,11 @@ def batch_generator_kernel(arg_list):
         hydrogen_consumption_for_cement = cement_plant.feed_consumption['hydrogen']
     else:
         hydrogen_consumption_for_cement = 0
+        print('no hydrogen for cement')
 
     hydrogen_production_target_kgpy_cement = \
-        hydrogen_consumption_for_cement * cement_plant.config['Cement Production Rate (annual)'] / cement_plant.config['Clinker-to-cement ratio']
+        hydrogen_consumption_for_cement * cement_plant.config['Cement Production Rate (annual)'] \
+         / cement_plant.config['Clinker-to-cement ratio'] * cement_plant.config['Plant capacity factor']
     #################/
 
      # NOTE: this value below is higher (i.e. efficency is assumed to be worse) than actual BOL, so this is why BOL instead of EOL used in 376
@@ -387,6 +389,7 @@ def batch_generator_kernel(arg_list):
         ############\ ADDED CEMENT HERE
         cement_electricity_consumption_MW = cement_plant.feed_consumption['electricity'] \
               * cement_plant.config['Cement Production Rate (annual)'] / 8760 / 1000 # kWh/t cement --> MW 
+        print(cement_electricity_consumption_MW)
 
         # Size wind plant for providing power to electrolyzer at EOL. Do not size wind plant here to consider wind degradation
         # because we are not actually modeling wind plant degradation; if we size it in here we will have more wind generation
@@ -398,6 +401,7 @@ def batch_generator_kernel(arg_list):
         wind_size_mw = n_turbines*turbine_rating
         # wind_size_mw = electrolyzer_capacity_EOL_MW + cement_electricity_consumption_MW
         ###############/
+
         #wind_size_mw = electrolyzer_capacity_EOL_MW*1.08
 
         # # End of life required electrolyzer capacity in MW
