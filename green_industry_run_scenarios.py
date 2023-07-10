@@ -498,7 +498,7 @@ def batch_generator_kernel(arg_list):
         #     n_pem_clusters = number_pem_stacks
 
     print(f'Electrolyzer size (MW): {electrolyzer_size_mw}')
-    print(f'Cement electricity consumption (MW): {cement_electricity_consumption_MW}')
+    print(f'Cement renewable electricity consumption (MW): {cement_electricity_consumption_MW}')
     print(f'Wind plant capacity (MW): {wind_size_mw}')
 
     kw_continuous = (electrolyzer_size_mw + cement_electricity_consumption_MW) * 1000

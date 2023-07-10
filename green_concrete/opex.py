@@ -244,7 +244,6 @@ def opex(self):
     elec_price *= 1e-3 # $/kWh
     
     feed_costs['electricity'] = elec_price
-    print('grid cost of electricity: ', elec_price)
 
     # ////////////// waste ////////////////
     # TODO: cost of cement kiln dust disposal? could be included already in some of the other costs

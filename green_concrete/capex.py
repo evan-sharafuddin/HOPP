@@ -60,6 +60,8 @@ def capex(self):
 def oxyfuel_capex(equip_costs, tpc, total_capex, total_direct_costs):
     # https://www.mdpi.com/1996-1073/12/3/542#app1-energies-12-00542 -- supplementary materials
     ''' 
+    Calculates CapEx values specific to the addition of an Oxyfuel CSS system
+    
     NOTES:
     * EC (equipment cost) + IC (installation cost) = TDC (total direct cost)
     * cost basis = 2014 EUR 

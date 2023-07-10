@@ -43,11 +43,10 @@ cement_plant = ConcretePlant(
     css='None', 
     fuel_mix='C1',
     renewable_electricity=False, 
-    SCMs=False, 
+    SCM_composition='European Average', 
     atb_year=2035, 
     site_location='IA', 
     cli_production=1e6, 
-    cli_cem_ratio=73.7e-2, 
     plant_life=25, 
     plant_capacity_factor = 91.3e-2 # source of plant_capacity_factor: CEMCAP
 )

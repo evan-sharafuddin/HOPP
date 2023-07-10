@@ -34,9 +34,9 @@ from green_concrete.convert import *
 #     Fuel LHV values (https://courses.engr.illinois.edu/npre470/sp2018/web/Lower_and_Higher_Heating_Values_of_Gas_Liquid_and_Solid_Fuels.pdf)
 #     Emission Factors for fuel (https://www.sciencedirect.com/science/article/pii/S0959652622014445)
 #     Emission factors for electricity (https://emissionsindex.org/)
+#     USA clinker-to-cement ratio (https://pcr-epd.s3.us-east-2.amazonaws.com/634.EPD_for_Portland_Athena_Final_revised_04082021.pdf)
 
 # TODO
-# TRY TO MAKE THE LCOC SOMEWHAT SIMILAR TO THAT IN THE PAPER --> off by about 20...
 # Important Assumptions
 # * "It is worth noting that the development and land costs are not considered in the project estimates."
 # * TPC calculations exclude "land property (in particula rthe quaqrry), emerging emission abatement technology 
@@ -55,11 +55,13 @@ class ConcretePlant:
                 CSS: 'None', 'Oxyfuel', 'Calcium Looping'
                 Fuel Mixture: 'C1-C5'
                 Renewable electricity: determines if grid electricity will be used
-                Using SCMs: TODO determines whether additional SCMs will be used
+                Using SCMs: 'OPC', 'USA Average', 'European Average, TODO add more configs
                 ATB year: see define_scenarios
                 Site location: 'IA', 'WY', 'TX', don't remember the other two
                 Clinker Production Rate (annual): ideal annual production rate of clinker
                 Clinker-to-cement ratio: fraction of clinker that goes into the final cement product
+                    TODO IEAGHG/CEMCAP assume 72.7% cli-to-cem ratio, and integrate the add'l cost of the other
+                    additives into the model. Need to find a way to account for cost when changing cli-to-cem
                 Plant lifespan: int, number of years
                 Plant capacity factor: percentage of the year that plant is operating 
                     (accounts for maintenance closures, etc)
@@ -74,7 +76,7 @@ class ConcretePlant:
         
             self.equip_costs: holds names and costs of each major capital component
             self.tpc: total plant cost (equipment, installation, contingencies, etc)
-            self.total_capex: includes land and owners cost TODO seems to be equal to tpc for oxyfuel data
+            self.total_capex: tpc + land cost (TODO not sure if this is true)
             self.total_direct_costs: i.e. installed costs (equipment + installation)
             self.land_cost: TODO model does not currently account for this 
 
@@ -82,6 +84,7 @@ class ConcretePlant:
             self.feed_consumption: consumption rates for each feedstock
             self.feed_costs: costs per unit of each feedstock
             self.feed_units: units that each feedstock is measured in
+            TODO need better value for renewable energy LCOE
         
         FIXED OPEX
             self.operational_labor: labor costs for employees
@@ -95,22 +98,39 @@ class ConcretePlant:
         css='None', 
         fuel_mix='C1',
         renewable_electricity=False, 
-        SCMs=False, 
+        SCM_composition='OPC', 
         atb_year=2035, 
         site_location='IA', 
         cli_production=1e6, 
-        cli_cem_ratio=73.7e-2, 
         plant_life=25, 
-        plant_capacity_factor = 91.3e-2 # source of plant_capacity_factor: CEMCAP
+        plant_capacity_factor = 91.3e-2, # source of plant_capacity_factor: CEMCAP
     ): 
         
         # ------------ Plant Info ------------
+
+        # ADD DIFFERENT SCM SCENARIOS HERE
+        SCM_cli_cem = {
+            'OPC': 0.95, # Ordinary Portland Cement
+            'US Average': 0.914, #https://pcr-epd.s3.us-east-2.amazonaws.com/634.EPD_for_Portland_Athena_Final_revised_04082021.pdf
+            'European Average': 0.737 # from IEAGHG/CEMCAP
+        }
+
+        '''
+        assumptions to make for decreasing cli/cem ratio
+        * 
+        '''
+        
+        # Select cli-cem ratio based on SCM composition
+        if SCM_composition not in SCM_cli_cem.keys():
+            raise Exception('Invalid SCM composition')
+        cli_cem_ratio = SCM_cli_cem[SCM_composition]
+
         if css == 'None':
             self.config = {
                 'CSS': css, # None, Oxyfuel, Calcium Looping
                 'Fuel Mixture': fuel_mix, # C1-C5
                 'Renewable electricity': renewable_electricity,
-                'Using SCMs': SCMs,
+                'SCMs': SCM_composition,
                 'ATB year': atb_year,
                 'site location': site_location,
                 'Clinker Production Rate (annual)': cli_production,
@@ -122,7 +142,9 @@ class ConcretePlant:
                 'Taxation and insurance': 1e-2, # fraction of installed costs, per year (OPEX)
                 'Construction time (months)': 36,
                 'Thermal energy demand (MJ/kg clinker)': 3.136, # MJ/kg cli 
-                'Electrical energy demand (kWh/t cement)': 132 * cli_cem_ratio, # kWh/t cement 
+                'Electrical energy demand (kWh/t cement)': 90, # kWh/t cement (NOTE assuming this does not depend on the clinker-to-cement ratio, because 
+                                                               #               addition of SCMs increases electrical consumption for grinding, etc)
+                                                               # Source of assumption: https://docs.wbcsd.org/2017/06/CSI_ECRA_Technology_Papers_2017.pdf, No 31
             }
         
         elif css == 'Oxyfuel':
@@ -130,7 +152,7 @@ class ConcretePlant:
                 'CSS': css, # None, Oxyfuel, Calcium Looping
                 'Fuel Mixture': fuel_mix, # C1-C5
                 'Renewable electricity': renewable_electricity,
-                'Using SCMs': SCMs,
+                'Using SCMs': SCM_composition,
                 'ATB year': atb_year,
                 'site location': site_location,
                 'Clinker Production Rate (annual)': cli_production,
@@ -148,6 +170,9 @@ class ConcretePlant:
         
         else:
             raise Exception('Invalid CSS Scenario.')
+        
+        # ------------- Clinker/cement ratio and SCMs ------------------
+        
 
         # ---------- CAPEX and OPEX ----------
         (self.equip_costs, 
