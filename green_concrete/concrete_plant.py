@@ -154,22 +154,22 @@ class ConcretePlant:
          self.tpc, 
          self.total_capex, 
          self.total_direct_costs, 
-         self.land_cost) = self.__capex_helper()
+         self.land_cost) = self._capex_helper()
         
         (self.feed_consumption, 
-         self.feed_cost, 
+         self.feed_costs, 
          self.feed_units, 
          self.operational_labor, 
          self.maintenance_equip, 
          self.maintenance_labor, 
-         self.admin_support) = self.__opex_helper()
+         self.admin_support) = self._opex_helper()
 
     # See files for documentation on these functions
-    def __capex_helper(self):
+    def _capex_helper(self):
         from green_concrete.capex import capex
         return capex(self)
     
-    def __opex_helper(self):
+    def _opex_helper(self):
         from green_concrete.opex import opex
         return opex(self)
     
@@ -194,11 +194,26 @@ class ConcretePlant:
         from green_concrete.manual_price_breakdown import manual_price_breakdown
         return manual_price_breakdown(self, gen_inflation, price_breakdown)
     
+    
 if __name__ == '__main__':
     plant = ConcretePlant()
     hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
     cement_annual_capacity, cement_production_capacity_margin_pc, cement_price_breakdown = \
     plant.run_pf()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 """
 ## outline (ignore)

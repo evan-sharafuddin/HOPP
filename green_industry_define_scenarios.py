@@ -38,9 +38,20 @@ import run_profast_for_steel
 from green_industry_run_scenarios import batch_generator_kernel
 from green_concrete.concrete_plant import ConcretePlant
 
-###### CONFIGURATIONS FOR CEMENT PLANT GO HERE
-cement_plant = ConcretePlant()
-######
+######\ CONFIGURATIONS FOR CEMENT PLANT GO HERE
+cement_plant = ConcretePlant(
+    css='None', 
+    fuel_mix='C1',
+    renewable_electricity=False, 
+    SCMs=False, 
+    atb_year=2035, 
+    site_location='IA', 
+    cli_production=1e6, 
+    cli_cem_ratio=73.7e-2, 
+    plant_life=25, 
+    plant_capacity_factor = 91.3e-2 # source of plant_capacity_factor: CEMCAP
+)
+######/
 
 warnings.filterwarnings("ignore")
 sys.path.append('')

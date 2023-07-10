@@ -115,7 +115,7 @@ class SiteInfo:
             data['no_solar'] = False
 
         if not data['no_solar']:
-            print('Doing this')
+            # print('Doing this')
             self.solar_resource = SolarResource(data['lat'], data['lon'], data['year'], filepath=solar_resource_file)
             self.n_timesteps = len(self.solar_resource.data['gh']) // 8760 * 8760
 

@@ -36,7 +36,7 @@ def run_profast_for_cement(
         max_cement_production_capacity_mtpy = self.config['Cement Production Rate (annual)'] # ton/year
     
     # TODO cleaner way to do this?
-    self.feed_cost['hydrogen'] = lcoh
+    self.feed_costs['hydrogen'] = lcoh
     
     # ------------------------------ ProFAST ------------------------------
     # Set up ProFAST
@@ -87,7 +87,7 @@ def run_profast_for_cement(
     # ------------------------------ Add feedstocks, note the various cost options ------------------------------
     # NOTE feedstocks without consumption data have a usage of 1 (i.e. already in the desired units)
     for key, value in self.feed_units.items():
-        pf.add_feedstock(name=key, usage=self.feed_consumption[key], unit=f'{self.feed_units[key]} per ton cement',cost=self.feed_cost[key],escalation=gen_inflation)
+        pf.add_feedstock(name=key, usage=self.feed_consumption[key], unit=f'{self.feed_units[key]} per ton cement',cost=self.feed_costs[key],escalation=gen_inflation)
 
     # TODO add this to dictionary
     pf.add_feedstock(name='Maintenance Materials',usage=1.0,unit='Units per ton of cement',cost=self.maintenance_equip / self.config['Cement Production Rate (annual)'],escalation=gen_inflation)

@@ -12,7 +12,7 @@ def opex(self):
         1. if using fuels that already exist in feed_units, then 
         can just add a new sub-dictionary to fuel_comp
         2. if using a fuel that does not already exist in feed_units,
-        this new fuel must be added to feed_units, lhv, and feed_cost
+        this new fuel must be added to feed_units, lhv, and feed_costs
 
     ''' 
      
@@ -70,7 +70,7 @@ def opex(self):
         ###/
     }
 
-    feed_cost = {
+    feed_costs = {
         # Fuels
         'coal': 3e-3 * lhv['coal'], # €/GJ coal --> €/kg coal
         'natural gas': 6e-3 * lhv['natural gas'], # €/kg ng
@@ -243,16 +243,17 @@ def opex(self):
     elec_price = grid_prices.loc[grid_prices['Year']==grid_year,config['site location']].tolist()[0] # $/MWh?
     elec_price *= 1e-3 # $/kWh
     
-    feed_cost['electricity'] = elec_price
+    feed_costs['electricity'] = elec_price
+    print('grid cost of electricity: ', elec_price)
 
     # ////////////// waste ////////////////
     # TODO: cost of cement kiln dust disposal? could be included already in some of the other costs
 
     # ///////////// unit conversions //////////// € --> $ 
-    for key, value in feed_cost.items():
+    for key, value in feed_costs.items():
         if key == 'electricity' or key == 'pet coke' or key == 'glycerin' or value is None: # these have already been converted
             continue 
-        feed_cost[key] = eur2013(1, value)
+        feed_costs[key] = eur2013(1, value)
 
     # ---------------- Fixed OPEX -----------------
     ## fixed ($/year)
@@ -265,15 +266,15 @@ def opex(self):
 
     # ------------------ tests -----------------
     for key in feed_consumption.keys():
-        if key not in feed_cost.keys() or key not in feed_units.keys():
-            raise Exception(f"{key} was found in feed_consumption, but not in either feed_cost or feed_units")
-    for key in feed_cost.keys():
+        if key not in feed_costs.keys() or key not in feed_units.keys():
+            raise Exception(f"{key} was found in feed_consumption, but not in either feed_costs or feed_units")
+    for key in feed_costs.keys():
         if key not in feed_consumption.keys() or key not in feed_units.keys():
-            raise Exception(f"{key} was found in feed_cost, but not in either feed_consumption or feed_units")
+            raise Exception(f"{key} was found in feed_costs, but not in either feed_consumption or feed_units")
     for key in feed_units.keys():
-        if key not in feed_cost.keys() or key not in feed_consumption.keys():
-            raise Exception(f"{key} was found in feed_units, but not in either feed_cost or feed_consumption")
+        if key not in feed_costs.keys() or key not in feed_consumption.keys():
+            raise Exception(f"{key} was found in feed_units, but not in either feed_costs or feed_consumption")
     if sum(fuel_frac.values()) != 1:
         raise Exception("Fuel composition fractions must add up to 1")
         
-    return feed_consumption, feed_cost, feed_units, operational_labor, maintenance_equip, maintenance_labor, admin_support
+    return feed_consumption, feed_costs, feed_units, operational_labor, maintenance_equip, maintenance_labor, admin_support

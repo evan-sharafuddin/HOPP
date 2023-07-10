@@ -1,3 +1,10 @@
+'''
+NOTE see header for green_industry_run_scenarios.py to view differences between
+this file and hopp_tools_steel.py
+
+'''
+
+
 # extra function in the osw_h2 file
 from math import floor
 import numpy as np 
@@ -958,7 +965,8 @@ def run_H2_PEM_sim(
     pem_param_dict,
     use_degradation_penalty,
     grid_connection_scenario,
-    h2_prod_capacity_required_kgphr
+    h2_prod_capacity_required_kgphr,
+    cement_electricity_consumption_MW,
 
     # TODO output seems to assume that electrolyzer power is the total power...
     # change this so tot_power includes electricity and electrolyzer power
@@ -998,6 +1006,8 @@ def run_H2_PEM_sim(
     # H2_Results, H2A_Results = run_h2_PEM.run_h2_PEM(electrical_generation_timeseries,electrolyzer_size_mw,
     #                 kw_continuous,electrolyzer_capex_kw,lcoe,adjusted_installed_cost,useful_life,
     #                 net_capital_costs)
+    # CEMENT: here hopp_dict is what I want it to be
+    
     H2_Results,H2_Ts_Data,H2_Agg_data,energy_signal_to_electrolyzer = run_h2_PEM.run_h2_PEM(energy_to_electrolyzer, electrolyzer_size_mw,
                 useful_life, n_pem_clusters,  electrolysis_scale, pem_control_type, electrolyzer_direct_cost_kw,pem_param_dict, 
                 use_degradation_penalty,grid_connection_scenario,h2_prod_capacity_required_kgphr)
@@ -1020,20 +1030,30 @@ def run_H2_PEM_sim(
             hopp_dict.main_dict['Models']['grid']['ouput_dict']['total_energy']=energy_signal_to_electrolyzer
             hopp_dict.main_dict['Models']['grid']['ouput_dict']['total_energy_old']=hopp_dict.main_dict['Models']['grid']['ouput_dict']['total_energy']
             []
-
+ 
+        # TODO seems to repeat the calculations made in grid(), why is this?
         elif grid_connection_scenario=='hybrid-grid':
             renewables_energy=hopp_dict.main_dict['Models']['grid']['ouput_dict']['energy_from_renewables']
-            power_from_grid = energy_signal_to_electrolyzer[0:len(renewables_energy)] - np.array(renewables_energy)
+            
+            # CEMENT: added to consider cement plant electricity below
+            power_from_grid = (cement_electricity_consumption_MW + energy_signal_to_electrolyzer[0:len(renewables_energy)]) - np.array(renewables_energy)
+            
             power_from_grid_sat=np.where(power_from_grid<0,0,power_from_grid)
             renewables_curtailed=np.where(power_from_grid<0,-1*power_from_grid,0)
-            tot_energy=renewables_energy + power_from_grid_sat #more used to double check the re-calc
+            # TODO ERROR COULD BE HERE FOR CEMENT
+            tot_energy=renewables_energy + power_from_grid_sat + cement_electricity_consumption_MW #more used to double check the re-calc
             #hopp_dict.main_dict['Models']['grid']['ouput_dict']['energy_from_the_grid_old']=hopp_dict.main_dict['Models']['grid']['ouput_dict']['energy_from_the_grid']
             hopp_dict.main_dict['Models']['grid']['ouput_dict']['energy_from_the_grid']=list(power_from_grid_sat)
             #hopp_dict.main_dict['Models']['grid']['ouput_dict']['total_energy_old']=hopp_dict.main_dict['Models']['grid']['ouput_dict']['total_energy']
             hopp_dict.main_dict['Models']['grid']['ouput_dict']['total_energy']=list(tot_energy)
             #hopp_dict.main_dict['Models']['grid']['ouput_dict']['energy_to_electrolyzer_old']=hopp_dict.main_dict['Models']['grid']['ouput_dict']['energy_to_electrolyzer']
-            hopp_dict.main_dict['Models']['grid']['ouput_dict']['energy_to_electrolyzer']=list(tot_energy)
+            
+            # CEMENT: changed this so that it would be the electrolyzer energy, and not the total energy
+            hopp_dict.main_dict['Models']['grid']['ouput_dict']['energy_to_electrolyzer']=list(energy_signal_to_electrolyzer[0:len(renewables_energy)])
             []
+            # TODO error for CEMENT could be in here
+            # note: energy signal from run_PEM is not the same as power for the electrolizers, 
+            # not sure why this is 
 
 
         
@@ -1103,6 +1123,7 @@ def grid(
                 energy_total[i]=kw_continuous
     else:
         # NOT IMPLEMENTED FOR CEMENT
+        raise NotImplementedError('Grid is required for cement simulations at this stage.')
         cost_to_buy_from_grid = 0.0
         energy_to_electrolyzer = [x if x < kw_continuous else kw_continuous for x in combined_pv_wind_storage_power_production_hopp]
         energy_total = combined_pv_wind_storage_power_production_hopp
@@ -1132,6 +1153,7 @@ def grid(
 
     return hopp_dict, cost_to_buy_from_grid, profit_from_selling_to_grid, energy_to_electrolyzer
 
+        
 def calculate_financials(
     hopp_dict,
     electrical_generation_timeseries,
@@ -1805,7 +1827,8 @@ def write_outputs_ProFAST(electrical_generation_timeseries,
     df_energy = df_energy.rename(columns={'energy_to_electrolyzer':'Energy to electrolyzer (kWh)','energy_from_the_grid':'Energy from grid (kWh)','energy_from_renewables':'Energy from renewables (kWh)','total_energy':'Total energy (kWh)'})
     df_energy['Hydrogen Hourly production (kg)'] = pd.DataFrame(H2_Results['hydrogen_hourly_production'])
     df_energy.to_csv(os.path.join(energy_profile_dir, 'Energy_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.csv'.format(site_name,atb_year,turbine_model,electrolysis_scale,electrolyzer_cost_case_string,policy_option,grid_string,renbat_string,windmodel_string,deg_string,stack_op_string,cluster_string,storage_mult_string)))
-   
+
+ 
     # Write profast price breakdowns to file
     profast_h2_price_breakdown.to_csv(os.path.join(price_breakdown_dir, 'H2_PF_PB_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.csv'.format(site_name,atb_year,turbine_model,electrolysis_scale,electrolyzer_cost_case_string,policy_option,grid_string,renbat_string,windmodel_string,deg_string,stack_op_string,cluster_string,storage_mult_string)))
     profast_steel_price_breakdown.to_csv(os.path.join(price_breakdown_dir, 'Stl_PF_PB_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.csv'.format(site_name,atb_year,turbine_model,electrolysis_scale,electrolyzer_cost_case_string,policy_option,grid_string,renbat_string,windmodel_string,deg_string,stack_op_string,cluster_string,storage_mult_string)))
