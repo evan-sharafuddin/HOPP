@@ -152,7 +152,7 @@ def hopp_for_h2(site, scenario, technologies, wind_size_mw, solar_size_mw, stora
     hybrid_plant.simulate(scenario['Useful Life'])
 
     # HOPP Specific Energy Metrics
-    combined_pv_wind_power_production_hopp = hybrid_plant.grid._system_model.Outputs.system_pre_interconnect_kwac[0:8759]
+    combined_pv_wind_power_production_hopp = hybrid_plant.grid._system_model.Outputs.system_pre_interconnect_kwac[0:8760]
     energy_shortfall_hopp = [x - y for x, y in
                              zip(load,combined_pv_wind_power_production_hopp)]
     energy_shortfall_hopp = [x if x > 0 else 0 for x in energy_shortfall_hopp]

@@ -10,16 +10,6 @@ from pathlib import Path
 import os
 from green_concrete.convert import *
 
-# Abbreviations
-# LHV - lower heat value 
-# ng - natural gas
-# cli - clinker
-# cem - cement
-# tdc - total direct costs (see paper)
-# epc - Engineering, process, and construction costs (total direct costs + indirect costs)
-# om - O&M
-# BAT - best available technology
-
 # Unit conventions (mostly):
 # * electricity = kWh
 # * fuels = MJ
@@ -98,7 +88,7 @@ class ConcretePlant:
         css='None', 
         fuel_mix='C1',
         renewable_electricity=False, 
-        SCM_composition='OPC', 
+        SCM_composition='European Average', 
         atb_year=2035, 
         site_location='IA', 
         cli_production=1e6, 
@@ -116,8 +106,11 @@ class ConcretePlant:
         }
 
         '''
-        assumptions to make for decreasing cli/cem ratio
-        * 
+        decreasing clinker/cement ratio resulting in lower cost?
+        https://rmi.org/wp-content/uploads/2021/08/ConcreteGuide2.pdf
+        * might be valid, but need to be careful about assumptions "embedded" in the 73.7% cli/cem ratio
+        claimed by IEAGHG/CEMCAP
+        
         '''
         
         # Select cli-cem ratio based on SCM composition
@@ -170,10 +163,8 @@ class ConcretePlant:
         
         else:
             raise Exception('Invalid CSS Scenario.')
-        
-        # ------------- Clinker/cement ratio and SCMs ------------------
-        
 
+        
         # ---------- CAPEX and OPEX ----------
         (self.equip_costs, 
          self.tpc, 

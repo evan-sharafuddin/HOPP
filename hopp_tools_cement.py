@@ -2547,5 +2547,58 @@ def hydrogen_storage_capacity_cost_calcs(H2_Results,electrolyzer_size_mw,storage
         storage_cost_USDprkg=0
     return(hydrogen_average_output_kgprhr,hydrogen_storage_capacity_kg,hydrogen_storage_capacity_MWh_HHV,hydrogen_storage_duration_hr,storage_cost_USDprkg,status_message)
     
+def quick_lcoe(renewable_power_ts,
+               wind_size_mw,
+               solar_size_mw,
+               battery_size_mw,
+               battery_storage_hours,
+               grid_power_ts,
+               grid_elec_OpEx,
+               ):
+    '''
+    quick calculation for LCOE used in cement plant cost estimation with hybrid plant electricity integration
+
+    this function is used around line 1000 in green_industry_run_scenarios.py
+    '''
+    # initialize hybrid plant capex/opex values
+    wind_CapEx_kW = 1000 #[$/kW of installed wind capacity]
+    wind_OpEx_kW = 34.38 #[$/kW-year of installed wind capacity]
+
+    solar_CapEx_kW =637.63 #[$/kW of installed solar capacity]
+    solar_OpEx_kW = 13.25 #[$/kW-year of installed solar capacity]
+
+    battery_CapEx_capacity_cost = 143 #[$/kWh]
+    battery_CapEx_chargerate_cost = 110 #[$/kW]
+    battery_OpEx_perc = 0.025
+
+    discount_rate = 0.0824
+    plant_life = 30
     
+    # find costs for each component of the hybrid plant
+    # NOTE power values given hourly, so to find the energy just multiply that 
+    # power value by one hour
+    renewable_AEP = sum(renewable_power_ts) * 3600 * 1000 # [MW] --> [kWh/year]
+    grid_AEP = sum(grid_power_ts) * 3600 * 1000
+
+    wind_CapEx_USD = wind_CapEx_kW*wind_size_mw*1000 #[$]
+    wind_OpEx_USD = wind_OpEx_kW*wind_size_mw*1000 #[$/year]
+    
+    solar_CapEx_USD = solar_CapEx_kW*solar_size_mw*1000 #[$]
+    solar_OpEx_USD = solar_OpEx_kW*solar_size_mw*1000 #[$/year]
+
+    battery_CapEx_kW = (battery_CapEx_capacity_cost*battery_storage_hours) + battery_CapEx_chargerate_cost
+    battery_CapEx_USD = battery_CapEx_kW*battery_size_mw*1000 #[$]
+    battery_OpEx_USD = battery_OpEx_perc*battery_CapEx_USD #[$/year]
+    
+    y=np.arange(0,plant_life,1)
+    denom = (1+discount_rate)**y
+
+    hybrid_plant_annual_OpEx = wind_OpEx_USD + solar_OpEx_USD + battery_OpEx_USD
+    
+    total_CapEx = wind_CapEx_USD + solar_CapEx_USD + battery_CapEx_USD
+
+    OpEx = ((hybrid_plant_annual_OpEx + grid_elec_OpEx)/denom) 
+    energy = (renewable_AEP + grid_AEP)/denom
+    lcoe = (total_CapEx + np.sum(OpEx))/np.sum(energy) #[$/kWh]
+    return lcoe
     

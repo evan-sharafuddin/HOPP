@@ -32,6 +32,9 @@ CHANGES FOR CEMENT IMPLEMENTATION
             energy_to_electrolyzer: list
                 changed this to just include the electrolyzer energy
                     energy_to_electrolyzer[i] = kw_continuous - cement_electricity_consumption_kw
+            NOTE apparently the values found from grid() don't really matter, since they are 
+            just overwritten by run_H2_PEM_sim() 
+    
     other changes
         commented print() in desal_model.py ("Max power allowed by system[...]")
         commented print() in site_info.py ("Doing this")
@@ -497,13 +500,14 @@ def batch_generator_kernel(arg_list):
         # else:
         #     n_pem_clusters = number_pem_stacks
 
+    ###\ CHANGING THIS FOR CEMENT
     print(f'Electrolyzer size (MW): {electrolyzer_size_mw}')
     print(f'Cement renewable electricity consumption (MW): {cement_electricity_consumption_MW}')
     print(f'Wind plant capacity (MW): {wind_size_mw}')
 
     kw_continuous = (electrolyzer_size_mw + cement_electricity_consumption_MW) * 1000
 
-    ###\ CHANGING THIS FOR CEMENT
+    
     load = [kw_continuous for _ in
             range(0, 8760)]  # * (sin(x) + pi) Set desired/required load profile for plant
     ###/
@@ -699,7 +703,7 @@ def batch_generator_kernel(arg_list):
                     )
 
             ######\ CEMENT: changing LCOE here (assuming $/kWh)
-            print(f'LCOE ($/kWh): {lcoe}')
+            # print(f'LCOE ($/kWh): {lcoe}')
 
             # if cement_plant.config['Renewable electricity']:
             #     cement_plant.feed_costs['electricity'] = lcoe * 1e-3
@@ -898,8 +902,7 @@ def batch_generator_kernel(arg_list):
         # Currently only works for offgrid
         #grid_string = 'offgrid'    
         #scenario_name = 'steel_'+str(atb_year)+'_'+ site_location.replace(' ','-') +'_'+turbine_model+'_'+grid_string
-        
-        # TODO go into hopp tools steel here to continue troubleshooting electricity stuff
+
         
         #Run the H2_PEM model to get hourly hydrogen output, capacity factor, water consumption, etc.
         h2_model = 'Simple'
@@ -926,6 +929,9 @@ def batch_generator_kernel(arg_list):
             cement_electricity_consumption_MW * 1e3,
         )
 
+        #######\ CEMENT: adding costs of electricity to the plant model
+
+
         # h2_hourly_production = H2_Results['hydrogen_hourly_production'].tolist()
         # fig, ax = plt.subplots(1,1)
         # ax.plot(h2_hourly_production)
@@ -942,7 +948,47 @@ def batch_generator_kernel(arg_list):
         )
         
         hydrogen_annual_production = H2_Results['hydrogen_annual_output']
-    
+
+        ######\ CEMENT: determining how much oxygen is available for oxycombustion
+        excess_oxygen_annual_production = float() # use for oxygen sales, if wanted 
+        # TODO make sure not taking any oxygen that is used in steel
+        if cement_plant.config['CSS'] == 'Oxyfuel':
+            print('be careful... oxyfuel is not finished yet')
+            oxygen_annual_production = hydrogen_annual_production / 1.0078 / 2 * 15.999 # kg H2 --> kg O2 
+
+            oxygen_annual_consumption = cement_plant.config['Cement Production Rate (annual)'] * cement_plant.feed_consumption['oxygen']
+            if oxygen_annual_consumption > oxygen_annual_production:
+                raise NotImplementedError("Not enough oxygen for cement oxyfuel combustion; ASU has not been implemented yet")
+            
+            excess_oxygen_annual_production = oxygen_annual_production - oxygen_annual_consumption # kg O2/year
+        #######/
+
+        #######\ CEMENT: determining electricity costs for the plant
+        # extracting the power time series from each source
+        # note: had to change line 155 in hopp_for_h2.py
+
+        grid_dict = hopp_dict.main_dict['Models']['grid']['ouput_dict']
+        grid_power_ts = grid_dict['energy_from_the_grid']
+        renewable_power_ts = list(np.array(grid_dict['total_energy']) - np.array(grid_dict['energy_from_the_grid']))
+        del grid_dict
+
+        # NOTE this value is currently just the cost of grid electricity at the location of the cement plant
+        grid_cost = cement_plant.feed_costs['electricity']
+        # total cost of grid electricity over a year:
+        grid_elec_OpEx = sum([grid_cost * p for p in grid_power_ts]) # $/year
+
+        lcoe = hopp_tools_cement.quick_lcoe(renewable_power_ts,
+                          wind_size_mw,
+                          solar_size_mw,
+                          storage_size_mw,
+                          storage_hours,
+                          grid_power_ts,
+                          grid_elec_OpEx)
+        
+        print(lcoe)
+
+        ############/
+
         # hydrogen_max_hourly_production_kg = max(H2_Results['hydrogen_hourly_production'])
 
         # Calculate required storage capacity to meet a flat demand profile. In the future, we could customize this to

@@ -16,7 +16,7 @@ def opex(self):
 
     ''' 
      
-    config = self.config
+    
     
     # --------------- Variable OPEX / feedstocks ----------------
     feed_units = {
@@ -32,7 +32,6 @@ def opex(self):
         'SRF (wet)': 'kg',
         'MBM (wet)': 'kg',
         'glycerin': 'kg',
-        'electricity': 'kWh',
         'tires': 'kg',
         
         # Raw materials
@@ -42,6 +41,9 @@ def opex(self):
         'oxygen': 'Nm^3', # TODO might want to change this
         'cooling water make-up': 'units',
         'raw meal': 'units',
+
+        # other
+        'electricity': 'kWh',
     }
     
     lhv = {
@@ -85,7 +87,7 @@ def opex(self):
         'MBM (wet)': 0,
         'glycerin': (2812 + 2955) / 2 / 1e6, # https://www.procurementresource.com/resource-center/glycerin-price-trends#:~:text=In%20North%20America%2C%20the%20price,USD%2FMT%20in%20March%202022.
         # Raw materials
-        'raw meal': 5 * config['Clinker-to-cement ratio'], # €/ton cement 
+        'raw meal': 5 * self.config['Clinker-to-cement ratio'], # €/ton cement 
         'process water': 0.014, # €/ton cement
         'misc': 0.8, # €/ton cement
         'oxygen': 0, # ASSUMPTION
@@ -203,12 +205,12 @@ def opex(self):
     ###/
 
     # select fuel composition configuration to use
-    fuel_frac = fuel_comp[config['Fuel Mixture']]
+    fuel_frac = fuel_comp[self.config['Fuel Mixture']]
 
     # add fuels to feed_consumption dict
     feed_consumption = dict()
     for key in lhv.keys():
-        feed_consumption[key] = config['Thermal energy demand (MJ/kg clinker)'] * fuel_frac[key] / lhv[key] * config['Clinker-to-cement ratio'] * 1e3 # kg feed/ton cement
+        feed_consumption[key] = self.config['Thermal energy demand (MJ/kg clinker)'] * fuel_frac[key] / lhv[key] * self.config['Clinker-to-cement ratio'] * 1e3 # kg feed/ton cement
     
     # add remaining feeds and IEAGHG fuel mix
     feed_consumption.update({
@@ -220,31 +222,30 @@ def opex(self):
 
     # /////////// OXYFUEL FEEDS ///////////
     if self.config['CSS'] == 'Oxyfuel':
-        feed_consumption['oxygen'] = 191 * self.config['Clinker-to-cement ratio'] # Nm^3/t cement (NOTE Nm^3 = "normal cubic meter")
+        feed_consumption['oxygen'] = 191 * self.config['Clinker-to-cement ratio'] * 1.4291 # kg/t cement -- http://www.uigi.com/o2_conv.html
         feed_consumption['cooling water make-up'] = 1
     else:
         feed_consumption['oxygen'] = 0
         feed_consumption['cooling water make-up'] = 0
         
     # //////////// Electricity /////////////
-    feed_consumption['electricity'] = config['Electrical energy demand (kWh/t cement)']
+    feed_consumption['electricity'] = self.config['Electrical energy demand (kWh/t cement)']
 
-    if config['ATB year'] == 2020:
+    if self.config['ATB year'] == 2020:
         grid_year = 2025
-    elif config['ATB year'] == 2025:
+    elif self.config['ATB year'] == 2025:
         grid_year = 2030
-    elif config['ATB year'] == 2030:
+    elif self.config['ATB year'] == 2030:
         grid_year = 2035
-    elif config['ATB year'] == 2035:
+    elif self.config['ATB year'] == 2035:
         grid_year = 2040
         
     # Read in csv for grid prices
     grid_prices = pd.read_csv(os.path.join(os.path.split(__file__)[0], '..\\examples\\H2_Analysis\\annual_average_retail_prices.csv'),index_col = None,header = 0)
-    elec_price = grid_prices.loc[grid_prices['Year']==grid_year,config['site location']].tolist()[0] # $/MWh?
+    elec_price = grid_prices.loc[grid_prices['Year']==grid_year,self.config['site location']].tolist()[0] # $/MWh?
     elec_price *= 1e-3 # $/kWh
     
     feed_costs['electricity'] = elec_price
-
     # ////////////// waste ////////////////
     # TODO: cost of cement kiln dust disposal? could be included already in some of the other costs
 
@@ -277,3 +278,17 @@ def opex(self):
         raise Exception("Fuel composition fractions must add up to 1")
         
     return feed_consumption, feed_costs, feed_units, operational_labor, maintenance_equip, maintenance_labor, admin_support
+
+def _electricity_opex(config, feed_costs, feed_consumption, feed_units):
+    '''
+    determines cost associated with renewable and grid electricity consumption
+
+    uses time series created in green_industry_run_scenarios and stored in 
+    the ConcretePlant object
+    
+    '''
+    
+    # //////////// Electricity /////////////
+    
+
+    return feed_costs, feed_consumption, feed_units
