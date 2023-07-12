@@ -953,7 +953,7 @@ def batch_generator_kernel(arg_list):
         excess_oxygen_annual_production = float() # use for oxygen sales, if wanted 
         # TODO make sure not taking any oxygen that is used in steel
         if cement_plant.config['CSS'] == 'Oxyfuel':
-            print('be careful... oxyfuel is not finished yet')
+            print('be careful... oxyfuel is not finished yet (green_industry_run_scenarios, line 956)')
             oxygen_annual_production = hydrogen_annual_production / 1.0078 / 2 * 15.999 # kg H2 --> kg O2 
 
             oxygen_annual_consumption = cement_plant.config['Cement Production Rate (annual)'] * cement_plant.feed_consumption['oxygen']
@@ -966,27 +966,29 @@ def batch_generator_kernel(arg_list):
         #######\ CEMENT: determining electricity costs for the plant
         # extracting the power time series from each source
         # note: had to change line 155 in hopp_for_h2.py
+        if cement_plant.config['Renewable electricity']:
+            grid_dict = hopp_dict.main_dict['Models']['grid']['ouput_dict']
+            grid_power_ts = grid_dict['energy_from_the_grid']
+            renewable_power_ts = list(np.array(grid_dict['total_energy']) - np.array(grid_dict['energy_from_the_grid']))
+            del grid_dict
 
-        grid_dict = hopp_dict.main_dict['Models']['grid']['ouput_dict']
-        grid_power_ts = grid_dict['energy_from_the_grid']
-        renewable_power_ts = list(np.array(grid_dict['total_energy']) - np.array(grid_dict['energy_from_the_grid']))
-        del grid_dict
+            # NOTE this value is currently just the cost of grid electricity at the location of the cement plant
+            grid_cost = cement_plant.feed_costs['electricity']
+            print(f'Grid electricity price: {grid_cost}')
+            # total cost of grid electricity over a year:
+            grid_elec_OpEx = sum([grid_cost * p for p in grid_power_ts]) # $/year
 
-        # NOTE this value is currently just the cost of grid electricity at the location of the cement plant
-        grid_cost = cement_plant.feed_costs['electricity']
-        # total cost of grid electricity over a year:
-        grid_elec_OpEx = sum([grid_cost * p for p in grid_power_ts]) # $/year
+            lcoe = hopp_tools_cement.quick_lcoe(renewable_power_ts,
+                            wind_size_mw,
+                            solar_size_mw,
+                            storage_size_mw,
+                            storage_hours,
+                            grid_power_ts,
+                            grid_elec_OpEx)
+            
+            cement_plant.feed_costs['electricity'] = lcoe
 
-        lcoe = hopp_tools_cement.quick_lcoe(renewable_power_ts,
-                          wind_size_mw,
-                          solar_size_mw,
-                          storage_size_mw,
-                          storage_hours,
-                          grid_power_ts,
-                          grid_elec_OpEx)
-        
-        print(lcoe)
-
+            print(f'LCOE: {lcoe}')
         ############/
 
         # hydrogen_max_hourly_production_kg = max(H2_Results['hydrogen_hourly_production'])

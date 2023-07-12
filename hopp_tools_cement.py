@@ -2559,6 +2559,8 @@ def quick_lcoe(renewable_power_ts,
     quick calculation for LCOE used in cement plant cost estimation with hybrid plant electricity integration
 
     this function is used around line 1000 in green_industry_run_scenarios.py
+
+    https://corporatefinanceinstitute.com/resources/valuation/levelized-cost-of-energy-lcoe/
     '''
     # initialize hybrid plant capex/opex values
     wind_CapEx_kW = 1000 #[$/kW of installed wind capacity]
@@ -2577,8 +2579,8 @@ def quick_lcoe(renewable_power_ts,
     # find costs for each component of the hybrid plant
     # NOTE power values given hourly, so to find the energy just multiply that 
     # power value by one hour
-    renewable_AEP = sum(renewable_power_ts) * 3600 * 1000 # [MW] --> [kWh/year]
-    grid_AEP = sum(grid_power_ts) * 3600 * 1000
+    renewable_AEP = sum(renewable_power_ts) # [kW] --> [kWh/year], since each element in the array is essentially 1 kWh
+    grid_AEP = sum(grid_power_ts) 
 
     wind_CapEx_USD = wind_CapEx_kW*wind_size_mw*1000 #[$]
     wind_OpEx_USD = wind_OpEx_kW*wind_size_mw*1000 #[$/year]
@@ -2590,15 +2592,26 @@ def quick_lcoe(renewable_power_ts,
     battery_CapEx_USD = battery_CapEx_kW*battery_size_mw*1000 #[$]
     battery_OpEx_USD = battery_OpEx_perc*battery_CapEx_USD #[$/year]
     
-    y=np.arange(0,plant_life,1)
+    y=np.arange(1,plant_life + 1,1)
     denom = (1+discount_rate)**y
 
     hybrid_plant_annual_OpEx = wind_OpEx_USD + solar_OpEx_USD + battery_OpEx_USD
     
     total_CapEx = wind_CapEx_USD + solar_CapEx_USD + battery_CapEx_USD
 
+    # npv_costs = total_CapEx
+    # for i in range(1, plant_life + 1):
+    #     npv_costs += hybrid_plant_annual_OpEx / ((1 + discount_rate) ** i)
+    
+    # npv_energy = 0
+    # for i in range(1, plant_life + 1):
+    #     npv_energy += (renewable_AEP + grid_AEP) / ((1 + discount_rate) ** i)
+
+    # lcoe = npv_costs/npv_energy
+    
     OpEx = ((hybrid_plant_annual_OpEx + grid_elec_OpEx)/denom) 
     energy = (renewable_AEP + grid_AEP)/denom
     lcoe = (total_CapEx + np.sum(OpEx))/np.sum(energy) #[$/kWh]
+
     return lcoe
     
