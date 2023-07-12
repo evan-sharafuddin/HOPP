@@ -41,7 +41,7 @@ from green_concrete.concrete_plant import ConcretePlant
 ######\ CONFIGURATIONS FOR CEMENT PLANT GO HERE
 cement_plant = ConcretePlant(
     css='Oxyfuel', 
-    fuel_mix='C1',
+    fuel_mix='C4',
     renewable_electricity=True, 
     SCM_composition='OPC', 
     atb_year=2035, 

@@ -11,7 +11,14 @@ import ProFAST
 import sys
 #sys.path.insert(1,'../PyFAST/')
 
+'''
+This file is the same as run_profast_for_steel.py except that it has a few changes
+supporting oxygen integration for cement production. 
 
+NOTE the oxygen sales portion of this file was edited to support functionality
+for the cement model (see around line 72)
+
+'''
 
 # sys.path.append('../PyFAST/')
 
@@ -19,12 +26,14 @@ import sys
 
 #mat_n_heat_integration = 1
 
-def run_profast_for_steel(plant_capacity_mtpy,plant_capacity_factor,\
+def run_profast_for_steel_coupled(plant_capacity_mtpy,plant_capacity_factor,\
     plant_life,levelized_cost_of_hydrogen,electricity_cost,natural_gas_cost,\
         lime_unitcost,
         carbon_unitcost,
         iron_ore_pellet_unitcost,
-        o2_heat_integration):
+        o2_heat_integration,
+        total_leftover_oxygen_annual # CEMENT
+        ):
 
 # # Steel plant capacity in metric tonnes per year (eventually import to function)
     # plant_capacity_mtpy = 1162077
@@ -51,6 +60,8 @@ def run_profast_for_steel(plant_capacity_mtpy,plant_capacity_factor,\
     capex_eaf_casting = 352191.5237*plant_capacity_mtpy**0.456
     capex_shaft_furnace = 489.68061*plant_capacity_mtpy**0.88741
     capex_oxygen_supply = 1715.21508*plant_capacity_mtpy**0.64574
+
+    # This controls whether or not you sell the oxygen
     if o2_heat_integration == 1:
        capex_h2_preheating = (1 - 0.4) * (45.69123*plant_capacity_mtpy**0.86564) # Optimistic ballpark estimate of 60% reduction in preheating
        capex_cooling_tower = (1 - 0.3) * (2513.08314*plant_capacity_mtpy**0.63325) # Optimistic ballpark estimate of 30% reduction in cooling
@@ -59,7 +70,12 @@ def run_profast_for_steel(plant_capacity_mtpy,plant_capacity_factor,\
         capex_h2_preheating = 45.69123*plant_capacity_mtpy**0.86564
         capex_cooling_tower = 2513.08314*plant_capacity_mtpy**0.63325
         oxygen_market_price = 0 # $/kgO2
-    excess_oxygen       = 395               # excess kg O2/metric tonne of steel
+    
+    # TODO change this to reflect oxygen changed from cement
+    ##########\ CEMENT CHANGES HERE
+    excess_oxygen = total_leftover_oxygen_annual / steel_production_mtpy            # excess kg O2/metric tonne of steel
+    ########/
+
     capex_piping = 11815.72718*plant_capacity_mtpy**0.59983
     capex_elec_instr = 7877.15146*plant_capacity_mtpy**0.59983
     capex_buildings_storage_water = 1097.81876*plant_capacity_mtpy**0.8
@@ -248,8 +264,8 @@ def run_profast_for_steel(plant_capacity_mtpy,plant_capacity_factor,\
         - price_breakdown.loc[price_breakdown['Name'] == 'Monetized tax losses','NPV'].tolist()[0]\
     
     if o2_heat_integration == 1:
-        price_breakdown_O2sales =  price_breakdown.loc[price_breakdown['Name']=='Oxygen sales','NPV'].tolist()[0]    
-        print(price_breakdown_O2sales)
+        price_breakdown_O2sales =  price_breakdown.loc[price_breakdown['Name']=='Oxygen sales','NPV'].tolist()[0]  
+        print(f"Leftover Oxygen Sales: {price_breakdown_O2sales}")  
     else:
         price_breakdown_O2sales = 0
         
@@ -288,7 +304,6 @@ def run_profast_for_steel(plant_capacity_mtpy,plant_capacity_factor,\
             +price_breakdown_maintenance_materials+price_breakdown_water_withdrawal+price_breakdown_lime+price_breakdown_carbon+price_breakdown_iron_ore\
             +price_breakdown_hydrogen+price_breakdown_natural_gas+price_breakdown_electricity+price_breakdown_slag+price_breakdown_taxes+price_breakdown_financial_equipment\
             +price_breakdown_financial_remaining+price_breakdown_O2sales    # a neater way to implement is add to price_breakdowns but I am not sure if ProFAST can handle negative costs
- 
         
     bos_savings =  (price_breakdown_labor_cost_admin_support) * 0.3
     steel_price_breakdown = {'Steel price: EAF and Casting CAPEX ($/tonne)':price_breakdown_eaf_casting,'Steel price: Shaft Furnace CAPEX ($/tonne)':price_breakdown_shaft_furnace,\
@@ -309,6 +324,7 @@ def run_profast_for_steel(plant_capacity_mtpy,plant_capacity_factor,\
     price_breakdown = price_breakdown.drop(columns=['index','Amount'])
 
     return(sol,summary,price_breakdown,steel_production_mtpy,steel_price_breakdown,total_capex)
+
 
 
 

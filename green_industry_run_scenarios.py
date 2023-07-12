@@ -39,6 +39,8 @@ CHANGES FOR CEMENT IMPLEMENTATION
         commented print() in desal_model.py ("Max power allowed by system[...]")
         commented print() in site_info.py ("Doing this")
         added a few print statements in run_scenarios
+        NOTE the selling of oxygen occurs in run_profast_for_steel.py, but the oxygen consumption from
+        cement is already taken into account before this change
 
     QUESTIONS
         Why does run_H2_PEM_sim() change the grid/renewable electricity consumptions but not the costs 
@@ -201,8 +203,8 @@ def batch_generator_kernel(arg_list):
 
     #THESE ARE WORKING VARIABLES NOW
     solar_size_mw = 200 # "installed solar capacity"
-    storage_size_mw = 0 # 100
-    storage_size_mwh = 0 # 400 # (discharge time 4 hr)
+    storage_size_mw = 100 # 100
+    storage_size_mwh = 400 # 400 # (discharge time 4 hr)
     battery_for_minimum_electrolyzer_op=True #If true, then dispatch battery (if on) to supply minimum power for operation to PEM, otherwise use it for rated PEM power
 
     if electrolyzer_degradation_penalty==True:
@@ -375,6 +377,8 @@ def batch_generator_kernel(arg_list):
     hydrogen_consumption_for_steel = 0.06596 # metric tonnes of hydrogen/metric tonne of steel production
     
     # Annual hydrogen production target to meet steel production target
+    # TODO what on earth is going on with the capacity factor -- for now assuming steel_annual_production... is the production rate multiplied by the cf, so going backwards
+
     steel_ammonia_plant_cf = 0.9
     hydrogen_production_target_kgpy_steel = steel_annual_production_rate_target_tpy*1000*hydrogen_consumption_for_steel/steel_ammonia_plant_cf
 
@@ -950,22 +954,29 @@ def batch_generator_kernel(arg_list):
         hydrogen_annual_production = H2_Results['hydrogen_annual_output']
 
         ######\ CEMENT: determining how much oxygen is available for oxycombustion
-        excess_oxygen_annual_production = float() # use for oxygen sales, if wanted 
+        total_leftover_oxygen_annual = float() # use for oxygen sales in run_profast_for_steel
         # TODO make sure not taking any oxygen that is used in steel
         if cement_plant.config['CSS'] == 'Oxyfuel':
             print('be careful... oxyfuel is not finished yet (green_industry_run_scenarios, line 956)')
+            
             oxygen_annual_production = hydrogen_annual_production / 1.0078 / 2 * 15.999 # kg H2 --> kg O2 
 
-            oxygen_annual_consumption = cement_plant.config['Cement Production Rate (annual)'] * cement_plant.feed_consumption['oxygen']
-            if oxygen_annual_consumption > oxygen_annual_production:
+            # TODO clarify with Elenya what is going on with the capacity factor
+            max_steel_production_capacity_mtpy = min(steel_annual_production_rate_target_tpy/steel_ammonia_plant_cf,hydrogen_annual_production/1000/hydrogen_consumption_for_steel)
+            oxygen_annual_consumption_steel = 0.127 * max_steel_production_capacity_mtpy * 1e3 * steel_ammonia_plant_cf # kg O2/kg steel --> kg O2/year
+            oxygen_annual_excess_steel = oxygen_annual_production - oxygen_annual_consumption_steel
+
+            oxygen_annual_consumption_cement = cement_plant.config['Cement Production Rate (annual)'] * cement_plant.config['Plant capacity factor'] \
+                * cement_plant.feed_consumption['oxygen']
+            if oxygen_annual_consumption_cement > oxygen_annual_excess_steel:
                 raise NotImplementedError("Not enough oxygen for cement oxyfuel combustion; ASU has not been implemented yet")
-            
-            excess_oxygen_annual_production = oxygen_annual_production - oxygen_annual_consumption # kg O2/year
+            else:
+                total_leftover_oxygen_annual = oxygen_annual_excess_steel - oxygen_annual_consumption_cement # kg O2/year
         #######/
 
         #######\ CEMENT: determining electricity costs for the plant
         # extracting the power time series from each source
-        # note: had to change line 155 in hopp_for_h2.py
+        # NOTE had to change line 155 in hopp_for_h2.py
         if cement_plant.config['Renewable electricity']:
             grid_dict = hopp_dict.main_dict['Models']['grid']['ouput_dict']
             grid_power_ts = grid_dict['energy_from_the_grid']
@@ -1105,7 +1116,8 @@ def batch_generator_kernel(arg_list):
                                                                                                             lime_unit_cost,
                                                                                                             carbon_unit_cost,
                                                                                                             iron_ore_pellets_unit_cost,
-                                                                                                            o2_heat_integration,atb_year,site_name)
+                                                                                                            o2_heat_integration,atb_year,site_name,
+                                                                                                            total_leftover_oxygen_annual)
     
     
     # Calcualte break-even price of steel WITH oxygen and heat integration
@@ -1114,7 +1126,8 @@ def batch_generator_kernel(arg_list):
                                                                                                             lime_unit_cost,
                                                                                                             carbon_unit_cost,
                                                                                                             iron_ore_pellets_unit_cost,
-                                                                                                            o2_heat_integration,atb_year,site_name)
+                                                                                                            o2_heat_integration,atb_year,site_name,
+                                                                                                            total_leftover_oxygen_annual)
     
     
     # Calculate break-even price of ammonia

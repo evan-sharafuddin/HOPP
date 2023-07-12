@@ -32,6 +32,8 @@ from green_concrete.convert import *
 # * TPC calculations exclude "land property (in particula rthe quaqrry), emerging emission abatement technology 
 # (e.g. SCR) and developing cost (power and water supply)"
 # * Production Costs: "excl. freight, raw material deposit, land property, permits etc."
+# * The scope of this model seems to mainly be the clinkering plant, as there is no mention of any SCMs, cement mixing, etc. 
+# So it makes sense that the cost of OPC is more than the cost of lower clinker-to-cement mixtures
 
 class ConcretePlant:
     """  

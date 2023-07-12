@@ -1932,7 +1932,8 @@ def steel_LCOS(
     steel_annual_production_rate_target_tpy,
     lime_unitcost,
     carbon_unitcost,
-    iron_ore_pellet_unitcost,o2_heat_integration,atb_year,site_name
+    iron_ore_pellet_unitcost,o2_heat_integration,atb_year,site_name,
+    total_leftover_oxygen_annual, # CEMENT
 ):
     if hopp_dict.save_model_input_yaml:
         input_dict = {
@@ -1948,7 +1949,7 @@ def steel_LCOS(
 
         hopp_dict.add('Models', {'steel_LCOS': {'input_dict': input_dict}})
 
-    from run_profast_for_steel import run_profast_for_steel
+    from run_profast_for_steel_coupled import run_profast_for_steel_coupled
     
     import ProFAST
     
@@ -1997,12 +1998,12 @@ def steel_LCOS(
     #electricity_cost = lcoe - (((policy_option['Wind PTC']) * 100) / 3) # over the whole lifetime 
     
     steel_economics_from_profast,steel_economics_summary,profast_steel_price_breakdown,steel_annual_capacity,steel_price_breakdown,steel_plant_capex=\
-        run_profast_for_steel(max_steel_production_capacity_mtpy,\
+        run_profast_for_steel_coupled(max_steel_production_capacity_mtpy,\
             steel_capacity_factor,steel_plant_life,levelized_cost_hydrogen,\
             elec_price,natural_gas_cost,lime_unitcost,
                 carbon_unitcost,
                 iron_ore_pellet_unitcost,
-                o2_heat_integration)
+                o2_heat_integration, total_leftover_oxygen_annual)
 
     steel_breakeven_price = steel_economics_from_profast.get('price')
 
@@ -2010,7 +2011,7 @@ def steel_LCOS(
     #steel_production_capacity_margin_mtpy = hydrogen_annual_production/1000/hydrogen_consumption_for_steel - steel_annual_capacity
     steel_production_capacity_margin_pc = (hydrogen_annual_production/1000/hydrogen_consumption_for_steel - steel_annual_capacity)/steel_annual_capacity*100
 
-    if o2_heat_integration !=1:
+    if o2_heat_integration != 1:
         if hopp_dict.save_model_output_yaml:
             output_dict = {
                 'steel_economics_from_profast': steel_economics_from_profast,
@@ -2043,7 +2044,7 @@ def steel_LCOS_SMR(
 
     #     hopp_dict.add('Models', {'steel_LCOS': {'input_dict': input_dict}})
 
-    from run_profast_for_steel import run_profast_for_steel
+    from run_profast_for_steel_coupled import run_profast_for_steel_coupled
     
     import ProFAST
     
@@ -2075,7 +2076,7 @@ def steel_LCOS_SMR(
     # electricity_cost = lcoe - (((policy_option['Wind PTC']) * 100) / 3) # over the whole lifetime 
     
     steel_economics_from_profast,steel_economics_summary,profast_steel_price_breakdown,steel_annual_capacity,steel_price_breakdown,steel_plant_capex=\
-        run_profast_for_steel(max_steel_production_capacity_mtpy,\
+        run_profast_for_steel_coupled(max_steel_production_capacity_mtpy,\
             steel_capacity_factor,steel_plant_life,levelized_cost_hydrogen,\
             electricity_cost,natural_gas_cost,lime_unitcost,
                 carbon_unitcost,
@@ -2592,7 +2593,7 @@ def quick_lcoe(renewable_power_ts,
     battery_CapEx_USD = battery_CapEx_kW*battery_size_mw*1000 #[$]
     battery_OpEx_USD = battery_OpEx_perc*battery_CapEx_USD #[$/year]
     
-    y=np.arange(1,plant_life + 1,1)
+    y=np.arange(0,plant_life + 1,1)
     denom = (1+discount_rate)**y
 
     hybrid_plant_annual_OpEx = wind_OpEx_USD + solar_OpEx_USD + battery_OpEx_USD
