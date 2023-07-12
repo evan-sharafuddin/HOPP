@@ -44,7 +44,7 @@ class ConcretePlant:
     Attributes:
         CAPEX
             self.config: holds  general plant information
-                CSS: 'None', 'Oxyfuel', 'Calcium Looping'
+                CSS: 'None', 'Oxyfuel', 'CaL (tail-end)'
                 Fuel Mixture: 'C1-C5'
                 Renewable electricity: determines if grid electricity will be used
                 Using SCMs: 'OPC', 'USA Average', 'European Average, TODO add more configs
@@ -162,7 +162,28 @@ class ConcretePlant:
                 'Thermal energy demand (MJ/kg clinker)': 3.349, # MJ / kg cli
                 'Electrical energy demand (kWh/t cement)': 132 * 1.67 * cli_cem_ratio, # kWh/t cem, using 67% increase claimed in article
             }
-        
+
+        elif css == 'CaL (tail-end)':
+            self.config = {
+                'CSS': css, # None, Oxyfuel, Calcium Looping
+                'Fuel Mixture': fuel_mix, # C1-C5
+                'Renewable electricity': renewable_electricity,
+                'Using SCMs': SCM_composition,
+                'ATB year': atb_year,
+                'site location': site_location,
+                'Clinker Production Rate (annual)': cli_production,
+                'Clinker-to-cement ratio': cli_cem_ratio,
+                'Cement Production Rate (annual)': cli_production / cli_cem_ratio,
+                'Plant lifespan': plant_life,
+                'Plant capacity factor': plant_capacity_factor,
+                'Contingencies and fees': 1e-2, # fraction of installed costs (CAPEX)
+                'Taxation and insurance': 1e-2, # fraction of installed costs, per year (OPEX)
+                # https://www.sciencedirect.com/science/article/pii/S0306261922005529#b0150
+                'Construction time (months)': 60, # combined plant and carbon capture system construction
+                'Thermal energy demand (MJ/kg clinker)': 3.349, # MJ / kg cli
+                'Electrical energy demand (kWh/t cement)': 132 * 1.67 * cli_cem_ratio, # kWh/t cem, using 67% increase claimed in article
+            }
+
         else:
             raise Exception('Invalid CSS Scenario.')
 

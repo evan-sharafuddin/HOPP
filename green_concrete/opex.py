@@ -278,17 +278,3 @@ def opex(self):
         raise Exception("Fuel composition fractions must add up to 1")
         
     return feed_consumption, feed_costs, feed_units, operational_labor, maintenance_equip, maintenance_labor, admin_support
-
-def _electricity_opex(config, feed_costs, feed_consumption, feed_units):
-    '''
-    determines cost associated with renewable and grid electricity consumption
-
-    uses time series created in green_industry_run_scenarios and stored in 
-    the ConcretePlant object
-    
-    '''
-    
-    # //////////// Electricity /////////////
-    
-
-    return feed_costs, feed_consumption, feed_units

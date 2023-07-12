@@ -41,10 +41,10 @@ CHANGES FOR CEMENT IMPLEMENTATION
         added a few print statements in run_scenarios
         NOTE the selling of oxygen occurs in run_profast_for_steel.py, but the oxygen consumption from
         cement is already taken into account before this change
+        [var_name]_mtpy --> the "mtpy" part means "metric tons per year" not "megatons per year"
 
     QUESTIONS
-        Why does run_H2_PEM_sim() change the grid/renewable electricity consumptions but not the costs 
-        associated with buying/selling to the grid?
+        capacity factor stuff -- ask Elenya and Evan
 
 '''
 

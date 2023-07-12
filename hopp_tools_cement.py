@@ -2593,7 +2593,7 @@ def quick_lcoe(renewable_power_ts,
     battery_CapEx_USD = battery_CapEx_kW*battery_size_mw*1000 #[$]
     battery_OpEx_USD = battery_OpEx_perc*battery_CapEx_USD #[$/year]
     
-    y=np.arange(0,plant_life + 1,1)
+    y=np.arange(0,plant_life,1)
     denom = (1+discount_rate)**y
 
     hybrid_plant_annual_OpEx = wind_OpEx_USD + solar_OpEx_USD + battery_OpEx_USD

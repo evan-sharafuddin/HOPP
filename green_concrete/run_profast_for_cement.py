@@ -29,12 +29,17 @@ def run_profast_for_cement(
         hopp_dict.add('Models', {'steel_LCOS': {'input_dict': input_dict}})
 
     if self.feed_consumption['hydrogen']  != 0:
-        # determine if hydrogen is limiting the production of cement, and the resulting plant capacity
-        max_cement_production_capacity_mtpy = min(self.config['Cement Production Rate (annual)'], \
+        # TODO this doesn't consider the hydrogen already allocated for steel production, so going to have to account for that sometime
+        # TODO clarify with Evan R. and Elenya about the hydrogen stuff and CF
+        max_cement_production_capacity_tpy = min(self.config['Cement Production Rate (annual)'] / self.config['Plant capacity factor'], \
                                                 hydrogen_annual_production / self.feed_consumption['hydrogen'])
     else:
-        max_cement_production_capacity_mtpy = self.config['Cement Production Rate (annual)'] # ton/year
-    
+        max_cement_production_capacity_tpy = self.config['Cement Production Rate (annual)'] # ton/year
+
+    # this will only be different from self.config['Cement Production Rate (annual)'] if hydrogen production can't keep up with the nominal plant capacity
+    cement_production_rate_tpy = max_cement_production_capacity_tpy * self.config['Plant capacity factor']
+
+
     # TODO cleaner way to do this?
     self.feed_costs['hydrogen'] = lcoh
     
@@ -43,7 +48,7 @@ def run_profast_for_cement(
     pf = ProFAST.ProFAST('blank')
 
     pf.set_params('commodity',{"name":'Cement',"unit":"metric tonnes (t)","initial price":1000,"escalation":gen_inflation})
-    pf.set_params('capacity',max_cement_production_capacity_mtpy / 365) # convert from ton/yr --> ton/day
+    pf.set_params('capacity', cement_production_rate_tpy / 365) # convert from ton/yr --> ton/day
     pf.set_params('operating life',self.config['Plant lifespan'])
     # NOTE direct costs = equipment costs + installation costs
     pf.set_params('installation cost',{"value": self.total_direct_costs - sum(self.equip_costs.values()),"depr type":"Straight line","depr period":4,"depreciable":False})
@@ -104,7 +109,8 @@ def run_profast_for_cement(
     
     price_breakdown = price_breakdown.drop(columns=['index', 'Amount'])
     price_breakdown_manual = self.manual_price_breakdown_helper(gen_inflation, price_breakdown)
-    cement_annual_capacity = self.config['Cement Production Rate (annual)'] * self.config['Plant capacity factor']
+    cement_annual_capacity = self.config['Cement Production Rate (annual)']
+    cement_nominal_capacity = self.config['Cement Production Rate (annual)'] * self.config['Plant capacity factor']
     cement_breakeven_price = solution.get('price')
 
     # # Calculate margin of what is possible given hydrogen production and actual steel demand
