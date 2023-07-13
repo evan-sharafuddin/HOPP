@@ -1972,6 +1972,9 @@ def steel_LCOS(
 
     max_steel_production_capacity_mtpy = min(steel_annual_production_rate_target_tpy/steel_capacity_factor,hydrogen_annual_production/1000/hydrogen_consumption_for_steel)
     
+    # CEMENT: this variable is how much hydrogen is left for use with cement
+    hydrogen_consumed = max_steel_production_capacity_mtpy * steel_capacity_factor * hydrogen_consumption_for_steel
+
     # Should connect these to something (AEO, Cambium, etc.)
     natural_gas_cost = 4                        # $/MMBTU
 

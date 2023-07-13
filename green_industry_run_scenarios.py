@@ -953,7 +953,7 @@ def batch_generator_kernel(arg_list):
         ######\ CEMENT: determining how much oxygen is available for oxycombustion
         total_leftover_oxygen_annual = float() # use for oxygen sales in run_profast_for_steel
         if cement_plant.config['CSS'] == 'Oxyfuel':
-            print('be careful... oxyfuel is not finished yet (green_industry_run_scenarios, line 956)')
+            # print('be careful... oxyfuel is not finished yet (green_industry_run_scenarios, line 956)')
             
             oxygen_annual_production = hydrogen_annual_production / 1.0078 / 2 * 15.999 # kg H2 --> kg O2 
 

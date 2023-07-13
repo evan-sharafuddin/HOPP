@@ -220,10 +220,13 @@ def opex(self):
         'alt fuel (IEAGHG mix)': 1,
     })
 
-    # /////////// OXYFUEL FEEDS ///////////
+    # /////////// CSS FEEDS ///////////
     if self.config['CSS'] == 'Oxyfuel':
-        feed_consumption['oxygen'] = 191 * self.config['Clinker-to-cement ratio'] * 1.4291 # kg/t cement -- http://www.uigi.com/o2_conv.html
+        feed_consumption['oxygen'] = 1148 * 365 / 1000 / self.config['Cement Production Rate (annual)'] # tO2/day --> kg/t cement 
         feed_consumption['cooling water make-up'] = 1
+    elif self.config['CSS'] == 'CaL (tail-end)': 
+        feed_consumption['oxygen'] = 440 * self.config['Clinker-to-cement ratio'] # kgO2/t cli --> kg/t cement
+        feed_consumption['cooling water make-up'] = 0.9
     else:
         feed_consumption['oxygen'] = 0
         feed_consumption['cooling water make-up'] = 0
@@ -257,7 +260,11 @@ def opex(self):
 
     # ---------------- Fixed OPEX -----------------
     ## fixed ($/year)
-    num_workers = 100
+    if self.config['CSS'] == 'None':
+        num_workers = 100
+    else:
+        num_workers = 120 # CEMCAP spreadsheet
+
     cost_per_worker = 60 # kEUR/worker/year
     operational_labor = eur2013(1e3, num_workers * cost_per_worker) # k€ --> $
     maintenance_equip = eur2013(1e6, 5.09) # M€ --> $

@@ -103,9 +103,9 @@ def run_profast_for_cement(
     price_breakdown = pf.get_cost_breakdown()
 
     print(f"price breakdown (ProFAST): {solution['price']}")
-    print(f"price breakdown (paper): {eur2013(1, 50.9)}")
-    print(f"price breakdown (CEMCAP spreadsheet, excluding carbon tax): {eur2013(1, 46.02)}")
-    print(f"percent error from CEMCAP: {(solution['price'] - eur2013(1, 46.02))/eur2013(1, 46.02) * 100}%")
+    # print(f"price breakdown (paper): {eur2013(1, 50.9)}")
+    # print(f"price breakdown (CEMCAP spreadsheet, excluding carbon tax): {eur2013(1, 46.02)}")
+    # print(f"percent error from CEMCAP: {(solution['price'] - eur2013(1, 46.02))/eur2013(1, 46.02) * 100}%")
     
     price_breakdown = price_breakdown.drop(columns=['index', 'Amount'])
     price_breakdown_manual = self.manual_price_breakdown_helper(gen_inflation, price_breakdown)
