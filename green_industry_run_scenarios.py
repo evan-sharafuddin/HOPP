@@ -43,9 +43,6 @@ CHANGES FOR CEMENT IMPLEMENTATION
         cement is already taken into account before this change
         [var_name]_mtpy --> the "mtpy" part means "metric tons per year" not "megatons per year"
 
-    QUESTIONS
-        capacity factor stuff -- ask Elenya and Evan
-
 '''
 
 import os
@@ -377,8 +374,7 @@ def batch_generator_kernel(arg_list):
     hydrogen_consumption_for_steel = 0.06596 # metric tonnes of hydrogen/metric tonne of steel production
     
     # Annual hydrogen production target to meet steel production target
-    # TODO what on earth is going on with the capacity factor -- for now assuming steel_annual_production... is the production rate multiplied by the cf, so going backwards
-
+    # NOTE use the cf here because also assuming that electrolyzers have a cf of 0.9
     steel_ammonia_plant_cf = 0.9
     hydrogen_production_target_kgpy_steel = steel_annual_production_rate_target_tpy*1000*hydrogen_consumption_for_steel/steel_ammonia_plant_cf
 
@@ -392,14 +388,14 @@ def batch_generator_kernel(arg_list):
         hydrogen_consumption_for_cement = cement_plant.feed_consumption['hydrogen']
     else:
         hydrogen_consumption_for_cement = 0
-        print('no hydrogen for cement')
+        print('No hydrogen allocated for cement')
 
+    # NOTE dividing by cf, see above
     hydrogen_production_target_kgpy_cement = \
-        hydrogen_consumption_for_cement * cement_plant.config['Cement Production Rate (annual)'] \
-         / cement_plant.config['Clinker-to-cement ratio'] * cement_plant.config['Plant capacity factor']
+        hydrogen_consumption_for_cement * cement_plant.config['Cement Production Rate (annual)'] / cement_plant.config['Plant capacity factor']
     #################/
 
-     # NOTE: this value below is higher (i.e. efficency is assumed to be worse) than actual BOL, so this is why BOL instead of EOL used in 376
+     # NOTE this value below is higher (i.e. efficency is assumed to be worse) than actual BOL, so this is why BOL instead of EOL used in 376
     electrolyzer_energy_kWh_per_kg_estimate_BOL = 54.61 # Eventually need to re-arrange things to get this from set_electrolyzer_info 54.55
     electrolyzer_energy_kWh_per_kg_estimate_EOL = electrolyzer_energy_kWh_per_kg_estimate_BOL*(1+electrolyzer_degradation_power_increase)
 
@@ -428,6 +424,7 @@ def batch_generator_kernel(arg_list):
 
         ###########\ ADDED CEMENT HERE
         # Electrolyzer rated hydrogen production capacity - independent of degradation
+        # NOTE the capacity factor here refers to the cf of the electricity production method, not the cf of the elctrolyzers themselves
         hydrogen_production_capacity_required_kgphr = (hydrogen_production_target_kgpy_steel + hydrogen_production_target_kgpy_cement) \
                                                         / (8760*cf_estimate) 
         ############/                                            
@@ -955,7 +952,6 @@ def batch_generator_kernel(arg_list):
 
         ######\ CEMENT: determining how much oxygen is available for oxycombustion
         total_leftover_oxygen_annual = float() # use for oxygen sales in run_profast_for_steel
-        # TODO make sure not taking any oxygen that is used in steel
         if cement_plant.config['CSS'] == 'Oxyfuel':
             print('be careful... oxyfuel is not finished yet (green_industry_run_scenarios, line 956)')
             
@@ -966,12 +962,12 @@ def batch_generator_kernel(arg_list):
             oxygen_annual_consumption_steel = 0.127 * max_steel_production_capacity_mtpy * 1e3 * steel_ammonia_plant_cf # kg O2/kg steel --> kg O2/year
             oxygen_annual_excess_steel = oxygen_annual_production - oxygen_annual_consumption_steel
 
-            oxygen_annual_consumption_cement = cement_plant.config['Cement Production Rate (annual)'] * cement_plant.config['Plant capacity factor'] \
-                * cement_plant.feed_consumption['oxygen']
+            oxygen_annual_consumption_cement = cement_plant.config['Cement Production Rate (annual)'] * cement_plant.feed_consumption['oxygen']
             if oxygen_annual_consumption_cement > oxygen_annual_excess_steel:
                 raise NotImplementedError("Not enough oxygen for cement oxyfuel combustion; ASU has not been implemented yet")
             else:
                 total_leftover_oxygen_annual = oxygen_annual_excess_steel - oxygen_annual_consumption_cement # kg O2/year
+                print(f"Oxygen leftover after steel and cement production: {total_leftover_oxygen_annual} kg/y")
         #######/
 
         #######\ CEMENT: determining electricity costs for the plant
