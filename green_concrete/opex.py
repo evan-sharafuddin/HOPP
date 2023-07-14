@@ -43,7 +43,8 @@ def opex(self):
         'raw meal': 'units',
 
         # other
-        'electricity': 'kWh',
+        'grid electricity': 'kWh',
+        'renewable electricity': 'kWh',
     }
     
     lhv = {
@@ -232,7 +233,12 @@ def opex(self):
         feed_consumption['cooling water make-up'] = 0
         
     # //////////// Electricity /////////////
-    feed_consumption['electricity'] = self.config['Electrical energy demand (kWh/t cement)']
+    if self.config['Renewable electricity']:
+        feed_consumption['renewable electricity'] = self.config['Electrical energy demand (kWh/t cement)']
+        feed_consumption['grid electricity'] = 0
+    else: 
+        feed_consumption['renewable electricity'] = 0
+        feed_consumption['grid electricity'] = self.config['Electrical energy demand (kWh/t cement)']
 
     if self.config['ATB year'] == 2020:
         grid_year = 2025
@@ -248,13 +254,17 @@ def opex(self):
     elec_price = grid_prices.loc[grid_prices['Year']==grid_year,self.config['site location']].tolist()[0] # $/MWh?
     elec_price *= 1e-3 # $/kWh
     
-    feed_costs['electricity'] = elec_price
+    feed_costs['grid electricity'] = elec_price
+    
+    # this will be overwritten if renewable electricity is  used
+    feed_costs['renewable electricity'] = None
+
     # ////////////// waste ////////////////
     # TODO: cost of cement kiln dust disposal? could be included already in some of the other costs
 
     # ///////////// unit conversions //////////// € --> $ 
     for key, value in feed_costs.items():
-        if key == 'electricity' or key == 'pet coke' or key == 'glycerin' or value is None: # these have already been converted
+        if 'electricity' in key or key == 'pet coke' or key == 'glycerin' or value is None: # these have already been converted
             continue 
         feed_costs[key] = eur2013(1, value)
 

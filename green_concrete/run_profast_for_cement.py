@@ -30,11 +30,10 @@ def run_profast_for_cement(
 
     if self.feed_consumption['hydrogen']  != 0:
         # TODO this doesn't consider the hydrogen already allocated for steel production, so going to have to account for that sometime
-        # TODO clarify with Evan R. and Elenya about the hydrogen stuff and CF
         max_cement_production_capacity_tpy = min(self.config['Cement Production Rate (annual)'] / self.config['Plant capacity factor'], \
                                                 hydrogen_annual_production / self.feed_consumption['hydrogen'])
     else:
-        max_cement_production_capacity_tpy = self.config['Cement Production Rate (annual)'] # ton/year
+        max_cement_production_capacity_tpy = self.config['Cement Production Rate (annual)'] / self.config['Plant capacity factor'] # ton/year
 
     # this will only be different from self.config['Cement Production Rate (annual)'] if hydrogen production can't keep up with the nominal plant capacity
     cement_production_rate_tpy = max_cement_production_capacity_tpy * self.config['Plant capacity factor']
@@ -91,8 +90,18 @@ def run_profast_for_cement(
     
     # ------------------------------ Add feedstocks, note the various cost options ------------------------------
     # NOTE feedstocks without consumption data have a usage of 1 (i.e. already in the desired units)
-    for key, value in self.feed_units.items():
-        pf.add_feedstock(name=key, usage=self.feed_consumption[key], unit=f'{self.feed_units[key]} per ton cement',cost=self.feed_costs[key],escalation=gen_inflation)
+    # NOTE need to handle electricity differently because we can (1) have negative values for consumption and (2) have different costs for grid and renewable
+    for key in self.feed_units.keys():
+        if 'electricity' in key:  
+            if self.feed_consumption[key] < 0:
+                # sell electricity at the grid price
+                pf.add_coproduct(name=key, usage=-1*self.feed_consumption[key], unit=f'{self.feed_units[key]} per ton cement', cost=self.feed_costs['grid electricity'], escalation=gen_inflation)
+            else:
+                # add like a normal feedstock
+                pf.add_feedstock(name=key, usage=self.feed_consumption[key], unit=f'{self.feed_units[key]} per ton cement',cost=self.feed_costs[key],escalation=gen_inflation)
+        
+        else:
+            pf.add_feedstock(name=key, usage=self.feed_consumption[key], unit=f'{self.feed_units[key]} per ton cement',cost=self.feed_costs[key],escalation=gen_inflation)
 
     # TODO add this to dictionary
     pf.add_feedstock(name='Maintenance Materials',usage=1.0,unit='Units per ton of cement',cost=self.maintenance_equip / self.config['Cement Production Rate (annual)'],escalation=gen_inflation)

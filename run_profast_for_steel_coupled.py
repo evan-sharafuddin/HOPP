@@ -2,7 +2,7 @@
 """
 Created on Wed Oct 19 12:13:58 2022
 
-@author: ereznic2
+@author: ereznic2 & evan-sharafuddin
 """
 
 import ProFAST

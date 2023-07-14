@@ -53,7 +53,7 @@ class ConcretePlant:
                 Site location: 'IA', 'WY', 'TX', don't remember the other two
                 Clinker Production Rate (annual): ideal annual production rate of clinker
                 Clinker-to-cement ratio: fraction of clinker that goes into the final cement product
-                    TODO IEAGHG/CEMCAP assume 72.7% cli-to-cem ratio, and integrate the add'l cost of the other
+                    TODO IEAGHG/CEMCAP assume 73.7% cli-to-cem ratio, and integrate the add'l cost of the other
                     additives into the model. Need to find a way to account for cost when changing cli-to-cem
                 Plant lifespan: int, number of years
                 Plant capacity factor: percentage of the year that plant is operating 
@@ -97,6 +97,8 @@ class ConcretePlant:
         cli_production=1e6, 
         plant_life=25, 
         plant_capacity_factor = 0.90, # same as steel/ammonia, for consistency
+        couple_with_steel = True,
+
     ): 
         
         # ------------ Plant Info ------------
@@ -168,7 +170,7 @@ class ConcretePlant:
 
         elif css == 'CaL (tail-end)': # based on base-case from CEMCAP
             if fuel_mix != 'C1':
-                print('Be careful... CaL calciner might only be designed for coal fuel sources.')
+                print('Be careful... CaL calciner might require coal as a fuel source in reality.')
             self.config = {
                 'CSS': css, # None, Oxyfuel, Calcium Looping
                 'Fuel Mixture': fuel_mix, # C1-C5
@@ -248,129 +250,3 @@ if __name__ == '__main__':
     hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
     cement_annual_capacity, cement_production_capacity_margin_pc, cement_price_breakdown = \
     plant.run_pf()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-"""
-## outline (ignore)
-'''
-    ## Feedstocks
-    # fuels
-        specific cost
-        unit consumption rates
-    * coal
-    * natural gas
-    * pet coke
-    * alternative fuels
-        * tires
-        * solvents
-        * biofuels
-        
-
-    # raw materials
-        specific cost
-        unit consumption rates
-    * limestone
-    * clay
-    * sand
-    * iron ore
-
-    # electricity
-        specific cost
-        unit consumption rates
-    * grid
-    * renewable
-    * on site power plant?
-        
-    # waste
-        specific cost
-        unit production rates
-    * CKD
-        
-    ## Fixed
-'''
-
-'''
-    ## fuels
-        specific emissions
-
-    ## process
-        calcination
-        anything w/ resource extraction?
-
-    ## electricty
-        specific emissions
-
-    ## raw materials and waste products?
-
-'''
-
-
-# ------------------------- Carbon Capture Options -------------------------
-    
-
-# //////////// Calcium Looping ///////////////
-
-
-# ------------------------- TODO Other Adjustable Parameters ---------------------------
-# fuel types and compositions
-    # hydrogen mixing
-    # oxy combustion
-
-# renewable electricity
-# carbon capture
-# SCMs (less clinker needed per unit cement)
-    # slag from steel production
-
-# cement compositions 
-    # need to do more research on strength of compositions, and if these 
-    # are actually viable compositions
-
-'''
-    POSSIBLE CONFIGURATIONS
-    * standard plant (draw directly from a paper)
-    * CCS (with oxycombustion?)
-        * oxygen feedstock
-        * different energy consumptions
-        * different capital costs
-    * energy efficency measures
-        * different capital costs
-        * different energy costs
-    * renewably sourced electricity
-        * electricity cost and no electrical emissions
-    * hydrogen fuel mix
-        * different capital costs
-        * hydrogen feedstock
-        * different energy consumptions
-'''
-
-
-# ------------------------- Fixed Parameters (structural things to keep in mind?) -------------------------------
-# strength of concrete (only choose known cement compositions that will achieve this strength)
-# preheater and precalciner (already implemented in a lot of plants)
-
-'''
-    # additional considerations (confirm with people that know cement/concrete)
-    * different compsotions and strength
-    * different compositions and settling time
-    NRMCA REPORT:
-    * 28 day strength
-    * water to cementitious maerials ratio
-    * SCM reactivity
-    * admixtures use ("air entraining admixture" for lower strength concrete exposed to freeze/thaw)
-    * aggregate use (different for lightweight vs. heavy concretes)
-
-'''
-"""

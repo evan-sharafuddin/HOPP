@@ -436,11 +436,13 @@ def batch_generator_kernel(arg_list):
         electrolyzer_capacity_EOL_MW = hydrogen_production_capacity_required_kgphr*electrolyzer_energy_kWh_per_kg_estimate_EOL/1000
         
         ############\ ADDED CEMENT HERE
-        if cement_plant.config['Renewable electricity']:
-            cement_electricity_consumption_MW = cement_plant.feed_consumption['electricity'] \
-                * cement_plant.config['Cement Production Rate (annual)'] / 8760 / 1000 # kWh/t cement --> MW 
+
+        if cement_plant.feed_consumption['renewable electricity'] > 0:
+            cement_electricity_consumption_MW = cement_plant.feed_consumption['reneawble electricity'] \
+                * cement_plant.config['Cement Production Rate (annual)'] / 8760 / 1000 # kWh/t cement --> MW
         else:
             cement_electricity_consumption_MW = 0
+            # if electricity is produced in cement plant (negative consumption), treating it as a coproduct and will sell it in ProFAST
 
         # Size wind plant for providing power to electrolyzer at EOL. Do not size wind plant here to consider wind degradation
         # because we are not actually modeling wind plant degradation; if we size it in here we will have more wind generation
@@ -980,7 +982,7 @@ def batch_generator_kernel(arg_list):
             del grid_dict
 
             # NOTE this value is currently just the cost of grid electricity at the location of the cement plant
-            grid_cost = cement_plant.feed_costs['electricity']
+            grid_cost = cement_plant.feed_costs['grid electricity']
             print(f'Grid electricity price: {grid_cost}')
             # total cost of grid electricity over a year:
             grid_elec_OpEx = sum([grid_cost * p for p in grid_power_ts]) # $/year
@@ -993,7 +995,7 @@ def batch_generator_kernel(arg_list):
                             grid_power_ts,
                             grid_elec_OpEx)
             
-            cement_plant.feed_costs['electricity'] = lcoe
+            cement_plant.feed_costs['renewable electricity'] = lcoe
 
             print(f'LCOE: {lcoe}')
         ############/

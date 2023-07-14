@@ -8,7 +8,7 @@ def manual_price_breakdown(
 
     Holds essentially the same information as ProFAST's price breakdown
     '''   
-
+    print('WARNING: this needs to be updated to support electricity sales')
     price_breakdown_capex = dict()  
     price_breakdown_feed = dict()
     

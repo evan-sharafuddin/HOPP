@@ -18,8 +18,7 @@ def capex(self):
     equip_costs = {
         ## quarry 
         # TODO
-        ## raw material crushing and prep
-        'crushing plant': 3.5,
+        ## raw material crushing and prep 
         'storage, conveying raw material': 3.5,
         'grinding plant, raw meal': 16.8,
         'storage, conveyor, silo': 2.1,
