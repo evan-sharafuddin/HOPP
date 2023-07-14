@@ -127,9 +127,9 @@ if __name__ == '__main__':
                           ]
     
     grid_connection_cases = [
-                            'off-grid',
+                            # 'off-grid',
                             # 'grid-only',
-                            #'hybrid-grid'
+                            'hybrid-grid'
                             ]
 
     # adjusts hydrogen storage capacity (see run_scenarios 872)

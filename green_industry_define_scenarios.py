@@ -41,7 +41,7 @@ from green_concrete.concrete_plant import ConcretePlant
 ######\ CONFIGURATIONS FOR CEMENT PLANT GO HERE
 cement_plant = ConcretePlant(
     css='CaL (tail-end)', 
-    fuel_mix='C1',
+    fuel_mix='C6',
     renewable_electricity=True, 
     SCM_composition='European Average', 
     atb_year=2035, 
@@ -151,6 +151,10 @@ if __name__ == '__main__':
                             # 'grid-only',
                             'hybrid-grid'
                             ]
+
+    
+    ####### CEMENT
+    cement_plant.config['Grid connection scenario'] = grid_connection_cases
 
     # adjusts hydrogen storage capacity (see run_scenarios 872)
     storage_capacity_cases = [ 

@@ -181,6 +181,22 @@ def opex(self):
             'glycerin': 0.49,
             'tires': 0,
         },
+
+        # COMPOSITION 6: hypothetical
+        'C6': {
+            'coal': 0,
+            'natural gas': 0.8,
+            'hydrogen': 0.2,
+            'pet coke': 0,
+            'alt fuel (IEAGHG mix)': 0,
+            'animal meal': 0,
+            'sewage sludge': 0,
+            'solvents': 0,
+            'SRF (wet)': 0,
+            'MBM (wet)': 0,
+            'glycerin': 0,
+            'tires': 0,
+        },
     }
 
     ###\ NOTE converting NG and hydrogen from volume to energy basis --> CHECK THIS OR FIND DIFFERENT SOURCE
@@ -294,4 +310,4 @@ def opex(self):
     if sum(fuel_frac.values()) != 1:
         raise Exception("Fuel composition fractions must add up to 1")
         
-    return feed_consumption, feed_costs, feed_units, operational_labor, maintenance_equip, maintenance_labor, admin_support
+    return feed_consumption, feed_costs, feed_units, lhv, operational_labor, maintenance_equip, maintenance_labor, admin_support

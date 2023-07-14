@@ -73,7 +73,7 @@ def run_profast_for_steel_coupled(plant_capacity_mtpy,plant_capacity_factor,\
     
     # TODO change this to reflect oxygen changed from cement
     ##########\ CEMENT CHANGES HERE
-    excess_oxygen = total_leftover_oxygen_annual / steel_production_mtpy            # excess kg O2/metric tonne of steel
+    excess_oxygen = total_leftover_oxygen_annual / steel_production_mtpy # excess kg O2/metric tonne of steel
     ########/
 
     capex_piping = 11815.72718*plant_capacity_mtpy**0.59983
@@ -264,8 +264,7 @@ def run_profast_for_steel_coupled(plant_capacity_mtpy,plant_capacity_factor,\
         - price_breakdown.loc[price_breakdown['Name'] == 'Monetized tax losses','NPV'].tolist()[0]\
     
     if o2_heat_integration == 1:
-        price_breakdown_O2sales =  price_breakdown.loc[price_breakdown['Name']=='Oxygen sales','NPV'].tolist()[0]  
-        print(f"Leftover Oxygen Sales: {price_breakdown_O2sales}")  
+        price_breakdown_O2sales =  price_breakdown.loc[price_breakdown['Name']=='Oxygen sales','NPV'].tolist()[0]   
     else:
         price_breakdown_O2sales = 0
         

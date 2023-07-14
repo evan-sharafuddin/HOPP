@@ -153,5 +153,8 @@ def run_profast_for_cement(
     thing.to_csv(path)
     ###/
 
+    ### run LCA
+    self.lca_helper()
+
     return hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
         cement_annual_capacity, cement_production_capacity_margin_pc, price_breakdown_manual

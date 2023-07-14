@@ -48,7 +48,7 @@ class ConcretePlant:
                     'Oxyfuel' and 'CaL (tail-end)' are both derived from the "base case" scenarios found in CEMCAP d4.6
                 Fuel Mixture: 'C1-C5'
                 Renewable electricity: determines if grid electricity will be used
-                Using SCMs: 'OPC', 'USA Average', 'European Average, TODO add more configs
+                Using SCMs: 'OPC', 'USA Average', 'European Average'
                 ATB year: see define_scenarios
                 Site location: 'IA', 'WY', 'TX', don't remember the other two
                 Clinker Production Rate (annual): ideal annual production rate of clinker
@@ -97,8 +97,6 @@ class ConcretePlant:
         cli_production=1e6, 
         plant_life=25, 
         plant_capacity_factor = 0.90, # same as steel/ammonia, for consistency
-        couple_with_steel = True,
-
     ): 
         
         # ------------ Plant Info ------------
@@ -208,7 +206,8 @@ class ConcretePlant:
         
         (self.feed_consumption, 
          self.feed_costs, 
-         self.feed_units, 
+         self.feed_units,
+         self.lhv, 
          self.operational_labor, 
          self.maintenance_equip, 
          self.maintenance_labor, 
