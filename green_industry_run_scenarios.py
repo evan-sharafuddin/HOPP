@@ -155,7 +155,7 @@ def batch_generator_kernel(arg_list):
     useful_life = 30
     critical_load_factor = 1
     run_reopt_flag = False
-    custom_powercurve = True    #A flag that is applicable when using PySam WindPower (not FLORIS)
+    custom_powercurve = True    # A flag that is applicable when using PySam WindPower (not FLORIS)
     storage_used = False
     battery_can_grid_charge = False
     grid_connected_hopp = False
@@ -369,19 +369,22 @@ def batch_generator_kernel(arg_list):
 
 # Establish wind farm and electrolyzer sizing
 
-    ################\ Steel & Ammonia (no changes)
-    # Calculate target hydrogen and electricity demand
-    hydrogen_consumption_for_steel = 0.06596 # metric tonnes of hydrogen/metric tonne of steel production
-    
-    # Annual hydrogen production target to meet steel production target
-    # NOTE use the cf here because also assuming that electrolyzers have a cf of 0.9
-    steel_ammonia_plant_cf = 0.9
-    hydrogen_production_target_kgpy_steel = steel_annual_production_rate_target_tpy*1000*hydrogen_consumption_for_steel/steel_ammonia_plant_cf
+    if cement_plant.config['Steel & Ammonia']:
+        ################\ Steel & Ammonia (no changes)
+        # Calculate target hydrogen and electricity demand
+        hydrogen_consumption_for_steel = 0.06596 # metric tonnes of hydrogen/metric tonne of steel production
+        
+        # Annual hydrogen production target to meet steel production target
+        # NOTE use the cf here because also assuming that electrolyzers have a cf of 0.9
+        steel_ammonia_plant_cf = 0.9
+        hydrogen_production_target_kgpy_steel = steel_annual_production_rate_target_tpy*1000*hydrogen_consumption_for_steel/steel_ammonia_plant_cf
 
-    # Calculate equivalent ammona production target
-    hydrogen_consumption_for_ammonia = 0.197284403              # kg of hydrogen/kg of ammonia production
-    ammonia_production_target_kgpy = hydrogen_production_target_kgpy_steel/hydrogen_consumption_for_ammonia*steel_ammonia_plant_cf
-    ################/
+        # Calculate equivalent ammona production target
+        hydrogen_consumption_for_ammonia = 0.197284403              # kg of hydrogen/kg of ammonia production
+        ammonia_production_target_kgpy = hydrogen_production_target_kgpy_steel/hydrogen_consumption_for_ammonia*steel_ammonia_plant_cf
+        ################/
+    else:
+        hydrogen_production_target_kgpy_steel, ammonia_production_target_kgpy = 0, 0
 
     ###############\ ADDED CEMENT HERE
     if cement_plant.feed_consumption['hydrogen'] != 0:
@@ -427,6 +430,10 @@ def batch_generator_kernel(arg_list):
         # NOTE the capacity factor here refers to the cf of the electricity production method, not the cf of the elctrolyzers themselves
         hydrogen_production_capacity_required_kgphr = (hydrogen_production_target_kgpy_steel + hydrogen_production_target_kgpy_cement) \
                                                         / (8760*cf_estimate) 
+        
+        # NOTE this a variable that will be used to determine how much of the electricity used in the electrolyzer goes to producing hydrogen for cement
+        cement_plant.config['Hydrogen to cement frac'] = hydrogen_production_target_kgpy_cement \
+                                                        / (hydrogen_production_target_kgpy_steel + hydrogen_production_target_kgpy_cement)
         ############/                                            
 
         # Electrolyzer power requirement at BOL - namplate capacity in MWe?
@@ -438,7 +445,7 @@ def batch_generator_kernel(arg_list):
         ############\ ADDED CEMENT HERE
 
         if cement_plant.feed_consumption['renewable electricity'] > 0:
-            cement_electricity_consumption_MW = cement_plant.feed_consumption['reneawble electricity'] \
+            cement_electricity_consumption_MW = cement_plant.feed_consumption['renewable electricity'] \
                 * cement_plant.config['Cement Production Rate (annual)'] / 8760 / 1000 # kWh/t cement --> MW
         else:
             cement_electricity_consumption_MW = 0
@@ -470,10 +477,7 @@ def batch_generator_kernel(arg_list):
     
     ############\ NOTE IGNORING THIS FOR CEMENT
     else:
-        wind_size_mw = nTurbs*turbine_rating
-        electrolyzer_capacity_EOL_MW = wind_size_mw
-        electrolyzer_capacity_BOL_MW = electrolyzer_capacity_EOL_MW/(1+electrolyzer_degradation_power_increase)
-
+        raise NotImplementedError("Cannot use FLORIS with green cement")
         # if grid_connection_scenario != 'off-grid':
         #     hydrogen_production_capacity_required_kgphr = hydrogen_production_target_kgpy_steel/(8760)
         # else:
@@ -705,13 +709,6 @@ def batch_generator_kernel(arg_list):
                             run_wind_plant
                     )
 
-            ######\ CEMENT: changing LCOE here (assuming $/kWh)
-            # print(f'LCOE ($/kWh): {lcoe}')
-
-            # if cement_plant.config['Renewable electricity']:
-            #     cement_plant.feed_costs['electricity'] = lcoe * 1e-3
-            #############/
-
             cf_wind_annuals = hybrid_plant.wind._financial_model.Outputs.cf_annual_costs
             if solar_size_mw >0:
                 cf_solar_annuals = hybrid_plant.pv._financial_model.Outputs.cf_annual_costs
@@ -932,8 +929,6 @@ def batch_generator_kernel(arg_list):
             cement_electricity_consumption_MW * 1e3,
         )
 
-        #######\ CEMENT: adding costs of electricity to the plant model
-
 
         # h2_hourly_production = H2_Results['hydrogen_hourly_production'].tolist()
         # fig, ax = plt.subplots(1,1)
@@ -973,22 +968,22 @@ def batch_generator_kernel(arg_list):
         ######\ CEMENT: determining how much oxygen is consumed 
         total_leftover_oxygen_annual = float() # use for oxygen sales in run_profast_for_steel
         if cement_plant.config['CSS'] != 'None':
-            # print('be careful... oxyfuel is not finished yet (green_industry_run_scenarios, line 956)')
-            
             oxygen_annual_production = hydrogen_annual_production / 1.0078 / 2 * 15.999 # kg H2 --> kg O2 
-
-            # TODO clarify with Elenya what is going on with the capacity factor
-            max_steel_production_capacity_mtpy = min(steel_annual_production_rate_target_tpy/steel_ammonia_plant_cf,hydrogen_annual_production/1000/hydrogen_consumption_for_steel)
-            oxygen_annual_consumption_steel = 0.127 * max_steel_production_capacity_mtpy * 1e3 * steel_ammonia_plant_cf # kg O2/kg steel --> kg O2/year
-            oxygen_annual_excess_steel = oxygen_annual_production - oxygen_annual_consumption_steel
-
-            oxygen_annual_consumption_cement = cement_plant.config['Cement Production Rate (annual)'] * cement_plant.feed_consumption['oxygen']
-            if oxygen_annual_consumption_cement > oxygen_annual_excess_steel:
-                raise NotImplementedError("Not enough oxygen for cement carbon capture; ASU has not been implemented yet")
+            
+            if not cement_plant.config['Steel & Ammonia']:
+                total_leftover_oxygen_annual = oxygen_annual_production
             else:
-                total_leftover_oxygen_annual = oxygen_annual_excess_steel - oxygen_annual_consumption_cement # kg O2/year
-                print(f"Oxygen leftover after steel and cement production: {total_leftover_oxygen_annual} kg/y")
-        #######/
+                max_steel_production_capacity_mtpy = min(steel_annual_production_rate_target_tpy/steel_ammonia_plant_cf,hydrogen_annual_production/1000/hydrogen_consumption_for_steel)
+                oxygen_annual_consumption_steel = 0.127 * max_steel_production_capacity_mtpy * 1e3 * steel_ammonia_plant_cf # kg O2/kg steel --> kg O2/year
+                oxygen_annual_excess_steel = oxygen_annual_production - oxygen_annual_consumption_steel
+
+                oxygen_annual_consumption_cement = cement_plant.config['Cement Production Rate (annual)'] * cement_plant.feed_consumption['oxygen']
+                if oxygen_annual_consumption_cement > oxygen_annual_excess_steel:
+                    raise NotImplementedError("Not enough oxygen for cement carbon capture; ASU has not been implemented yet")
+                else:
+                    total_leftover_oxygen_annual = oxygen_annual_excess_steel - oxygen_annual_consumption_cement # kg O2/year
+                    print(f"Oxygen leftover after steel and cement production: {total_leftover_oxygen_annual} kg/y")
+            #######/
 
 
 
@@ -1125,39 +1120,41 @@ def batch_generator_kernel(arg_list):
         # is doing is gettign that hydrogen, the other stuff is stand alone (until I 
         # implement electricity, O2, etc)
 
-    # Step 7: Calculate break-even cost of steel production without oxygen and heat integration
-    lime_unit_cost = site_df['Lime ($/metric tonne)'] + site_df['Lime Transport ($/metric tonne)']
-    carbon_unit_cost = site_df['Carbon ($/metric tonne)'] + site_df['Carbon Transport ($/metric tonne)']
-    iron_ore_pellets_unit_cost = site_df['Iron Ore Pellets ($/metric tonne)'] + site_df['Iron Ore Pellets Transport ($/metric tonne)']
-    o2_heat_integration = 0
-    hopp_dict,steel_economics_from_profast, steel_economics_summary, profast_steel_price_breakdown,steel_breakeven_price, steel_annual_production_mtpy,steel_production_capacity_margin_pc,steel_price_breakdown = hopp_tools_cement.steel_LCOS(hopp_dict,lcoh,hydrogen_annual_production,steel_annual_production_rate_target_tpy,
-                                                                                                            lime_unit_cost,
-                                                                                                            carbon_unit_cost,
-                                                                                                            iron_ore_pellets_unit_cost,
-                                                                                                            o2_heat_integration,atb_year,site_name,
-                                                                                                            total_leftover_oxygen_annual)
-    
-    
-    # Calcualte break-even price of steel WITH oxygen and heat integration
-    o2_heat_integration = 1
-    hopp_dict,steel_economics_from_profast_integration, steel_economics_summary_integration, profast_steel_price_breakdown_integration,steel_breakeven_price_integration, steel_annual_production_mtpy_integration,steel_production_capacity_margin_pc_integration,steel_price_breakdown_integration = hopp_tools_cement.steel_LCOS(hopp_dict,lcoh,hydrogen_annual_production,steel_annual_production_rate_target_tpy,
-                                                                                                            lime_unit_cost,
-                                                                                                            carbon_unit_cost,
-                                                                                                            iron_ore_pellets_unit_cost,
-                                                                                                            o2_heat_integration,atb_year,site_name,
-                                                                                                            total_leftover_oxygen_annual)
-    
-    
-    # Calculate break-even price of ammonia
-    cooling_water_cost = 0.000113349938601175 # $/Gal
-    iron_based_catalyst_cost = 23.19977341 # $/kg
-    oxygen_cost = 0.0285210891617726       # $/kg 
-    hopp_dict,ammonia_economics_from_profast, ammonia_economics_summary, profast_ammonia_price_breakdown,ammonia_breakeven_price, ammonia_annual_production_kgpy,ammonia_production_capacity_margin_pc,ammonia_price_breakdown = hopp_tools_cement.levelized_cost_of_ammonia(hopp_dict,lcoh,hydrogen_annual_production,ammonia_production_target_kgpy,
-                                                                                                            cooling_water_cost,
-                                                                                                            iron_based_catalyst_cost,
-                                                                                                            oxygen_cost, 
-                                                                                                            atb_year,site_name)
-    
+    if cement_plant.config["Steel & Ammonia"]:
+        # Step 7: Calculate break-even cost of steel production without oxygen and heat integration
+        lime_unit_cost = site_df['Lime ($/metric tonne)'] + site_df['Lime Transport ($/metric tonne)']
+        carbon_unit_cost = site_df['Carbon ($/metric tonne)'] + site_df['Carbon Transport ($/metric tonne)']
+        iron_ore_pellets_unit_cost = site_df['Iron Ore Pellets ($/metric tonne)'] + site_df['Iron Ore Pellets Transport ($/metric tonne)']
+        o2_heat_integration = 0
+        hopp_dict,steel_economics_from_profast, steel_economics_summary, profast_steel_price_breakdown,steel_breakeven_price, steel_annual_production_mtpy,steel_production_capacity_margin_pc,steel_price_breakdown = hopp_tools_cement.steel_LCOS(hopp_dict,lcoh,hydrogen_annual_production,steel_annual_production_rate_target_tpy,
+                                                                                                                lime_unit_cost,
+                                                                                                                carbon_unit_cost,
+                                                                                                                iron_ore_pellets_unit_cost,
+                                                                                                                o2_heat_integration,atb_year,site_name,
+                                                                                                                total_leftover_oxygen_annual)
+        
+        
+        # Calcualte break-even price of steel WITH oxygen and heat integration
+        o2_heat_integration = 1
+        hopp_dict,steel_economics_from_profast_integration, steel_economics_summary_integration, profast_steel_price_breakdown_integration,steel_breakeven_price_integration, steel_annual_production_mtpy_integration,steel_production_capacity_margin_pc_integration,steel_price_breakdown_integration = hopp_tools_cement.steel_LCOS(hopp_dict,lcoh,hydrogen_annual_production,steel_annual_production_rate_target_tpy,
+                                                                                                                lime_unit_cost,
+                                                                                                                carbon_unit_cost,
+                                                                                                                iron_ore_pellets_unit_cost,
+                                                                                                                o2_heat_integration,atb_year,site_name,
+                                                                                                                total_leftover_oxygen_annual)
+        
+        
+        # Calculate break-even price of ammonia
+        cooling_water_cost = 0.000113349938601175 # $/Gal
+        iron_based_catalyst_cost = 23.19977341 # $/kg
+        oxygen_cost = 0.0285210891617726       # $/kg 
+        hopp_dict,ammonia_economics_from_profast, ammonia_economics_summary, profast_ammonia_price_breakdown,ammonia_breakeven_price, ammonia_annual_production_kgpy,ammonia_production_capacity_margin_pc,ammonia_price_breakdown = hopp_tools_cement.levelized_cost_of_ammonia(hopp_dict,lcoh,hydrogen_annual_production,ammonia_production_target_kgpy,
+                                                                                                                cooling_water_cost,
+                                                                                                                iron_based_catalyst_cost,
+                                                                                                                oxygen_cost, 
+                                                                                                                atb_year,site_name)
+
+     
     # ADDED CEMENT HERE
     cement_plant.config['Hopp dict'] = hopp_dict
 
@@ -1173,136 +1170,137 @@ def batch_generator_kernel(arg_list):
     total_export_system_cost=0
     total_export_om_cost=0
     
-    if run_RODeO_selector == True:             
-        policy_option,turbine_model,scenario['Useful Life'], wind_cost_kw, solar_cost_kw,\
-        scenario['Debt Equity'], atb_year, scenario['H2 PTC'],scenario['Wind ITC'],\
-        discount_rate, tlcc_wind_costs, tlcc_solar_costs, tlcc_hvdc_costs, tlcc_total_costs,run_RODeO_selector,lcoh,\
-        wind_itc_total, total_itc_hvdc = hopp_tools_cement.write_outputs_RODeO(electrical_generation_timeseries,\
-                            hybrid_plant,
-                            total_export_system_cost,
-                            total_export_om_cost,
-                            cost_to_buy_from_grid,
-                            electrolyzer_capex_kw, 
-                            electrolyzer_installed_cost_kw,
-                            hydrogen_storage_cost_USDprkg,
-                            time_between_replacement,
-                            profit_from_selling_to_grid,
-                            useful_life,
-                            atb_year,
-                            policy_option,
-                            scenario,
-                            wind_cost_kw,
-                            solar_cost_kw,
-                            discount_rate,
-                            solar_size_mw,
-                            results_dir,
-                            fin_sum_dir,
-                            site_name,
-                            turbine_model,
-                            electrolysis_scale,
-                            scenario_choice,
-                            lcoe,
-                            run_RODeO_selector,
-                            grid_connection_scenario,
-                            grid_price_scenario,
-                            lcoh,
-                            h2_transmission_price,
-                            lcoh_reduction_Ren_PTC,
-                            lcoh_reduction_H2_PTC,
-                            electrolyzer_capacity_factor,
-                            hydrogen_storage_duration_hr,
-                            hydrogen_storage_capacity_kg,
-                            hydrogen_annual_production,
-                            water_consumption_hourly,
-                            RODeO_summary_results_dict,
-                            steel_annual_production_mtpy,
-                            steel_breakeven_price,
-                            steel_price_breakdown,
-                            steel_breakeven_price_integration,
-                            ammonia_annual_production_kgpy,
-                            ammonia_breakeven_price,
-                            ammonia_price_breakdown) 
-    else:
-        policy_option,turbine_model,scenario['Useful Life'], wind_cost_kw, solar_cost_kw,\
-        scenario['Debt Equity'], atb_year, scenario['H2 PTC'],scenario['Wind ITC'],\
-        discount_rate, tlcc_wind_costs, tlcc_solar_costs, tlcc_hvdc_costs, tlcc_total_costs,run_RODeO_selector,lcoh,\
-        wind_itc_total, total_itc_hvdc = hopp_tools_cement.write_outputs_ProFAST(electrical_generation_timeseries,\
-                            cf_wind_annuals,
-                            cf_solar_annuals,
-                            wind_itc_total,
-                            total_export_system_cost,
-                            total_export_om_cost,
-                            cost_to_buy_from_grid,
-                            electrolyzer_capex_kw,
-                            electrolyzer_installed_cost_kw,
-                            electrolyzer_cost_case,
-                            hydrogen_storage_cost_USDprkg,
-                            time_between_replacement,
-                            profit_from_selling_to_grid,
-                            useful_life,
-                            atb_year,
-                            policy_option,
-                            scenario,
-                            wind_cost_kw,
-                            solar_cost_kw,
-                            wind_size_mw,
-                            solar_size_mw,
-                            storage_size_mw,
-                            storage_hours,
-                            electrolyzer_size_mw,
-                            discount_rate,
-                            results_dir,
-                            fin_sum_dir,
-                            energy_profile_dir,
-                            price_breakdown_dir,
-                            site_name,
-                            turbine_model,
-                            electrolysis_scale,
-                            scenario_choice,
-                            lcoe,
-                            cf_electricity,
-                            run_RODeO_selector,
-                            grid_connection_scenario,
-                            grid_price_scenario,
-                            lcoh,
-                            h2_transmission_price,
-                            h2_production_capex,
-                            H2_Results,
-                            elec_cf,
-                            ren_frac,
-                            electrolysis_total_EI_policy_grid,
-                            electrolysis_total_EI_policy_offgrid,
-                            H2_PTC,
-                            Ren_PTC,
-                            run_pv_battery_sweep,
-                            electrolyzer_degradation_penalty,
-                            user_defined_stack_replacement_time,
-                            pem_control_type,
-                            n_pem_clusters,
-                            storage_capacity_multiplier,
-                            floris,
-                            hydrogen_storage_duration_hr,
-                            hydrogen_storage_capacity_kg,
-                            lcoh_breakdown,
-                            steel_annual_production_mtpy,
-                            steel_production_capacity_margin_pc,
-                            steel_breakeven_price,
-                            steel_price_breakdown,
-                            steel_breakeven_price_integration,
-                            ammonia_annual_production_kgpy,
-                            ammonia_production_capacity_margin_pc,
-                            ammonia_breakeven_price,
-                            ammonia_price_breakdown,
-                            profast_h2_price_breakdown,
-                            profast_steel_price_breakdown,
-                            profast_ammonia_price_breakdown,
-                            # TODO ADDED CEMENT HERE
-                            # cement_annual_production_mtpy,
-                            # cement_production_capacity_margin_pc,
-                            # cement_breakeven_price,
-                            # cement_price_breakdown,
-                            # cement_breakeven_price,
-                            hopp_dict) 
+    if cement_plant.config["Steel & Ammonia"]:
+        if run_RODeO_selector == True:             
+            policy_option,turbine_model,scenario['Useful Life'], wind_cost_kw, solar_cost_kw,\
+            scenario['Debt Equity'], atb_year, scenario['H2 PTC'],scenario['Wind ITC'],\
+            discount_rate, tlcc_wind_costs, tlcc_solar_costs, tlcc_hvdc_costs, tlcc_total_costs,run_RODeO_selector,lcoh,\
+            wind_itc_total, total_itc_hvdc = hopp_tools_cement.write_outputs_RODeO(electrical_generation_timeseries,\
+                                hybrid_plant,
+                                total_export_system_cost,
+                                total_export_om_cost,
+                                cost_to_buy_from_grid,
+                                electrolyzer_capex_kw, 
+                                electrolyzer_installed_cost_kw,
+                                hydrogen_storage_cost_USDprkg,
+                                time_between_replacement,
+                                profit_from_selling_to_grid,
+                                useful_life,
+                                atb_year,
+                                policy_option,
+                                scenario,
+                                wind_cost_kw,
+                                solar_cost_kw,
+                                discount_rate,
+                                solar_size_mw,
+                                results_dir,
+                                fin_sum_dir,
+                                site_name,
+                                turbine_model,
+                                electrolysis_scale,
+                                scenario_choice,
+                                lcoe,
+                                run_RODeO_selector,
+                                grid_connection_scenario,
+                                grid_price_scenario,
+                                lcoh,
+                                h2_transmission_price,
+                                lcoh_reduction_Ren_PTC,
+                                lcoh_reduction_H2_PTC,
+                                electrolyzer_capacity_factor,
+                                hydrogen_storage_duration_hr,
+                                hydrogen_storage_capacity_kg,
+                                hydrogen_annual_production,
+                                water_consumption_hourly,
+                                RODeO_summary_results_dict,
+                                steel_annual_production_mtpy,
+                                steel_breakeven_price,
+                                steel_price_breakdown,
+                                steel_breakeven_price_integration,
+                                ammonia_annual_production_kgpy,
+                                ammonia_breakeven_price,
+                                ammonia_price_breakdown) 
+        else:
+            policy_option,turbine_model,scenario['Useful Life'], wind_cost_kw, solar_cost_kw,\
+            scenario['Debt Equity'], atb_year, scenario['H2 PTC'],scenario['Wind ITC'],\
+            discount_rate, tlcc_wind_costs, tlcc_solar_costs, tlcc_hvdc_costs, tlcc_total_costs,run_RODeO_selector,lcoh,\
+            wind_itc_total, total_itc_hvdc = hopp_tools_cement.write_outputs_ProFAST(electrical_generation_timeseries,\
+                                cf_wind_annuals,
+                                cf_solar_annuals,
+                                wind_itc_total,
+                                total_export_system_cost,
+                                total_export_om_cost,
+                                cost_to_buy_from_grid,
+                                electrolyzer_capex_kw,
+                                electrolyzer_installed_cost_kw,
+                                electrolyzer_cost_case,
+                                hydrogen_storage_cost_USDprkg,
+                                time_between_replacement,
+                                profit_from_selling_to_grid,
+                                useful_life,
+                                atb_year,
+                                policy_option,
+                                scenario,
+                                wind_cost_kw,
+                                solar_cost_kw,
+                                wind_size_mw,
+                                solar_size_mw,
+                                storage_size_mw,
+                                storage_hours,
+                                electrolyzer_size_mw,
+                                discount_rate,
+                                results_dir,
+                                fin_sum_dir,
+                                energy_profile_dir,
+                                price_breakdown_dir,
+                                site_name,
+                                turbine_model,
+                                electrolysis_scale,
+                                scenario_choice,
+                                lcoe,
+                                cf_electricity,
+                                run_RODeO_selector,
+                                grid_connection_scenario,
+                                grid_price_scenario,
+                                lcoh,
+                                h2_transmission_price,
+                                h2_production_capex,
+                                H2_Results,
+                                elec_cf,
+                                ren_frac,
+                                electrolysis_total_EI_policy_grid,
+                                electrolysis_total_EI_policy_offgrid,
+                                H2_PTC,
+                                Ren_PTC,
+                                run_pv_battery_sweep,
+                                electrolyzer_degradation_penalty,
+                                user_defined_stack_replacement_time,
+                                pem_control_type,
+                                n_pem_clusters,
+                                storage_capacity_multiplier,
+                                floris,
+                                hydrogen_storage_duration_hr,
+                                hydrogen_storage_capacity_kg,
+                                lcoh_breakdown,
+                                steel_annual_production_mtpy,
+                                steel_production_capacity_margin_pc,
+                                steel_breakeven_price,
+                                steel_price_breakdown,
+                                steel_breakeven_price_integration,
+                                ammonia_annual_production_kgpy,
+                                ammonia_production_capacity_margin_pc,
+                                ammonia_breakeven_price,
+                                ammonia_price_breakdown,
+                                profast_h2_price_breakdown,
+                                profast_steel_price_breakdown,
+                                profast_ammonia_price_breakdown,
+                                # TODO ADDED CEMENT HERE
+                                # cement_annual_production_mtpy,
+                                # cement_production_capacity_margin_pc,
+                                # cement_breakeven_price,
+                                # cement_price_breakdown,
+                                # cement_breakeven_price,
+                                hopp_dict) 
 
     ###################/
     

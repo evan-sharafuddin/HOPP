@@ -40,7 +40,7 @@ from green_concrete.concrete_plant import ConcretePlant
 
 ######\ CONFIGURATIONS FOR CEMENT PLANT GO HERE
 cement_plant = ConcretePlant(
-    css='CaL (tail-end)', 
+    css='None', 
     fuel_mix='C6',
     renewable_electricity=True, 
     SCM_composition='European Average', 
@@ -48,7 +48,8 @@ cement_plant = ConcretePlant(
     site_location='IA', 
     cli_production=1e6, 
     plant_life=25, 
-    plant_capacity_factor = 91.3e-2 # source of plant_capacity_factor: CEMCAP
+    plant_capacity_factor = 91.3e-2, # source of plant_capacity_factor: CEMCAP
+    couple_with_steel_ammonia=True,
 )
 ######/
 
@@ -109,7 +110,10 @@ save_model_output_yaml = True # saves the outputs for each model/major function
 # Target steel production rate. Note that this is the production after taking into account
 # steel plant capacity factor. E.g., if CF is 0.9, divide the number below by 0.9 to get
 # the total steel plant capacity used for economic calculations
-steel_annual_production_rate_target_tpy = 1000000
+if cement_plant.config['Steel & Ammonia']:
+    steel_annual_production_rate_target_tpy = 1000000
+else:
+    steel_annual_production_rate_target_tpy = 0
 
 if __name__ == '__main__':
 #-------------------- Define scenarios to run----------------------------------

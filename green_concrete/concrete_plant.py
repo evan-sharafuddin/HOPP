@@ -92,6 +92,7 @@ class ConcretePlant:
         fuel_mix='C1',
         renewable_electricity=False, 
         SCM_composition='European Average', 
+        couple_with_steel_ammonia=True, 
         atb_year=2035, 
         site_location='IA', 
         cli_production=1e6, 
@@ -126,6 +127,7 @@ class ConcretePlant:
                 'CSS': css, # None, Oxyfuel, Calcium Looping
                 'Fuel Mixture': fuel_mix, # C1-C5
                 'Renewable electricity': renewable_electricity,
+                'Steel & Ammonia': couple_with_steel_ammonia,
                 'SCMs': SCM_composition,
                 'ATB year': atb_year,
                 'site location': site_location,
@@ -149,6 +151,7 @@ class ConcretePlant:
                 'CSS': css, # None, Oxyfuel, Calcium Looping
                 'Fuel Mixture': fuel_mix, # C1-C5
                 'Renewable electricity': renewable_electricity,
+                'Steel & Ammonia': couple_with_steel_ammonia,
                 'Using SCMs': SCM_composition,
                 'ATB year': atb_year,
                 'site location': site_location,
@@ -173,6 +176,7 @@ class ConcretePlant:
                 'CSS': css, # None, Oxyfuel, Calcium Looping
                 'Fuel Mixture': fuel_mix, # C1-C5
                 'Renewable electricity': renewable_electricity,
+                'Steel & Ammonia': couple_with_steel_ammonia,
                 'Using SCMs': SCM_composition,
                 'ATB year': atb_year,
                 'site location': site_location,
