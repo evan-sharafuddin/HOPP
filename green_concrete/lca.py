@@ -14,43 +14,19 @@ def lca(self):
     dircambium = os.path.join(os.path.split(__file__)[0], dircambium)
 
     hopp_dict = self.config['Hopp dict']
-
-    solar_size_mw = hopp_dict.main_dict['Configuration']['solar_size']
-    storage_size_mw = hopp_dict.main_dict['Configuration']['storage_size_mw']
     site_name = self.config['site location']
-    atb_year = hopp_dict.main_dict['Configuration']['atb_year']
-    grid_connection_scenario = self.config['Grid connection scenario']
-    H2_Results = hopp_dict.main_dict['Models']['run_H2_PEM_sim']['output_dict']['H2_Results']
+    atb_year = self.config['ATB year']
+    system_life        = self.config['Plant lifespan']
+    # grid_connection_scenario = self.config['Grid connection scenario']
 
-    
-    #==============================================================================
-    # DATA
-    #==============================================================================        
     # Conversions
     g_to_kg_conv  = 0.001  # Conversion from grams to kilograms
     kg_to_MT_conv = 0.001 # Converion from kg to metric tonnes
     MT_to_kg_conv = 1000 # Conversion from metric tonne to kilogram
     kWh_to_MWh_conv = 0.001 # Conversion from kWh to MWh
-    
-    
-    ### Renewable infrastructure embedded emission intensities
 
-    system_life        = self.config['Plant lifespan']
-    ely_stack_capex_EI = 0.019 # PEM electrolyzer CAPEX emissions (kg CO2e/kg H2)
-    wind_capex_EI      = 10    # Electricity generation capacity from wind, nominal value taken (g CO2e/kWh)
-    if solar_size_mw != 0:
-        solar_pv_capex_EI = 37     # Electricity generation capacity from solar pv, nominal value taken (g CO2e/kWh)
-    else:
-        solar_pv_capex_EI = 0   # Electricity generation capacity from solar pv, nominal value taken (g CO2e/kWh)
-
-    if storage_size_mw != 0:
-        battery_EI = 20             # Electricity generation capacity from battery (g CO2e/kWh)
-    else:
-        battery_EI = 0  # Electricity generation capacity from battery (g CO2e/kWh)
-    
-
-    ### Grid electricity
-    
+        ### Grid electricity
+        
     grid_trans_losses   = 0.05 # Grid losses of 5% are assumed (-)
     fuel_to_grid_curr   = 48   # Fuel mix emission intensity for current power grid (g CO2e/kWh)
     fuel_to_grid_futu   = 14   # Fuel mix emission intensity for future power grid (g CO2e/kWh)
@@ -63,55 +39,92 @@ def lca(self):
         cambium_year =2035
     elif atb_year == 2035:
         cambium_year = 2040
-        
-    energy_from_grid_df = pd.DataFrame(hopp_dict.main_dict["Models"]["grid"]["ouput_dict"]['energy_from_the_grid'],columns=['Energy from the grid (kWh)'])
-    energy_from_renewables_df = pd.DataFrame(hopp_dict.main_dict["Models"]["grid"]["ouput_dict"]['energy_from_renewables'],columns=['Energy from renewables (kWh)'])    
-    
+
     # Read in Cambium data  
     cambiumdata_filepath = dircambium + site_name + '_'+str(cambium_year) + '.csv'
     cambium_data = pd.read_csv(cambiumdata_filepath,index_col = None,header = 4,usecols = ['lrmer_co2_c','lrmer_ch4_c','lrmer_n2o_c','lrmer_co2_p','lrmer_ch4_p','lrmer_n2o_p','lrmer_co2e_c','lrmer_co2e_p','lrmer_co2e'])
-    
+
     cambium_data = cambium_data.reset_index().rename(columns = {'index':'Interval','lrmer_co2_c':'LRMER CO2 combustion (kg-CO2/MWh)','lrmer_ch4_c':'LRMER CH4 combustion (g-CH4/MWh)','lrmer_n2o_c':'LRMER N2O combustion (g-N2O/MWh)',\
-                                                  'lrmer_co2_p':'LRMER CO2 production (kg-CO2/MWh)','lrmer_ch4_p':'LRMER CH4 production (g-CH4/MWh)','lrmer_n2o_p':'LRMER N2O production (g-N2O/MWh)','lrmer_co2e_c':'LRMER CO2 equiv. combustion (kg-CO2e/MWh)',\
-                                                  'lrmer_co2e_p':'LRMER CO2 equiv. production (kg-CO2e/MWh)','lrmer_co2e':'LRMER CO2 equiv. total (kg-CO2e/MWh)'})
-    
+                                                'lrmer_co2_p':'LRMER CO2 production (kg-CO2/MWh)','lrmer_ch4_p':'LRMER CH4 production (g-CH4/MWh)','lrmer_n2o_p':'LRMER N2O production (g-N2O/MWh)','lrmer_co2e_c':'LRMER CO2 equiv. combustion (kg-CO2e/MWh)',\
+                                                'lrmer_co2e_p':'LRMER CO2 equiv. production (kg-CO2e/MWh)','lrmer_co2e':'LRMER CO2 equiv. total (kg-CO2e/MWh)'})
+
     cambium_data['Interval']=cambium_data['Interval']+1
-    cambium_data = cambium_data.set_index('Interval')    
+    cambium_data = cambium_data.set_index('Interval') 
+
+
+
+    if hopp_dict:
+        solar_size_mw = hopp_dict.main_dict['Configuration']['solar_size']
+        storage_size_mw = hopp_dict.main_dict['Configuration']['storage_size_mw']
+        # H2_Results = hopp_dict.main_dict['Models']['run_H2_PEM_sim']['output_dict']['H2_Results']
+        
+        ### Renewable infrastructure embedded emission intensities
+
+        
+        ely_stack_capex_EI = 0.019 # PEM electrolyzer CAPEX emissions (kg CO2e/kg H2)
+        wind_capex_EI      = 10    # Electricity generation capacity from wind, nominal value taken (g CO2e/kWh)
+        if solar_size_mw != 0:
+            solar_pv_capex_EI = 37     # Electricity generation capacity from solar pv, nominal value taken (g CO2e/kWh)
+        else:
+            solar_pv_capex_EI = 0   # Electricity generation capacity from solar pv, nominal value taken (g CO2e/kWh)
+
+        if storage_size_mw != 0:
+            battery_EI = 20             # Electricity generation capacity from battery (g CO2e/kWh)
+        else:
+            battery_EI = 0  # Electricity generation capacity from battery (g CO2e/kWh)
+        
+            
+        energy_from_grid_df = pd.DataFrame(hopp_dict.main_dict["Models"]["grid"]["ouput_dict"]['energy_from_the_grid'],columns=['Energy from the grid (kWh)'])
+        energy_from_renewables_df = pd.DataFrame(hopp_dict.main_dict["Models"]["grid"]["ouput_dict"]['energy_from_renewables'],columns=['Energy from renewables (kWh)'])       
+        
+        # Calculate hourly grid emissions factors of interest. If we want to use different GWPs, we can do that here. The Grid Import is an hourly data i.e., in MWh
+        # NOTE since this is a cement LCA, only considering emissions associated with energy production/consumption for cement
+
+        if len(energy_from_grid_df) != len(energy_from_renewables_df):
+            raise Exception("grid and renewable energy timeseries not the same length (see green_concrete/lca.py)")
+        else: 
+            # all have units kg-CO2e
+            total_grid_emissions = [0] * len(energy_from_grid_df)
+            scope2_grid_emissions = [0] * len(energy_from_grid_df)
+            scope3_grid_emissions = [0] * len(energy_from_grid_df)
+
+        for idx in range(len(energy_from_grid_df)):
+            energy_used_total = energy_from_grid_df['Energy from the grid (kWh)'][idx] + energy_from_renewables_df['Energy from renewables (kWh)'][idx]
+            grid_frac = energy_from_grid_df['Energy from the grid (kWh)'][idx] / energy_used_total
+
+            # finds the total amount of GRID energy used by cement (both electrical and for producing hydrogen), 
+            # so steel energy consumption is not considered in the LCA
+            electricity_demand_cement_hourly = self.feed_consumption['renewable electricity'] * self.config['Cement Production Rate (annual)'] / 8760
+        
+            grid_energy_used_cement = (electricity_demand_cement_hourly + \
+                (energy_used_total - electricity_demand_cement_hourly) * self.config['Hydrogen to cement frac']) * grid_frac
+
+            total_grid_emissions[idx] = grid_energy_used_cement * cambium_data['LRMER CO2 equiv. total (kg-CO2e/MWh)'][idx + 1] / 1000
+            scope2_grid_emissions[idx] = grid_energy_used_cement  * cambium_data['LRMER CO2 equiv. combustion (kg-CO2e/MWh)'][idx + 1] / 1000
+            scope3_grid_emissions[idx] = grid_energy_used_cement  * cambium_data['LRMER CO2 equiv. production (kg-CO2e/MWh)'][idx + 1] / 1000
+
+        # NOTE since hydrogen emissions are derived from electricity emissions, just pooling those in with the rest of the electricity
+        # demand for the plant
     
-    # Calculate hourly grid emissions factors of interest. If we want to use different GWPs, we can do that here. The Grid Import is an hourly data i.e., in MWh
-    # NOTE since this is a cement LCA, only considering emissions associated with energy production/consumption for cement
+    else: # model is being run through cement_plant -> grid electricity only
+        total_grid_emissions = [0] * 8760
+        scope2_grid_emissions = [0] * 8760
+        scope3_grid_emissions = [0] * 8760
 
-    if len(energy_from_grid_df) != len(energy_from_renewables_df):
-        raise Exception("grid and renewable energy timeseries not the same length (see green_concrete/lca.py)")
-    else: 
-        # all have units kg-CO2e
-        total_grid_emissions = [0] * len(energy_from_grid_df)
-        scope2_grid_emissions = [0] * len(energy_from_grid_df)
-        scope3_grid_emissions = [0] * len(energy_from_grid_df)
-
-    for idx in range(len(energy_from_grid_df)):
-        energy_used_total = energy_from_grid_df['Energy from the grid (kWh)'][idx] + energy_from_renewables_df['Energy from renewables (kWh)'][idx]
-        grid_frac = energy_from_grid_df['Energy from the grid (kWh)'][idx] / energy_used_total
-
-        # finds the total amount of GRID energy used by cement (both electrical and for producing hydrogen), 
-        # so steel energy consumption is not considered in the LCA
-        electricity_demand_cement_hourly = self.feed_consumption['renewable electricity'] * self.config['Cement Production Rate (annual)'] / 8760
-       
-        grid_energy_used_cement = (electricity_demand_cement_hourly + \
-            (energy_used_total - electricity_demand_cement_hourly) * self.config['Hydrogen to cement frac']) * grid_frac
-
-        total_grid_emissions[idx] = grid_energy_used_cement * cambium_data['LRMER CO2 equiv. total (kg-CO2e/MWh)'][idx + 1] / 1000
-        scope2_grid_emissions[idx] = grid_energy_used_cement  * cambium_data['LRMER CO2 equiv. combustion (kg-CO2e/MWh)'][idx + 1] / 1000
-        scope3_grid_emissions[idx] = grid_energy_used_cement  * cambium_data['LRMER CO2 equiv. production (kg-CO2e/MWh)'][idx + 1] / 1000
-
+        electricity_demand_cement_hourly = self.feed_consumption['grid electricity'] * self.config['Cement Production Rate (annual)'] / 8760
+        energy_from_grid = [electricity_demand_cement_hourly] * 8760 # TODO double check this multiplyer
+        for idx in range(len(energy_from_grid)):
+            total_grid_emissions[idx] = energy_from_grid[idx] * cambium_data['LRMER CO2 equiv. total (kg-CO2e/MWh)'][idx + 1] / 1000
+            scope2_grid_emissions[idx] = energy_from_grid[idx]  * cambium_data['LRMER CO2 equiv. combustion (kg-CO2e/MWh)'][idx + 1] / 1000
+            scope3_grid_emissions[idx] = energy_from_grid[idx]  * cambium_data['LRMER CO2 equiv. production (kg-CO2e/MWh)'][idx + 1] / 1000
+    
     ### Sum total emissions
     scope2_grid_emissions_sum = sum(scope2_grid_emissions)*system_life # total emissions over plant lifespan (kg-CO2e)
     scope3_grid_emissions_sum = sum(scope3_grid_emissions)*system_life # kg_to_MT_conv -- got rid of this for these two, why would you do that?
-    scope3_ren_sum            = energy_from_renewables_df['Energy from renewables (kWh)'].sum()*system_life # kWh
+    # scope3_ren_sum            = energy_from_renewables_df['Energy from renewables (kWh)'].sum()*system_life # kWh
 
-    # NOTE since hydrogen emissions are derived from electricity emissions, just pooling those in with the rest of the electricity
-    # demand for the plant
-    # TODO separate electricity demand between steel and cement -- for now this LCA just considers all that electricity demand
+        
+    
 
     ### Fuel emissions
     conversion_factor = btu_to_j(1e3, 1) # extracts conversion factor for below conversion

@@ -236,9 +236,14 @@ def opex(self):
         'raw meal': 1,
         'process water': 1,
         'misc': 1,
-        'alt fuel (IEAGHG mix)': 1,
         'ammonia': 5, 
     })
+
+    # adding IEAGHG fuel mix if applicable... TODO eventually phase out this fuel mix and add a custom one
+    if self.config['Fuel Mixture'] == 'C2':
+        feed_consumption['alt fuel (IEAGHG mix)'] = 1
+    else:
+        feed_consumption['alt fuel (IEAGHG mix)'] = 0
 
     # /////////// CSS FEEDS ///////////
     if self.config['CSS'] == 'Oxyfuel':
@@ -275,7 +280,7 @@ def opex(self):
     
     feed_costs['grid electricity'] = elec_price
     
-    # this will be overwritten if renewable electricity is  used
+    # this will be overwritten if renewable electricity is used
     feed_costs['renewable electricity'] = 0
 
     # ////////////// waste ////////////////

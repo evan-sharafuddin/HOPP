@@ -36,23 +36,24 @@ import run_profast_for_hydrogen
 import run_profast_for_steel
 
 from green_industry_run_scenarios import batch_generator_kernel
-from green_concrete.concrete_plant import ConcretePlant
+from green_concrete.cement_plant import CementPlant
 
-######\ CONFIGURATIONS FOR CEMENT PLANT GO HERE
-# cement_plant = ConcretePlant(
-#     css='None', 
-#     fuel_mix='C6',
-#     renewable_electricity=True, 
-#     SCM_composition='European Average', 
-#     atb_year=2035, 
-#     site_location='IA', 
-#     cli_production=1e6, 
-#     plant_life=25, 
-#     plant_capacity_factor = 91.3e-2, # source of plant_capacity_factor: CEMCAP
-#     couple_with_steel_ammonia=False,
-# )
-cement_plant = ConcretePlant()
-######/
+# Uncomment for custom cement plant
+cement_plant = CementPlant(
+    css='None', 
+    fuel_mix='C2',
+    renewable_electricity=False, 
+    SCM_composition='European Average', 
+    atb_year=2035, 
+    site_location='IA', 
+    cli_production=1e6, 
+    plant_life=25, 
+    plant_capacity_factor = 91.3e-2, # source of plant_capacity_factor: CEMCAP
+    couple_with_steel_ammonia=True,
+)
+
+# Uncomment for default cement plant
+# cement_plant = CementPlant()
 
 warnings.filterwarnings("ignore")
 sys.path.append('')
@@ -116,9 +117,12 @@ if cement_plant.config['Steel & Ammonia']:
 else:
     steel_annual_production_rate_target_tpy = 0
 
+cement_plant.hopp_misc['Steel production rate (tpy)'] = steel_annual_production_rate_target_tpy
+
 if __name__ == '__main__':
 #-------------------- Define scenarios to run----------------------------------
     
+    print('WARNING: make sure that atb_years and site_selection line up with those chosen for cement_plant')
     atb_years = [
                 #2020,
                 #2025,

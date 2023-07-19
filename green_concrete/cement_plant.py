@@ -35,26 +35,31 @@ from green_concrete.convert import *
 # * The scope of this model seems to mainly be the clinkering plant, as there is no mention of any SCMs, cement mixing, etc. 
 # So it makes sense that the cost of OPC is more than the cost of lower clinker-to-cement mixtures
 
-class ConcretePlant:
+class CementPlant:
     """  
     Class for green concrete analysis
-
-    NOTE only considering a cement plant at the moment but this might change
 
     Attributes:
         CAPEX
             self.config: holds  general plant information
                 CSS: 'None', 'Oxyfuel', 'CaL (tail-end)'
                     'Oxyfuel' and 'CaL (tail-end)' are both derived from the "base case" scenarios found in CEMCAP d4.6
-                Fuel Mixture: 'C1-C5'
-                Renewable electricity: determines if grid electricity will be used
-                Using SCMs: 'OPC', 'USA Average', 'European Average'
+                Fuel Mixture: 'C1-C6' (percentages are LHV fractions unless otherwise stated)
+                    C1: 100% coal
+                    C2: 70% coal, 30% IEAGHG alternative fuel mix
+                    C3: 50% coal, 50% natural gas
+                    C4: 50% coal, 50% natural gas with 10% hydrogen by volume
+                    C5: 39% hydrogen, 12% MBM, 49% glycerin (experimental fuel mix)
+                    C6: 80% natural gas, 20% hydrogen
+                Renewable electricity: determines if grid electricity or HOPP hybrid renewable simulation will be used
+                Using SCMs: 'OPC', 'US Average', 'European Average'
                 ATB year: see define_scenarios
-                Site location: 'IA', 'WY', 'TX', don't remember the other two
+                Site location: 'IA', 'WY', 'TX', 'MS', 'IN'
                 Clinker Production Rate (annual): ideal annual production rate of clinker
                 Clinker-to-cement ratio: fraction of clinker that goes into the final cement product
-                    TODO IEAGHG/CEMCAP assume 73.7% cli-to-cem ratio, and integrate the add'l cost of the other
-                    additives into the model. Need to find a way to account for cost when changing cli-to-cem
+                    NOTE this is essentially a multiplyer at this point. The scope of this model ends at clinker,
+                    and the cement produced depends on this clinker-to-cement ratio. Future work would involve
+                    replacing 
                 Plant lifespan: int, number of years
                 Plant capacity factor: percentage of the year that plant is operating 
                     (accounts for maintenance closures, etc)
@@ -69,7 +74,7 @@ class ConcretePlant:
         
             self.equip_costs: holds names and costs of each major capital component
             self.tpc: total plant cost (equipment, installation, contingencies, etc)
-            self.total_capex: tpc + land cost (TODO not sure if this is true)
+            self.total_capex: tpc + land cost 
             self.total_direct_costs: i.e. installed costs (equipment + installation)
             self.land_cost: TODO model does not currently account for this 
 
@@ -89,7 +94,7 @@ class ConcretePlant:
     def __init__(
         self, 
         css='None', 
-        fuel_mix='C1',
+        fuel_mix='C2',
         renewable_electricity=False, 
         SCM_composition='European Average', 
         couple_with_steel_ammonia=True, 
@@ -193,9 +198,8 @@ class ConcretePlant:
                 'Thermal energy demand (MJ/kg clinker)': 7.1 , # MJ / kg cli
                     # TODO possibility that the CaL calciner can only use coal and not the alternative
                     # fuel mixes, so might want to keep this in mind
-                'Electrical energy demand (kWh/t cement)': 0, # -41.2 * cli_cem_ratio, # kWh/t cem, net electricity consumption (electricity consumed - electricity generated)
+                'Electrical energy demand (kWh/t cement)': -41.2 * cli_cem_ratio, # kWh/t cem, net electricity consumption (electricity consumed - electricity generated)
                     # NOTE power is actually generated when ASU consumption is excluded
-                    # TODO sell this power or assume that it replaces some of the renewable electricity required
                 'Carbon capture efficency (%)': 0.936,
                 'Hopp dict': None,
             }
@@ -219,6 +223,9 @@ class ConcretePlant:
          self.maintenance_equip, 
          self.maintenance_labor, 
          self.admin_support) = self._opex_helper()
+        
+        # this is used in run_scenarios to store info used for bug fixing
+        self.hopp_misc = dict()
 
     # See files for documentation on these functions
     def _capex_helper(self):
@@ -250,7 +257,7 @@ class ConcretePlant:
         return manual_price_breakdown(self, gen_inflation, price_breakdown)
     
 if __name__ == '__main__':
-    plant = ConcretePlant()
+    plant = CementPlant()
     hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
     cement_annual_capacity, cement_production_capacity_margin_pc, cement_price_breakdown = \
     plant.run_pf()

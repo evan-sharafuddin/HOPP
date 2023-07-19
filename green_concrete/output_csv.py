@@ -32,7 +32,9 @@ def output_csv(dir, *dicts):
     output = pd.concat(dfs, axis=1)
     output.fillna('')
     filename = 'cement_output_data_' + dt_string + '.csv'
-    print(filename)
+    
     path = os.path.join(dir, filename)
     
     output.to_csv(path)
+
+    

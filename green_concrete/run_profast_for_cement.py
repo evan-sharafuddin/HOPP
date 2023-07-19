@@ -92,7 +92,7 @@ def run_profast_for_cement(
     # ------------------------------ Add feedstocks, note the various cost options ------------------------------
     # NOTE feedstocks without consumption data have a usage of 1 (i.e. already in the desired units)
     # NOTE need to handle electricity differently because we can (1) have negative values for consumption and (2) have different costs for grid and renewable
-    for key, value in self.feed_costs.items():
+    for key in self.feed_costs.keys():
         if 'electricity' in key:  
             if self.feed_consumption[key] < 0:
                 # sell electricity at the grid price
@@ -145,27 +145,40 @@ def run_profast_for_cement(
 
 
     ###\ write files (for testing)
-    path = Path('C:\\Users\\esharafu\\Documents\\cement_econ.csv')
-    thing = pd.DataFrame(price_breakdown_manual,index=[0]).transpose()
-    thing.to_csv(path)
-
     path = Path('C:\\Users\\esharafu\\Documents\\profast_breakdown.csv')
     thing = pd.DataFrame(price_breakdown)
     thing.to_csv(path)
     ###/
 
-    ### run LCA
-    if self.config['Hopp dict']:
-        lca, lca_css = self.lca_helper()
-        lca['TITLE'] = 'LIFE CYCLE ANALYSIS (NO CSS)'
-        lca_css['TITLE'] = 'LIFE CYCLE ANALYSIS WITH CSS'
-        price_breakdown_manual['TITLE'] = 'MANUAL PRICE BREAKDOWN'
+    ### run LCA and export results
 
-        output_csv('c:/Users/esharafu/documents', lca, lca_css, price_breakdown_manual)
+    lca, lca_css = self.lca_helper()
     
-    else:
-        print('Not performing LCA, hopp_dict was not created')
-        output_csv('c:/Users/esharafu/documents', price_breakdown_manual)
+    # prepare outputs
+    lca['TITLE'] = 'LIFE CYCLE ANALYSIS (NO CSS)'
+    lca_css['TITLE'] = 'LIFE CYCLE ANALYSIS WITH CSS'
+    price_breakdown_manual['TITLE'] = 'MANUAL PRICE BREAKDOWN'
+    self.config['TITLE'] = 'PLANT AND MODEL CONFIGURATIONS'
+    config_no_hopp_dict = self.config
+    del config_no_hopp_dict['Hopp dict']
+    self.feed_costs['TITLE'] = 'FEED COSTS'
+    self.feed_consumption['TITLE'] = 'FEED CONSUMPTION ($UNIT$/t cem)'
+    self.feed_units['TITLE'] = 'FEED UNITS'
+    self.lhv['TITLE'] = 'LHV VALUES'
+    self.hopp_misc['TITLE'] = 'MISC. INFO FROM HOPP'
+
+    # configure desired outputs here
+    output_csv('c:/Users/esharafu/documents', 
+                lca, 
+                lca_css, 
+                price_breakdown_manual, 
+                config_no_hopp_dict, 
+                self.feed_costs,
+                self.feed_consumption,
+                self.feed_units,
+                self.lhv,
+                self.hopp_misc,
+                )
     
 
     
