@@ -1,5 +1,6 @@
 import pandas as pd
 import os.path
+from datetime import datetime
 
 def output_csv(dir, *dicts):
     '''
@@ -25,8 +26,13 @@ def output_csv(dir, *dicts):
         df = pd.DataFrame.from_dict(data)
         dfs.append(df)
 
+    now = datetime.now()
+    dt_string = now.strftime("%d-%m-%Y_%H%M.%S")
+
     output = pd.concat(dfs, axis=1)
     output.fillna('')
-    path = os.path.join(dir, 'cement_output_data.csv')
+    filename = 'cement_output_data_' + dt_string + '.csv'
+    print(filename)
+    path = os.path.join(dir, filename)
     
     output.to_csv(path)

@@ -144,6 +144,7 @@ class ConcretePlant:
                                                                #               addition of SCMs increases electrical consumption for grinding, etc)
                                                                # Source of assumption: https://docs.wbcsd.org/2017/06/CSI_ECRA_Technology_Papers_2017.pdf, No 31
                 'Carbon capture efficency (%)': 0,
+                'Hopp dict': None,
             }
         
         elif css == 'Oxyfuel':
@@ -166,7 +167,8 @@ class ConcretePlant:
                 'Construction time (months)': 60, # combined plant and carbon capture system construction
                 'Thermal energy demand (MJ/kg clinker)': 3.349, # MJ / kg cli
                 'Electrical energy demand (kWh/t cement)': 132 * 1.67 * cli_cem_ratio, # kWh/t cem, using 67% increase claimed in article
-                'Carbon capture efficency (%)': 0.9 # CEMCAP
+                'Carbon capture efficency (%)': 0.9, # CEMCAP
+                'Hopp dict': None,
             }
 
         elif css == 'CaL (tail-end)': # based on base-case from CEMCAP
@@ -195,6 +197,7 @@ class ConcretePlant:
                     # NOTE power is actually generated when ASU consumption is excluded
                     # TODO sell this power or assume that it replaces some of the renewable electricity required
                 'Carbon capture efficency (%)': 0.936,
+                'Hopp dict': None,
             }
 
         else:
@@ -232,12 +235,11 @@ class ConcretePlant:
     
     def run_pf(
         self, 
-        hopp_dict=None,
         lcoh=6.79, 
         hydrogen_annual_production=1e20,  # default value, ensures there is always plenty of hydrogen  
     ):
         from green_concrete.run_profast_for_cement import run_profast_for_cement
-        return run_profast_for_cement(self, hopp_dict, lcoh, hydrogen_annual_production)
+        return run_profast_for_cement(self, lcoh, hydrogen_annual_production)
     
     def manual_price_breakdown_helper(
         self, 
@@ -249,7 +251,6 @@ class ConcretePlant:
     
 if __name__ == '__main__':
     plant = ConcretePlant()
-    plant.feed_costs['Hydrogen'] = 1
     hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
     cement_annual_capacity, cement_production_capacity_margin_pc, cement_price_breakdown = \
     plant.run_pf()

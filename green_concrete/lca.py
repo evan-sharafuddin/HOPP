@@ -93,16 +93,12 @@ def lca(self):
         energy_used_total = energy_from_grid_df['Energy from the grid (kWh)'][idx] + energy_from_renewables_df['Energy from renewables (kWh)'][idx]
         grid_frac = energy_from_grid_df['Energy from the grid (kWh)'][idx] / energy_used_total
 
-       
         # finds the total amount of GRID energy used by cement (both electrical and for producing hydrogen), 
         # so steel energy consumption is not considered in the LCA
         electricity_demand_cement_hourly = self.feed_consumption['renewable electricity'] * self.config['Cement Production Rate (annual)'] / 8760
        
         grid_energy_used_cement = (electricity_demand_cement_hourly + \
             (energy_used_total - electricity_demand_cement_hourly) * self.config['Hydrogen to cement frac']) * grid_frac
-
-        if idx % 1000 == 0:
-            print(grid_energy_used_cement)
 
         total_grid_emissions[idx] = grid_energy_used_cement * cambium_data['LRMER CO2 equiv. total (kg-CO2e/MWh)'][idx + 1] / 1000
         scope2_grid_emissions[idx] = grid_energy_used_cement  * cambium_data['LRMER CO2 equiv. combustion (kg-CO2e/MWh)'][idx + 1] / 1000
@@ -118,17 +114,17 @@ def lca(self):
     # TODO separate electricity demand between steel and cement -- for now this LCA just considers all that electricity demand
 
     ### Fuel emissions
+    conversion_factor = btu_to_j(1e3, 1) # extracts conversion factor for below conversion
     ef = {
         ###\ source: Emission factors for fuel
         # ef = emission factor (g/MMBtu --> kg/MJ; from the above source)
-        # have to take reciprocals because my function doesn't work well when the unit conversion is in denominator lol
-        'coal': btu_to_j(1e3, 1/89920) ** -1,
-        'natural gas': btu_to_j(1e3, 1/59413) ** -1,
+        'coal': 89920 / conversion_factor, 
+        'natural gas': 59413 / conversion_factor, 
         'hydrogen': 0,
-        'pet coke': btu_to_j(1e3, 1/106976) ** -1,
-        'waste': btu_to_j(1e3, 1/145882) ** -1,
-        'tire': btu_to_j(1e3, 1/60876) ** -1,
-        'solvent': btu_to_j(1e3, 1/72298) ** -1,
+        'pet coke': 106976 / conversion_factor, 
+        'waste': 145882 / conversion_factor, 
+        'tire': 60876 / conversion_factor, 
+        'solvent': 72298 / conversion_factor, 
         ###/
 
         ###\ source: https://backend.orbit.dtu.dk/ws/portalfiles/portal/161972551/808873_PhD_thesis_Morten_Nedergaard_Pedersen_fil_fra_trykkeri.pdf (table 3-2)
@@ -157,24 +153,17 @@ def lca(self):
         ###/
     }
 
-    # # convert units
-    # for key, value in ef.items():
-    #     if value is None:
-    #         continue
-    #     ef[key] = btu_to_j(1e-6 * 1e3, value) # g/MMBTU --> kg/J
-
     ### sum emissions from each fuel
-    print('\n------------- Calculating fuel emissions ---------')
+    # uncomment print statements for debugging
+    # print('\n------------- Calculating fuel emissions ---------')
     fuel_emissions = 0 # kgCO2
     for key in ef.keys():
         if key not in self.feed_consumption.keys() or not self.feed_consumption[key]:
-            print(f'{key} not found in feed_consumption.keys()')
+            # print(f'{key} not found in feed_consumption.keys()')
             continue
         else:
             fuel_emissions += self.feed_consumption[key] * self.config['Cement Production Rate (annual)'] \
                 * self.lhv[key] * system_life * ef[key] # kg feed/t cem -> kg CO2
-
-    print(f'emissions from fuel: {fuel_emissions}\n')
     
     ###\ source: Emission factors for fuel  
     calcination_emissions_rate = 553 # kg CO2/tonne cem, assuming cli/cement ratio of 0.95 
@@ -189,20 +178,20 @@ def lca(self):
     process_EI = calcination_emissions / cement_production
     total_cement_EI = grid_electricity_EI + renewable_electricity_EI + fuel_EI + process_EI
 
+    # # Uncomment for debugging
+    # print('---------- LCA RESULTS --------------')
+    # print(f'Emissions from grid electricity (kg CO2e/ton cement): {grid_electricity_EI}\n',
+    #       f'Indirect emissions from renewable electricity (kg CO2e/ton cement): {renewable_electricity_EI}\n',
+    #       f'Emissions from fuel (kg CO2e/ton cement): {fuel_EI}\n',
+    #       f'Process emissions (kg CO2e/ton cement): {process_EI}\n',
+    #       f'Total cement emissions (kg CO2e/ton cement): {total_cement_EI}\n')
 
-    print('---------- LCA RESULTS --------------')
-    print(f'Emissions from grid electricity (kg CO2e/ton cement): {grid_electricity_EI}\n',
-          f'Indirect emissions from renewable electricity (kg CO2e/ton cement): {renewable_electricity_EI}\n',
-          f'Emissions from fuel (kg CO2e/ton cement): {fuel_EI}\n',
-          f'Process emissions (kg CO2e/ton cement): {process_EI}\n',
-          f'Total cement emissions (kg CO2e/ton cement): {total_cement_EI}\n')
-
-    print('---------- LCA RESULTS with carbon capture-----------')
-    print(f'Emissions from grid electricity (kg CO2e/ton cement): {grid_electricity_EI}\n',
-          f'Indirect emissions from renewable electricity (kg CO2e/ton cement): {renewable_electricity_EI}\n',
-          f'Emissions from fuel (kg CO2e/ton cement): {fuel_EI * (1 - self.config["Carbon capture efficency (%)"])}\n',
-          f'Process emissions (kg CO2e/ton cement): {process_EI * (1 - self.config["Carbon capture efficency (%)"])}\n',
-          f'Total cement emissions (kg CO2e/ton cement): {grid_electricity_EI + renewable_electricity_EI + fuel_EI * (1 - self.config["Carbon capture efficency (%)"]) + process_EI * (1 - self.config["Carbon capture efficency (%)"])}\n')
+    # print('---------- LCA RESULTS with carbon capture-----------')
+    # print(f'Emissions from grid electricity (kg CO2e/ton cement): {grid_electricity_EI}\n',
+    #       f'Indirect emissions from renewable electricity (kg CO2e/ton cement): {renewable_electricity_EI}\n',
+    #       f'Emissions from fuel (kg CO2e/ton cement): {fuel_EI * (1 - self.config["Carbon capture efficency (%)"])}\n',
+    #       f'Process emissions (kg CO2e/ton cement): {process_EI * (1 - self.config["Carbon capture efficency (%)"])}\n',
+    #       f'Total cement emissions (kg CO2e/ton cement): {grid_electricity_EI + renewable_electricity_EI + fuel_EI * (1 - self.config["Carbon capture efficency (%)"]) + process_EI * (1 - self.config["Carbon capture efficency (%)"])}\n')
     
     lca_results = {
         'Emissions from grid electricity (kg CO2e/ton cement)': grid_electricity_EI,
@@ -217,8 +206,11 @@ def lca(self):
         'Indirect emissions from renewable electricity (kg CO2e/ton cement)': renewable_electricity_EI,
         'Emissions from fuel (kg CO2e/ton cement)': fuel_EI * (1 - self.config["Carbon capture efficency (%)"]),
         'Process emissions (kg CO2e/ton cement)': process_EI * (1 - self.config["Carbon capture efficency (%)"]),
-        'Total cement emissions (kg CO2e/ton cement)': grid_electricity_EI + renewable_electricity_EI + fuel_EI * (1 - self.config["Carbon capture efficency (%)"]) + process_EI * (1 - self.config["Carbon capture efficency (%)"])
+        'Total cement emissions (kg CO2e/ton cement)': grid_electricity_EI + renewable_electricity_EI \
+                                                        + fuel_EI * (1 - self.config["Carbon capture efficency (%)"]) \
+                                                        + process_EI * (1 - self.config["Carbon capture efficency (%)"])
     }
     
     return lca_results, lca_results_css
-    # TODO quantify the impact of quarrying, raw materials, etc on emissions
+    
+    # TODO quantify the impact of quarrying, raw materials, etc on emissions?

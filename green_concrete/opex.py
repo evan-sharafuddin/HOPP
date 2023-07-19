@@ -38,9 +38,10 @@ def opex(self):
         'raw meal': 'units', 
         'process water': 'units',
         'misc': 'units',
-        'oxygen': 'Nm^3', # TODO might want to change this
+        'oxygen': 'kg',
         'cooling water make-up': 'units',
-        'raw meal': 'units',
+        'ammonia': 'kg',
+
 
         # other
         'grid electricity': 'kWh',
@@ -77,7 +78,7 @@ def opex(self):
         # Fuels
         'coal': 3e-3 * lhv['coal'], # €/GJ coal --> €/kg coal
         'natural gas': 6e-3 * lhv['natural gas'], # €/kg ng
-        'hydrogen': None, # $/kg, will be inserted in run_profast_for_cement()
+        'hydrogen': 0, # $/kg, will be inserted in run_profast_for_cement()
         'pet coke': btu_to_j(1, 2.81) * lhv['pet coke'],  # $/MMBtu --> $/MJ --> $/kg coke
         'alt fuel (IEAGHG mix)': 1, # €/ton cement
         'animal meal': 0,
@@ -93,6 +94,7 @@ def opex(self):
         'misc': 0.8, # €/ton cement
         'oxygen': 0, # ASSUMPTION
         'cooling water make-up': 0.3, # €/ton cement
+        'ammonia': 0.13, # EUR/t cem
     }
 
     # SOURCES:
@@ -235,6 +237,7 @@ def opex(self):
         'process water': 1,
         'misc': 1,
         'alt fuel (IEAGHG mix)': 1,
+        'ammonia': 5, 
     })
 
     # /////////// CSS FEEDS ///////////
@@ -273,14 +276,14 @@ def opex(self):
     feed_costs['grid electricity'] = elec_price
     
     # this will be overwritten if renewable electricity is  used
-    feed_costs['renewable electricity'] = None
+    feed_costs['renewable electricity'] = 0
 
     # ////////////// waste ////////////////
     # TODO: cost of cement kiln dust disposal? could be included already in some of the other costs
 
     # ///////////// unit conversions //////////// € --> $ 
     for key, value in feed_costs.items():
-        if 'electricity' in key or key == 'pet coke' or key == 'glycerin' or value is None: # these have already been converted
+        if 'electricity' in key or key == 'pet coke' or key == 'glycerin': # these have already been converted
             continue 
         feed_costs[key] = eur2013(1, value)
 

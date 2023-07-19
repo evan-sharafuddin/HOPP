@@ -1160,7 +1160,7 @@ def batch_generator_kernel(arg_list):
 
     hopp_dict, cement_econ_from_profast, cement_econ_summary, profast_cement_price_breakdown, \
         cement_breakeven_price, cement_annual_production_mtpy, cement_production_capacity_margin_pc, \
-        cement_price_breakdown = cement_plant.run_pf(hopp_dict, lcoh, hydrogen_annual_production)
+        cement_price_breakdown = cement_plant.run_pf(lcoh, hydrogen_annual_production)
     
             
     # Step 7: Write outputs to file

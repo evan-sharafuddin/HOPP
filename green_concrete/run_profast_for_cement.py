@@ -7,7 +7,6 @@ from green_concrete.output_csv import output_csv
 
 def run_profast_for_cement(
         self,
-        hopp_dict=None,
         lcoh=6.79, 
         hydrogen_annual_production=1e20,  # default value, ensures there is always plenty of hydrogen  
         gen_inflation=0.00,
@@ -17,6 +16,7 @@ def run_profast_for_cement(
 
     Requires a ConcretePlant instance
     """
+    hopp_dict = self.config['Hopp dict']
 
     if hopp_dict is not None and hopp_dict.save_model_input_yaml:
         input_dict = { # TODO make sure this is in the right format
@@ -40,7 +40,7 @@ def run_profast_for_cement(
     cement_production_rate_tpy = max_cement_production_capacity_tpy * self.config['Plant capacity factor']
 
 
-    # TODO cleaner way to do this?
+    # overwrite hydrogen feed cost (this is calculated in run_scenarios after cement_plant was created and other feed costs initialized)
     self.feed_costs['hydrogen'] = lcoh
     
     # ------------------------------ ProFAST ------------------------------
@@ -92,11 +92,11 @@ def run_profast_for_cement(
     # ------------------------------ Add feedstocks, note the various cost options ------------------------------
     # NOTE feedstocks without consumption data have a usage of 1 (i.e. already in the desired units)
     # NOTE need to handle electricity differently because we can (1) have negative values for consumption and (2) have different costs for grid and renewable
-    for key in self.feed_units.keys():
+    for key, value in self.feed_costs.items():
         if 'electricity' in key:  
             if self.feed_consumption[key] < 0:
                 # sell electricity at the grid price
-                pf.add_coproduct(name=key, usage=-1*self.feed_consumption[key], unit=f'{self.feed_units[key]} per ton cement', cost=self.feed_costs['grid electricity'], escalation=gen_inflation)
+                pf.add_coproduct(name=key, usage=-1*self.feed_consumption[key], unit=f'{self.feed_units[key]} per ton cement', cost=self.feed_costs['grid electricity'], escalation=gen_inflation) 
             else:
                 # add like a normal feedstock
                 pf.add_feedstock(name=key, usage=self.feed_consumption[key], unit=f'{self.feed_units[key]} per ton cement',cost=self.feed_costs[key],escalation=gen_inflation)
@@ -155,13 +155,18 @@ def run_profast_for_cement(
     ###/
 
     ### run LCA
-    lca, lca_css = self.lca_helper()
+    if self.config['Hopp dict']:
+        lca, lca_css = self.lca_helper()
+        lca['TITLE'] = 'LIFE CYCLE ANALYSIS (NO CSS)'
+        lca_css['TITLE'] = 'LIFE CYCLE ANALYSIS WITH CSS'
+        price_breakdown_manual['TITLE'] = 'MANUAL PRICE BREAKDOWN'
 
-    lca['TITLE'] = 'LIFE CYCLE ANALYSIS (NO CSS)'
-    lca_css['TITLE'] = 'LIFE CYCLE ANALYSIS WITH CSS'
-    price_breakdown_manual['TITLE'] = 'MANUAL PRICE BREAKDOWN'
-
-    output_csv('c:/Users/esharafu/documents', lca, lca_css, price_breakdown_manual)
+        output_csv('c:/Users/esharafu/documents', lca, lca_css, price_breakdown_manual)
+    
+    else:
+        print('Not performing LCA, hopp_dict was not created')
+        output_csv('c:/Users/esharafu/documents', price_breakdown_manual)
+    
 
     
     return hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
