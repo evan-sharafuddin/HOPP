@@ -49,7 +49,8 @@ cement_plant = ConcretePlant(
     cli_production=1e6, 
     plant_life=25, 
     plant_capacity_factor = 91.3e-2, # source of plant_capacity_factor: CEMCAP
-    couple_with_steel_ammonia=True,
+    couple_with_steel_ammonia=False
+    ,
 )
 ######/
 

@@ -93,14 +93,16 @@ def lca(self):
         energy_used_total = energy_from_grid_df['Energy from the grid (kWh)'][idx] + energy_from_renewables_df['Energy from renewables (kWh)'][idx]
         grid_frac = energy_from_grid_df['Energy from the grid (kWh)'][idx] / energy_used_total
 
-        
-
+       
         # finds the total amount of GRID energy used by cement (both electrical and for producing hydrogen), 
         # so steel energy consumption is not considered in the LCA
-        electricity_demand_cement_hourly = self.config['Electrical energy demand (kWh/t cement)'] * self.config['Cement Production Rate (annual)'] / 8760
+        electricity_demand_cement_hourly = self.feed_consumption['renewable electricity'] * self.config['Cement Production Rate (annual)'] / 8760
        
-        grid_energy_used_cement = electricity_demand_cement_hourly + \
-            (energy_used_total - electricity_demand_cement_hourly) * self.config['Hydrogen to cement frac'] * grid_frac
+        grid_energy_used_cement = (electricity_demand_cement_hourly + \
+            (energy_used_total - electricity_demand_cement_hourly) * self.config['Hydrogen to cement frac']) * grid_frac
+
+        if idx % 1000 == 0:
+            print(grid_energy_used_cement)
 
         total_grid_emissions[idx] = grid_energy_used_cement * cambium_data['LRMER CO2 equiv. total (kg-CO2e/MWh)'][idx + 1] / 1000
         scope2_grid_emissions[idx] = grid_energy_used_cement  * cambium_data['LRMER CO2 equiv. combustion (kg-CO2e/MWh)'][idx + 1] / 1000
@@ -202,4 +204,21 @@ def lca(self):
           f'Process emissions (kg CO2e/ton cement): {process_EI * (1 - self.config["Carbon capture efficency (%)"])}\n',
           f'Total cement emissions (kg CO2e/ton cement): {grid_electricity_EI + renewable_electricity_EI + fuel_EI * (1 - self.config["Carbon capture efficency (%)"]) + process_EI * (1 - self.config["Carbon capture efficency (%)"])}\n')
     
+    lca_results = {
+        'Emissions from grid electricity (kg CO2e/ton cement)': grid_electricity_EI,
+        'Indirect emissions from renewable electricity (kg CO2e/ton cement)': renewable_electricity_EI,
+        'Emissions from fuel (kg CO2e/ton cement)': fuel_EI,
+        'Process emissions (kg CO2e/ton cement)': process_EI,
+        'Total cement emissions (kg CO2e/ton cement)': total_cement_EI
+    }
+
+    lca_results_css = {
+        'Emissions from grid electricity (kg CO2e/ton cement)': grid_electricity_EI,
+        'Indirect emissions from renewable electricity (kg CO2e/ton cement)': renewable_electricity_EI,
+        'Emissions from fuel (kg CO2e/ton cement)': fuel_EI * (1 - self.config["Carbon capture efficency (%)"]),
+        'Process emissions (kg CO2e/ton cement)': process_EI * (1 - self.config["Carbon capture efficency (%)"]),
+        'Total cement emissions (kg CO2e/ton cement)': grid_electricity_EI + renewable_electricity_EI + fuel_EI * (1 - self.config["Carbon capture efficency (%)"]) + process_EI * (1 - self.config["Carbon capture efficency (%)"])
+    }
+    
+    return lca_results, lca_results_css
     # TODO quantify the impact of quarrying, raw materials, etc on emissions

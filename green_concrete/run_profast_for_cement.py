@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from pathlib import Path
 from green_concrete.convert import *
+from green_concrete.output_csv import output_csv
 
 def run_profast_for_cement(
         self,
@@ -154,7 +155,14 @@ def run_profast_for_cement(
     ###/
 
     ### run LCA
-    self.lca_helper()
+    lca, lca_css = self.lca_helper()
 
+    lca['TITLE'] = 'LIFE CYCLE ANALYSIS (NO CSS)'
+    lca_css['TITLE'] = 'LIFE CYCLE ANALYSIS WITH CSS'
+    price_breakdown_manual['TITLE'] = 'MANUAL PRICE BREAKDOWN'
+
+    output_csv('c:/Users/esharafu/documents', lca, lca_css, price_breakdown_manual)
+
+    
     return hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
         cement_annual_capacity, cement_production_capacity_margin_pc, price_breakdown_manual

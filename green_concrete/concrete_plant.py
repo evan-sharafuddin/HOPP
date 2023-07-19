@@ -247,9 +247,9 @@ class ConcretePlant:
         from green_concrete.manual_price_breakdown import manual_price_breakdown
         return manual_price_breakdown(self, gen_inflation, price_breakdown)
     
-    
 if __name__ == '__main__':
     plant = ConcretePlant()
+    plant.feed_costs['Hydrogen'] = 1
     hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
     cement_annual_capacity, cement_production_capacity_margin_pc, cement_price_breakdown = \
     plant.run_pf()
