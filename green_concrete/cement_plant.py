@@ -51,7 +51,7 @@ class CementPlant:
                     C4: 50% coal, 50% natural gas with 10% hydrogen by volume
                     C5: 39% hydrogen, 12% MBM, 49% glycerin (experimental fuel mix)
                     C6: 80% natural gas, 20% hydrogen
-                Renewable electricity: determines if grid electricity or HOPP hybrid renewable simulation will be used
+                Hybrid electricity: determines if grid electricity or HOPP hybrid renewable simulation will be used
                 Using SCMs: 'OPC', 'US Average', 'European Average'
                 ATB year: see define_scenarios
                 Site location: 'IA', 'WY', 'TX', 'MS', 'IN'
@@ -82,7 +82,6 @@ class CementPlant:
             self.feed_consumption: consumption rates for each feedstock
             self.feed_costs: costs per unit of each feedstock
             self.feed_units: units that each feedstock is measured in
-            TODO need better value for renewable energy LCOE
         
         FIXED OPEX
             self.operational_labor: labor costs for employees
@@ -95,7 +94,7 @@ class CementPlant:
         self, 
         css='None', 
         fuel_mix='C2',
-        renewable_electricity=False, 
+        hybrid_electricity=False, 
         SCM_composition='European Average', 
         couple_with_steel_ammonia=True, 
         atb_year=2035, 
@@ -115,7 +114,7 @@ class CementPlant:
         }
 
         '''
-        decreasing clinker/cement ratio resulting in lower cost?
+        TODO decreasing clinker/cement ratio resulting in lower cost?
         https://rmi.org/wp-content/uploads/2021/08/ConcreteGuide2.pdf
         * might be valid, but need to be careful about assumptions "embedded" in the 73.7% cli/cem ratio
         claimed by IEAGHG/CEMCAP
@@ -131,7 +130,7 @@ class CementPlant:
             self.config = {
                 'CSS': css, # None, Oxyfuel, Calcium Looping
                 'Fuel Mixture': fuel_mix, # C1-C5
-                'Renewable electricity': renewable_electricity,
+                'Hybrid electricity': hybrid_electricity,
                 'Steel & Ammonia': couple_with_steel_ammonia,
                 'SCMs': SCM_composition,
                 'ATB year': atb_year,
@@ -156,7 +155,7 @@ class CementPlant:
             self.config = {
                 'CSS': css, # None, Oxyfuel, Calcium Looping
                 'Fuel Mixture': fuel_mix, # C1-C5
-                'Renewable electricity': renewable_electricity,
+                'Hybrid electricity': hybrid_electricity,
                 'Steel & Ammonia': couple_with_steel_ammonia,
                 'Using SCMs': SCM_composition,
                 'ATB year': atb_year,
@@ -182,7 +181,7 @@ class CementPlant:
             self.config = {
                 'CSS': css, # None, Oxyfuel, Calcium Looping
                 'Fuel Mixture': fuel_mix, # C1-C5
-                'Renewable electricity': renewable_electricity,
+                'Hybrid electricity': hybrid_electricity,
                 'Steel & Ammonia': couple_with_steel_ammonia,
                 'Using SCMs': SCM_composition,
                 'ATB year': atb_year,

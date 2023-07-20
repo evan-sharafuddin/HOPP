@@ -45,7 +45,7 @@ def opex(self):
 
         # other
         'grid electricity': 'kWh',
-        'renewable electricity': 'kWh',
+        'hybrid electricity': 'kWh',
     }
     
     lhv = {
@@ -257,11 +257,11 @@ def opex(self):
         feed_consumption['cooling water make-up'] = 0
         
     # //////////// Electricity /////////////
-    if self.config['Renewable electricity']:
-        feed_consumption['renewable electricity'] = self.config['Electrical energy demand (kWh/t cement)']
+    if self.config['Hybrid electricity']:
+        feed_consumption['hybrid electricity'] = self.config['Electrical energy demand (kWh/t cement)']
         feed_consumption['grid electricity'] = 0
     else: 
-        feed_consumption['renewable electricity'] = 0
+        feed_consumption['hybrid electricity'] = 0
         feed_consumption['grid electricity'] = self.config['Electrical energy demand (kWh/t cement)']
 
     if self.config['ATB year'] == 2020:
@@ -280,8 +280,8 @@ def opex(self):
     
     feed_costs['grid electricity'] = elec_price
     
-    # this will be overwritten if renewable electricity is used
-    feed_costs['renewable electricity'] = 0
+    # this will be overwritten if hybrid electricity is used
+    feed_costs['hybrid electricity'] = 0
 
     # ////////////// waste ////////////////
     # TODO: cost of cement kiln dust disposal? could be included already in some of the other costs

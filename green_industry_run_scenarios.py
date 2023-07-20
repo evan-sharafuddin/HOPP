@@ -397,7 +397,6 @@ def batch_generator_kernel(arg_list):
         hydrogen_consumption_for_cement = cement_plant.feed_consumption['hydrogen']
     else:
         hydrogen_consumption_for_cement = 0
-        print('No hydrogen allocated for cement')
 
     # NOTE dividing by cf, see above
     hydrogen_production_target_kgpy_cement = \
@@ -453,8 +452,8 @@ def batch_generator_kernel(arg_list):
         
         ############\ ADDED CEMENT HERE
 
-        if cement_plant.feed_consumption['renewable electricity'] > 0:
-            cement_electricity_consumption_MW = cement_plant.feed_consumption['renewable electricity'] \
+        if cement_plant.feed_consumption['hybrid electricity'] > 0:
+            cement_electricity_consumption_MW = cement_plant.feed_consumption['hybrid electricity'] \
                 * cement_plant.config['Cement Production Rate (annual)'] / 8760 / 1000 # kWh/t cement --> MW
         else:
             cement_electricity_consumption_MW = 0
@@ -967,7 +966,7 @@ def batch_generator_kernel(arg_list):
         )
         
         hydrogen_annual_production = H2_Results['hydrogen_annual_output']
-
+        cement_plant.hopp_misc['hydrogen production (kg/y)'] = hydrogen_annual_production
         ##########\ CEMENT: determining how much hydrogen is consumed
         # TODO this isn't necissary, right?
         # total_leftover_hydrogen_annual = float() # use for hydrogen sales?
@@ -987,6 +986,7 @@ def batch_generator_kernel(arg_list):
 
 
         ######\ CEMENT: determining how much oxygen is consumed 
+        total_leftover_oxygen_annual = float()
         if cement_plant.config['CSS'] != 'None':
             oxygen_annual_production = hydrogen_annual_production / 1.0078 / 2 * 15.999 # kg H2 --> kg O2 
             oxygen_annual_consumption_cement = cement_plant.config['Cement Production Rate (annual)'] * cement_plant.feed_consumption['oxygen']
@@ -1002,6 +1002,16 @@ def batch_generator_kernel(arg_list):
                     raise NotImplementedError("Not enough oxygen for cement carbon capture; ASU has not been implemented yet")
             else:
                 total_leftover_oxygen_annual = oxygen_annual_excess_steel - oxygen_annual_consumption_cement # kg O2/year  
+
+            cement_plant.hopp_misc.update({
+                'oxygen production (kg/y)': oxygen_annual_production,
+                'oxygen consumption for steel (kg/y)': oxygen_annual_consumption_steel,
+                'oxygen consumption for cement (kg/y)': oxygen_annual_consumption_cement,
+                'leftover oxygen after steel (kg/y)': oxygen_annual_excess_steel,
+                'leftover oxygen after steel & cement (kg/y)': total_leftover_oxygen_annual,
+            })
+        
+        
         ######/
 
 
@@ -1009,7 +1019,7 @@ def batch_generator_kernel(arg_list):
         #######\ CEMENT: determining electricity costs for the plant
         # extracting the power time series from each source
         # NOTE had to change line 155 in hopp_for_h2.py
-        if cement_plant.config['Renewable electricity']:
+        if cement_plant.config['Hybrid electricity']:
             grid_dict = hopp_dict.main_dict['Models']['grid']['ouput_dict']
             grid_power_ts = grid_dict['energy_from_the_grid']
             renewable_power_ts = list(np.array(grid_dict['total_energy']) - np.array(grid_dict['energy_from_the_grid']))
@@ -1029,19 +1039,11 @@ def batch_generator_kernel(arg_list):
                             grid_power_ts,
                             grid_elec_OpEx)
             
-            cement_plant.feed_costs['renewable electricity'] = lcoe
+            cement_plant.feed_costs['hybrid electricity'] = lcoe
+            cement_plant.hopp_misc['LCOE for hybrid plant ($/kWh)'] = lcoe
+            cement_plant.hopp_misc['grid electricity price ($/kWh)'] = grid_cost
         ############/
 
-        cement_plant.hopp_misc.update({
-            'hydrogen production (kg/y)': hydrogen_annual_production,
-            'oxygen production (kg/y)': oxygen_annual_production,
-            'oxygen consumption for steel (kg/y)': oxygen_annual_consumption_steel,
-            'oxygen consumption for cement (kg/y)': oxygen_annual_consumption_cement,
-            'leftover oxygen after steel (kg/y)': oxygen_annual_excess_steel,
-            'leftover oxygen after steel & cement (kg/y)': total_leftover_oxygen_annual,
-            'grid electricity price ($/kWh)': grid_cost,
-            'LCOE for hybrid plant ($/kWh)': lcoe,
-        })
         # hydrogen_max_hourly_production_kg = max(H2_Results['hydrogen_hourly_production'])
 
         # Calculate required storage capacity to meet a flat demand profile. In the future, we could customize this to

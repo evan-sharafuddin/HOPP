@@ -10,6 +10,10 @@ def lca(self):
     
     Adapted from LCA_single_scenario_ProFAST.py
     '''
+
+    if self.config['Fuel Mixture'] == 'C2':
+        print('WARNING: this LCA does not account for emissions associated with the alternative fuel mix')
+
     dircambium = '../Examples/H2_Analysis/Cambium_data/StdScen21_MidCase95by2035_hourly_' 
     dircambium = os.path.join(os.path.split(__file__)[0], dircambium)
 
@@ -53,7 +57,7 @@ def lca(self):
 
 
 
-    if hopp_dict:
+    if hopp_dict and (self.config['Hybrid electricity'] or self.config['CSS'] != 'None' or self.config['Fuel Mixture'] in ['C4', 'C5', 'C6']): # model is run using define_scenarios, with renewable electricity enabled
         solar_size_mw = hopp_dict.main_dict['Configuration']['solar_size']
         storage_size_mw = hopp_dict.main_dict['Configuration']['storage_size_mw']
         # H2_Results = hopp_dict.main_dict['Models']['run_H2_PEM_sim']['output_dict']['H2_Results']
@@ -94,7 +98,7 @@ def lca(self):
 
             # finds the total amount of GRID energy used by cement (both electrical and for producing hydrogen), 
             # so steel energy consumption is not considered in the LCA
-            electricity_demand_cement_hourly = self.feed_consumption['renewable electricity'] * self.config['Cement Production Rate (annual)'] / 8760
+            electricity_demand_cement_hourly = self.feed_consumption['hybrid electricity'] * self.config['Cement Production Rate (annual)'] / 8760
         
             grid_energy_used_cement = (electricity_demand_cement_hourly + \
                 (energy_used_total - electricity_demand_cement_hourly) * self.config['Hydrogen to cement frac']) * grid_frac
@@ -106,7 +110,7 @@ def lca(self):
         # NOTE since hydrogen emissions are derived from electricity emissions, just pooling those in with the rest of the electricity
         # demand for the plant
     
-    else: # model is being run through cement_plant -> grid electricity only
+    else: # model is being run through cement_plant OR hybrid electricity is not enabled -> grid electricity only
         total_grid_emissions = [0] * 8760
         scope2_grid_emissions = [0] * 8760
         scope3_grid_emissions = [0] * 8760

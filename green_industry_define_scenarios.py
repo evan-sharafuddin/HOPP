@@ -40,9 +40,9 @@ from green_concrete.cement_plant import CementPlant
 
 # Uncomment for custom cement plant
 cement_plant = CementPlant(
-    css='None', 
-    fuel_mix='C2',
-    renewable_electricity=False, 
+    css='CaL (tail-end)', 
+    fuel_mix='C6',
+    hybrid_electricity=True, 
     SCM_composition='European Average', 
     atb_year=2035, 
     site_location='IA', 
@@ -54,6 +54,9 @@ cement_plant = CementPlant(
 
 # Uncomment for default cement plant
 # cement_plant = CementPlant()
+
+if not cement_plant.config['Steel & Ammonia'] and cement_plant.config['Fuel Mixture'] not in ['C4', 'C5', 'C6']:
+    raise NotImplementedError("No hydrogen is being used; as coded run_scenarios cannot handle electrolyzer sizes of zero")
 
 warnings.filterwarnings("ignore")
 sys.path.append('')
@@ -122,13 +125,17 @@ cement_plant.hopp_misc['Steel production rate (tpy)'] = steel_annual_production_
 if __name__ == '__main__':
 #-------------------- Define scenarios to run----------------------------------
     
-    print('WARNING: make sure that atb_years and site_selection line up with those chosen for cement_plant')
+    # print('WARNING: make sure that atb_years and site_selection line up with those chosen for cement_plant')
     atb_years = [
                 #2020,
                 #2025,
-                2030,
-                #2035
+                # 2030,
+                2035
                 ]
+    
+    if cement_plant:
+        atb_years = [cement_plant.config['ATB year']]
+        print('brub')
 
     policy = {
         # 'no-policy': {'Wind ITC': 0, 'Wind PTC': 0, "H2 PTC": 0, 'Storage ITC': 0},
@@ -150,6 +157,9 @@ if __name__ == '__main__':
                     # 'Site 5' #WY
                     ] 
     
+    if cement_plant:
+        site_selection == [cement_plant.config['site location']]
+    
     electrolysis_cases = [
                           'Centralized',
                         #   'Distributed'
@@ -163,7 +173,7 @@ if __name__ == '__main__':
 
     
     ####### CEMENT
-    cement_plant.config['Grid connection scenario'] = grid_connection_cases
+    # cement_plant.config['Grid connection scenario'] = grid_connection_cases
 
     # adjusts hydrogen storage capacity (see run_scenarios 872)
     storage_capacity_cases = [ 
