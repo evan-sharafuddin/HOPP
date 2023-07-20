@@ -9,6 +9,14 @@ def lca(self):
     Performs a life cycle analysis on the carbon emissions associated with cement production
     
     Adapted from LCA_single_scenario_ProFAST.py
+
+    ASSUMPTIONS
+        Oxygen is not considered
+            When oxygen is supplied from steel plant, it is assumed that the environmental impact
+            for this oxygen is associated with the steel plant, and for the scope of the cement plant
+            this oxygen is "carbon free"
+            For purchased oxygen, a LCA has not been implemented yet
+        TODO add other assumptions here
     '''
 
     if self.config['Fuel Mixture'] == 'C2':
@@ -116,7 +124,7 @@ def lca(self):
         scope3_grid_emissions = [0] * 8760
 
         electricity_demand_cement_hourly = self.feed_consumption['grid electricity'] * self.config['Cement Production Rate (annual)'] / 8760
-        energy_from_grid = [electricity_demand_cement_hourly] * 8760 # TODO double check this multiplyer
+        energy_from_grid = [electricity_demand_cement_hourly] * 8760 
         for idx in range(len(energy_from_grid)):
             total_grid_emissions[idx] = energy_from_grid[idx] * cambium_data['LRMER CO2 equiv. total (kg-CO2e/MWh)'][idx + 1] / 1000
             scope2_grid_emissions[idx] = energy_from_grid[idx]  * cambium_data['LRMER CO2 equiv. combustion (kg-CO2e/MWh)'][idx + 1] / 1000

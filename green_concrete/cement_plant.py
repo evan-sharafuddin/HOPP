@@ -102,6 +102,7 @@ class CementPlant:
         cli_production=1e6, 
         plant_life=25, 
         plant_capacity_factor = 0.90, # same as steel/ammonia, for consistency
+        grid_connection_case = 'grid-only'
     ): 
         
         # ------------ Plant Info ------------
@@ -149,6 +150,7 @@ class CementPlant:
                                                                # Source of assumption: https://docs.wbcsd.org/2017/06/CSI_ECRA_Technology_Papers_2017.pdf, No 31
                 'Carbon capture efficency (%)': 0,
                 'Hopp dict': None,
+                'Grid connection case': grid_connection_case,
             }
         
         elif css == 'Oxyfuel':
@@ -173,6 +175,7 @@ class CementPlant:
                 'Electrical energy demand (kWh/t cement)': 132 * 1.67 * cli_cem_ratio, # kWh/t cem, using 67% increase claimed in article
                 'Carbon capture efficency (%)': 0.9, # CEMCAP
                 'Hopp dict': None,
+                'Grid connection case': grid_connection_case,
             }
 
         elif css == 'CaL (tail-end)': # based on base-case from CEMCAP
@@ -201,6 +204,7 @@ class CementPlant:
                     # NOTE power is actually generated when ASU consumption is excluded
                 'Carbon capture efficency (%)': 0.936,
                 'Hopp dict': None,
+                'Grid connection case': grid_connection_case
             }
 
         else:

@@ -22,6 +22,7 @@ CHANGES FOR CEMENT IMPLEMENTATION
         run_HOPP()
             changed the electrolyzer_size argument to max(load), so that HOPP accounts for the 
             total power consumption of electrolyzer and plant electricity requirements
+            also see hopp_for_h2() under if buy_price
         run_H2_PEM_sim()
             changed alterations to hopp_dict.main_dict
                 before, code assumed that the total power was that used for renewables
@@ -967,29 +968,12 @@ def batch_generator_kernel(arg_list):
         
         hydrogen_annual_production = H2_Results['hydrogen_annual_output']
         cement_plant.hopp_misc['hydrogen production (kg/y)'] = hydrogen_annual_production
-        ##########\ CEMENT: determining how much hydrogen is consumed
-        # TODO this isn't necissary, right?
-        # total_leftover_hydrogen_annual = float() # use for hydrogen sales?
-        # max_steel_production_capacity_mtpy = min(steel_annual_production_rate_target_tpy/steel_ammonia_plant_cf,hydrogen_annual_production/1000/hydrogen_consumption_for_steel)
-        # hydrogen_annual_consumption_steel = max_steel_production_capacity_mtpy * hydrogen_consumption_for_steel * 1000 # t steel/year --> kg H2/year
-        # hydrogen_annual_excess_steel = hydrogen_annual_production - hydrogen_annual_consumption_steel
-
-        # hydrogen_annual_consumption_cement = cement_plant.config['Cement Production Rate (annual)'] * cement_plant.feed_consumption['hydrogen']
-        # if hydrogen_annual_consumption_cement > hydrogen_annual_excess_steel:
-        #     print(hydrogen_annual_consumption_cement)
-        #     print(hydrogen_annual_excess_steel)
-        #     raise NotImplementedError("Not enough hydrogen for cement :(")
-        # else:
-        #     total_leftover_hydrogen_annual = hydrogen_annual_excess_steel - hydrogen_annual_consumption_cement # kg O2/year
-        #     print(f"Hydrogen leftover after steel and cement production: {total_leftover_hydrogen_annual} kg/y")
-        #######/
-
 
         ######\ CEMENT: determining how much oxygen is consumed 
         total_leftover_oxygen_annual = float()
         if cement_plant.config['CSS'] != 'None':
             oxygen_annual_production = hydrogen_annual_production / 1.0078 / 2 * 15.999 # kg H2 --> kg O2 
-            oxygen_annual_consumption_cement = cement_plant.config['Cement Production Rate (annual)'] * cement_plant.feed_consumption['oxygen']
+            oxygen_annual_consumption_cement = cement_plant.config['Cement Production Rate (annual)'] * cement_plant.feed_consumption['oxygen (hybrids)']
             
             if cement_plant.config['Steel & Ammonia']: 
                 max_steel_production_capacity_mtpy = min(steel_annual_production_rate_target_tpy/steel_ammonia_plant_cf,hydrogen_annual_production/1000/hydrogen_consumption_for_steel)
@@ -999,9 +983,19 @@ def batch_generator_kernel(arg_list):
             
             oxygen_annual_excess_steel = oxygen_annual_production - oxygen_annual_consumption_steel
             if oxygen_annual_consumption_cement > oxygen_annual_excess_steel:
-                    raise NotImplementedError("Not enough oxygen for cement carbon capture; ASU has not been implemented yet")
+                # accounts for the case where not enough oxygen is produced by hybrid plant, 
+                # so oxygen must be purchased
+                cement_plant.feed_consumption['oxygen (purchased)'] = (oxygen_annual_consumption_cement - oxygen_annual_excess_steel) \
+                                                                    / cement_plant.config['Cement Production Rate (annual)']
+                cement_plant.feed_consumption['oxygen (hybrids)'] = oxygen_annual_excess_steel \
+                                                                    / cement_plant.config['Cement Production Rate (annual)']
+                
+                total_leftover_oxygen_annual = 0
+                oxygen_purchased = cement_plant.feed_consumption['oxygen (purchased)']
+
             else:
                 total_leftover_oxygen_annual = oxygen_annual_excess_steel - oxygen_annual_consumption_cement # kg O2/year  
+                oxygen_purchased = 0
 
             cement_plant.hopp_misc.update({
                 'oxygen production (kg/y)': oxygen_annual_production,
@@ -1009,9 +1003,8 @@ def batch_generator_kernel(arg_list):
                 'oxygen consumption for cement (kg/y)': oxygen_annual_consumption_cement,
                 'leftover oxygen after steel (kg/y)': oxygen_annual_excess_steel,
                 'leftover oxygen after steel & cement (kg/y)': total_leftover_oxygen_annual,
+                'oxygen purchased (kg/y)': oxygen_purchased,
             })
-        
-        
         ######/
 
 

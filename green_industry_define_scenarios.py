@@ -41,22 +41,25 @@ from green_concrete.cement_plant import CementPlant
 # Uncomment for custom cement plant
 cement_plant = CementPlant(
     css='CaL (tail-end)', 
-    fuel_mix='C6',
+    fuel_mix='C4',
     hybrid_electricity=True, 
     SCM_composition='European Average', 
-    atb_year=2035, 
+    atb_year=2030, 
     site_location='IA', 
     cli_production=1e6, 
     plant_life=25, 
     plant_capacity_factor = 91.3e-2, # source of plant_capacity_factor: CEMCAP
-    couple_with_steel_ammonia=True,
+    couple_with_steel_ammonia=False,
+    grid_connection_case = 'off-grid'
 )
 
 # Uncomment for default cement plant
 # cement_plant = CementPlant()
 
 if not cement_plant.config['Steel & Ammonia'] and cement_plant.config['Fuel Mixture'] not in ['C4', 'C5', 'C6']:
-    raise NotImplementedError("No hydrogen is being used; as coded run_scenarios cannot handle electrolyzer sizes of zero")
+    raise NotImplementedError("No hydrogen is being used; as coded, run_scenarios cannot handle electrolyzer sizes of zero")
+
+
 
 warnings.filterwarnings("ignore")
 sys.path.append('')
@@ -74,8 +77,6 @@ renewable_cost_path = ('examples/H2_Analysis/green_steel_site_renewable_costs_AT
 
 # NOTE have not implemented FLORIS for green_concrete
 floris = False # otherwise pySAM
-if floris:
-    warnings.warn("FLORIS isn't implemented to work properly with cement hydrogen...")
 
 # Turn to False to run ProFAST for hydrogen LCOH (ALWAYS FALSE)
 run_RODeO_selector = False
@@ -125,17 +126,13 @@ cement_plant.hopp_misc['Steel production rate (tpy)'] = steel_annual_production_
 if __name__ == '__main__':
 #-------------------- Define scenarios to run----------------------------------
     
-    # print('WARNING: make sure that atb_years and site_selection line up with those chosen for cement_plant')
+    # NOTE for now, set atb_years, site_selection, and grid_connection_cases when constructing CementPlant object
     atb_years = [
                 #2020,
                 #2025,
                 # 2030,
                 2035
                 ]
-    
-    if cement_plant:
-        atb_years = [cement_plant.config['ATB year']]
-        print('brub')
 
     policy = {
         # 'no-policy': {'Wind ITC': 0, 'Wind PTC': 0, "H2 PTC": 0, 'Storage ITC': 0},
@@ -157,23 +154,17 @@ if __name__ == '__main__':
                     # 'Site 5' #WY
                     ] 
     
-    if cement_plant:
-        site_selection == [cement_plant.config['site location']]
-    
     electrolysis_cases = [
                           'Centralized',
                         #   'Distributed'
                           ]
     
     grid_connection_cases = [
-                            # 'off-grid',
+                            'off-grid',
                             # 'grid-only',
-                            'hybrid-grid'
+                            # 'hybrid-grid'
                             ]
 
-    
-    ####### CEMENT
-    # cement_plant.config['Grid connection scenario'] = grid_connection_cases
 
     # adjusts hydrogen storage capacity (see run_scenarios 872)
     storage_capacity_cases = [ 
@@ -184,6 +175,12 @@ if __name__ == '__main__':
 
     num_pem_stacks= 6
     run_solar_param_sweep=False # runs through various solar setups 
+
+# ensures that the hybrid plant/steel cases are same as those for cement
+    if cement_plant:
+        atb_years = [cement_plant.config['ATB year']]
+        site_selection == [cement_plant.config['site location']]
+        grid_connection_cases = [cement_plant.config['Grid connection case']]
 
 #---- Create list of arguments to pass to batch generator kernel --------------    
     arg_list = []

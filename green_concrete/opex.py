@@ -38,7 +38,8 @@ def opex(self):
         'raw meal': 'units', 
         'process water': 'units',
         'misc': 'units',
-        'oxygen': 'kg',
+        'oxygen (hybrids)': 'kg',
+        'oxygen (purchased)': 'kg',
         'cooling water make-up': 'units',
         'ammonia': 'kg',
 
@@ -92,7 +93,8 @@ def opex(self):
         'raw meal': 5 * self.config['Clinker-to-cement ratio'], # €/ton cement 
         'process water': 0.014, # €/ton cement
         'misc': 0.8, # €/ton cement
-        'oxygen': 0, # ASSUMPTION
+        'oxygen (hybrids)': 0, # ASSUMPTION
+        'oxygen (purchased)': 0.13 * 0.6998, # https://www.intratec.us/chemical-markets/oxygen-price, $/Nm^3 --> $/kg via http://www.uigi.com/o2_conv.html
         'cooling water make-up': 0.3, # €/ton cement
         'ammonia': 0.13, # EUR/t cem
     }
@@ -151,7 +153,7 @@ def opex(self):
         },
 
         # COMPOSITION 4: Canada Hydrogen-Enriched Natural Gas Substitution
-        # see system solved below
+        # see system solved below -- TODO compare results of this fuel mixture with the paper
         'C4': {
             'coal': 0.5,
             'natural gas': 0.45,
@@ -246,14 +248,19 @@ def opex(self):
         feed_consumption['alt fuel (IEAGHG mix)'] = 0
 
     # /////////// CSS FEEDS ///////////
+    # NOTE if not enough oxygen is produced by the hybrid plant, then the rest of the 
+    # feed consumption will be covered by the purchased oxygen
     if self.config['CSS'] == 'Oxyfuel':
-        feed_consumption['oxygen'] = 1148 * 365 / 1000 / self.config['Cement Production Rate (annual)'] # tO2/day --> kg/t cement 
+        feed_consumption['oxygen (hybrids)'] = 1148 * 365 / 1000 / self.config['Cement Production Rate (annual)'] # tO2/day --> kg/t cement 
+        feed_consumption['oxygen (purchased)'] = 0
         feed_consumption['cooling water make-up'] = 1
     elif self.config['CSS'] == 'CaL (tail-end)': 
-        feed_consumption['oxygen'] = 440 * self.config['Clinker-to-cement ratio'] # kgO2/t cli --> kg/t cement
+        feed_consumption['oxygen (hybrids)'] = 440 * self.config['Clinker-to-cement ratio'] # kgO2/t cli --> kg/t cement
+        feed_consumption['oxygen (purchased)'] = 0
         feed_consumption['cooling water make-up'] = 0.9
     else:
-        feed_consumption['oxygen'] = 0
+        feed_consumption['oxygen (hybrids)'] = 0
+        feed_consumption['oxygen (purchased)'] = 0
         feed_consumption['cooling water make-up'] = 0
         
     # //////////// Electricity /////////////
