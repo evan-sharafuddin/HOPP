@@ -63,9 +63,7 @@ def lca(self):
     cambium_data['Interval']=cambium_data['Interval']+1
     cambium_data = cambium_data.set_index('Interval') 
 
-
-
-    if hopp_dict and (self.config['Hybrid electricity'] or self.config['CSS'] != 'None' or self.config['Fuel Mixture'] in ['C4', 'C5', 'C6']): # model is run using define_scenarios, with renewable electricity enabled
+    if self.config['Using hydrogen'] or self.config['Steel & Ammonia']: 
         solar_size_mw = hopp_dict.main_dict['Configuration']['solar_size']
         storage_size_mw = hopp_dict.main_dict['Configuration']['storage_size_mw']
         # H2_Results = hopp_dict.main_dict['Models']['run_H2_PEM_sim']['output_dict']['H2_Results']
@@ -101,11 +99,16 @@ def lca(self):
             scope3_grid_emissions = [0] * len(energy_from_grid_df)
 
         for idx in range(len(energy_from_grid_df)):
+
             energy_used_total = energy_from_grid_df['Energy from the grid (kWh)'][idx] + energy_from_renewables_df['Energy from renewables (kWh)'][idx]
-            grid_frac = energy_from_grid_df['Energy from the grid (kWh)'][idx] / energy_used_total
+            if energy_used_total == 0:
+                grid_frac = 0
+            else:
+                grid_frac = energy_from_grid_df['Energy from the grid (kWh)'][idx] / energy_used_total
 
             # finds the total amount of GRID energy used by cement (both electrical and for producing hydrogen), 
             # so steel energy consumption is not considered in the LCA
+            
             electricity_demand_cement_hourly = self.feed_consumption['hybrid electricity'] * self.config['Cement Production Rate (annual)'] / 8760
         
             grid_energy_used_cement = (electricity_demand_cement_hourly + \
@@ -118,13 +121,15 @@ def lca(self):
         # NOTE since hydrogen emissions are derived from electricity emissions, just pooling those in with the rest of the electricity
         # demand for the plant
     
-    else: # model is being run through cement_plant OR hybrid electricity is not enabled -> grid electricity only
+    else: # hybrid electricity is not enabled --> grid electricity only
         total_grid_emissions = [0] * 8760
         scope2_grid_emissions = [0] * 8760
         scope3_grid_emissions = [0] * 8760
 
         electricity_demand_cement_hourly = self.feed_consumption['grid electricity'] * self.config['Cement Production Rate (annual)'] / 8760
+        
         energy_from_grid = [electricity_demand_cement_hourly] * 8760 
+        
         for idx in range(len(energy_from_grid)):
             total_grid_emissions[idx] = energy_from_grid[idx] * cambium_data['LRMER CO2 equiv. total (kg-CO2e/MWh)'][idx + 1] / 1000
             scope2_grid_emissions[idx] = energy_from_grid[idx]  * cambium_data['LRMER CO2 equiv. combustion (kg-CO2e/MWh)'][idx + 1] / 1000
@@ -134,9 +139,6 @@ def lca(self):
     scope2_grid_emissions_sum = sum(scope2_grid_emissions)*system_life # total emissions over plant lifespan (kg-CO2e)
     scope3_grid_emissions_sum = sum(scope3_grid_emissions)*system_life # kg_to_MT_conv -- got rid of this for these two, why would you do that?
     # scope3_ren_sum            = energy_from_renewables_df['Energy from renewables (kWh)'].sum()*system_life # kWh
-
-        
-    
 
     ### Fuel emissions
     conversion_factor = btu_to_j(1e3, 1) # extracts conversion factor for below conversion

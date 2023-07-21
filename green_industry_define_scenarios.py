@@ -38,10 +38,11 @@ import run_profast_for_steel
 from green_industry_run_scenarios import batch_generator_kernel
 from green_concrete.cement_plant import CementPlant
 
-# Uncomment for custom cement plant
+
+# CONFIGURE CEMENT PLANT HERE
 cement_plant = CementPlant(
-    css='CaL (tail-end)', 
-    fuel_mix='C4',
+    css='Oxyfuel', 
+    fuel_mix='C6',
     hybrid_electricity=True, 
     SCM_composition='European Average', 
     atb_year=2030, 
@@ -49,17 +50,12 @@ cement_plant = CementPlant(
     cli_production=1e6, 
     plant_life=25, 
     plant_capacity_factor = 91.3e-2, # source of plant_capacity_factor: CEMCAP
-    couple_with_steel_ammonia=False,
-    grid_connection_case = 'off-grid'
+    couple_with_steel_ammonia=True,
+    grid_connection_case = 'hybrid-grid',
 )
 
-# Uncomment for default cement plant
+# UNCOMMENT FOR DEFAULT CEMENT PLANT
 # cement_plant = CementPlant()
-
-if not cement_plant.config['Steel & Ammonia'] and cement_plant.config['Fuel Mixture'] not in ['C4', 'C5', 'C6']:
-    raise NotImplementedError("No hydrogen is being used; as coded, run_scenarios cannot handle electrolyzer sizes of zero")
-
-
 
 warnings.filterwarnings("ignore")
 sys.path.append('')
@@ -123,78 +119,100 @@ else:
 
 cement_plant.hopp_misc['Steel production rate (tpy)'] = steel_annual_production_rate_target_tpy
 
-if __name__ == '__main__':
 #-------------------- Define scenarios to run----------------------------------
     
-    # NOTE for now, set atb_years, site_selection, and grid_connection_cases when constructing CementPlant object
-    atb_years = [
-                #2020,
-                #2025,
-                # 2030,
-                2035
-                ]
+# NOTE for now, set atb_years, site_selection, and grid_connection_cases when constructing CementPlant object
+atb_years = [
+            #2020,
+            #2025,
+            # 2030,
+            2035
+            ]
 
-    policy = {
-        # 'no-policy': {'Wind ITC': 0, 'Wind PTC': 0, "H2 PTC": 0, 'Storage ITC': 0},
-        'base': {'Wind ITC': 0, 'Wind PTC': 0.0051, "H2 PTC": 0.6, 'Storage ITC': 0.06},
-        # 'max': {'Wind ITC': 0, 'Wind PTC': 0.03072, "H2 PTC": 3.0, 'Storage ITC': 0.5},   
-        # 'max on grid hybrid': {'Wind ITC': 0, 'Wind PTC': 0.0051, "H2 PTC": 0.60, 'Storage ITC': 0.06},
-        # 'max on grid hybrid': {'Wind ITC': 0, 'Wind PTC': 0.026, "H2 PTC": 0.60, 'Storage ITC': 0.5},
-        # 'option 3': {'Wind ITC': 0.06, 'Wind PTC': 0, "H2 PTC": 0.6}, 
-        # 'option 4': {'Wind ITC': 0.3, 'Wind PTC': 0, "H2 PTC": 3},
-        # 'option 5': {'Wind ITC': 0.5, 'Wind PTC': 0, "H2 PTC": 3}, 
-    }
-    
-    
-    site_selection = [
-                    # 'Site 1', #IN
-                    # 'Site 2', #TX
-                    'Site 3', #IA
-                    # 'Site 4', #MS
-                    # 'Site 5' #WY
-                    ] 
-    
-    electrolysis_cases = [
-                          'Centralized',
-                        #   'Distributed'
-                          ]
-    
-    grid_connection_cases = [
-                            'off-grid',
-                            # 'grid-only',
-                            # 'hybrid-grid'
-                            ]
+policy = {
+    # 'no-policy': {'Wind ITC': 0, 'Wind PTC': 0, "H2 PTC": 0, 'Storage ITC': 0},
+    'base': {'Wind ITC': 0, 'Wind PTC': 0.0051, "H2 PTC": 0.6, 'Storage ITC': 0.06},
+    # 'max': {'Wind ITC': 0, 'Wind PTC': 0.03072, "H2 PTC": 3.0, 'Storage ITC': 0.5},   
+    # 'max on grid hybrid': {'Wind ITC': 0, 'Wind PTC': 0.0051, "H2 PTC": 0.60, 'Storage ITC': 0.06},
+    # 'max on grid hybrid': {'Wind ITC': 0, 'Wind PTC': 0.026, "H2 PTC": 0.60, 'Storage ITC': 0.5},
+    # 'option 3': {'Wind ITC': 0.06, 'Wind PTC': 0, "H2 PTC": 0.6}, 
+    # 'option 4': {'Wind ITC': 0.3, 'Wind PTC': 0, "H2 PTC": 3},
+    # 'option 5': {'Wind ITC': 0.5, 'Wind PTC': 0, "H2 PTC": 3}, 
+}
+
+site_selection = [
+                # 'Site 1', #IN
+                # 'Site 2', #TX
+                'Site 3', #IA
+                # 'Site 4', #MS
+                # 'Site 5' #WY
+                ] 
+
+electrolysis_cases = [
+                        'Centralized',
+                    #   'Distributed'
+                        ]
+
+grid_connection_cases = [
+                        'off-grid',
+                        # 'grid-only',
+                        # 'hybrid-grid'
+                        ]
 
 
-    # adjusts hydrogen storage capacity (see run_scenarios 872)
-    storage_capacity_cases = [ 
-                            1.0,
-                            #1.25,
-                            #1.5
-                            ] 
+# adjusts hydrogen storage capacity (see run_scenarios 872)
+storage_capacity_cases = [ 
+                        1.0,
+                        #1.25,
+                        #1.5
+                        ] 
 
-    num_pem_stacks= 6
-    run_solar_param_sweep=False # runs through various solar setups 
+num_pem_stacks= 6
+run_solar_param_sweep=False # runs through various solar setups 
 
 # ensures that the hybrid plant/steel cases are same as those for cement
-    if cement_plant:
-        atb_years = [cement_plant.config['ATB year']]
-        site_selection == [cement_plant.config['site location']]
-        grid_connection_cases = [cement_plant.config['Grid connection case']]
+if cement_plant:
+    atb_years = [cement_plant.config['ATB year']]
+    site_selection == [cement_plant.config['site location']]
+    grid_connection_cases = [cement_plant.config['Grid connection case']]
 
 #---- Create list of arguments to pass to batch generator kernel --------------    
-    arg_list = []
-    for i in policy:
-        for atb_year in atb_years:
-            for site_location in site_selection:
-                for electrolysis_scale in electrolysis_cases:
-                    for grid_connection_scenario in grid_connection_cases:
-                        for storage_capacity_multiplier in storage_capacity_cases:
-                            arg_list.append([policy, i, atb_year, site_location, electrolysis_scale,run_RODeO_selector,floris,\
-                                            grid_connection_scenario,grid_price_scenario,\
-                                            direct_coupling,electrolyzer_cost_case,electrolyzer_degradation_power_increase,wind_plant_degradation_power_decrease,\
-                                                steel_annual_production_rate_target_tpy,parent_path,results_dir,fin_sum_dir,energy_profile_dir,price_breakdown_dir,rodeo_output_dir,floris_dir,renewable_cost_path,\
-                                            save_hybrid_plant_yaml,save_model_input_yaml,save_model_output_yaml,num_pem_stacks,run_solar_param_sweep,electrolyzer_degradation_penalty,\
-                                                pem_control_type,storage_capacity_multiplier, cement_plant])
+arg_list = []
+for i in policy:
+    for atb_year in atb_years:
+        for site_location in site_selection:
+            for electrolysis_scale in electrolysis_cases:
+                for grid_connection_scenario in grid_connection_cases:
+                    for storage_capacity_multiplier in storage_capacity_cases:
+                        arg_list.append([policy, i, atb_year, site_location, electrolysis_scale,run_RODeO_selector,floris,\
+                                        grid_connection_scenario,grid_price_scenario,\
+                                        direct_coupling,electrolyzer_cost_case,electrolyzer_degradation_power_increase,wind_plant_degradation_power_decrease,\
+                                            steel_annual_production_rate_target_tpy,parent_path,results_dir,fin_sum_dir,energy_profile_dir,price_breakdown_dir,rodeo_output_dir,floris_dir,renewable_cost_path,\
+                                        save_hybrid_plant_yaml,save_model_input_yaml,save_model_output_yaml,num_pem_stacks,run_solar_param_sweep,electrolyzer_degradation_penalty,\
+                                            pem_control_type,storage_capacity_multiplier, cement_plant])
+
+# decide if model requires HOPP based on configurations
+# NOTE HOPP cannot be run if no hydrogen is being produced (divide by zero errors occur with the electrolyzer)
+
+if cement_plant.config['Steel & Ammonia'] or cement_plant.config['Using hydrogen']:
+    # run model using HOPP
     for runs in range(len(arg_list)):
         batch_generator_kernel(arg_list[runs])
+
+else:
+    if cement_plant.config['CSS'] != 'None':
+        # oxygen must be purchased -- no hydrogen is being created 
+        cement_plant.feed_consumption['oxygen (purchased)'] = cement_plant.feed_consumption['oxygen (hybrids)']
+        cement_plant.feed_consumption['oxygen (hybrids)'] = 0
+
+    if cement_plant.config['Hybrid electricity']:
+        raise NotImplementedError('Cannot simulate cement plant with hybrid electricity in this configuration: must be coupled with steel/ammonia or be using hydrogen in the fuel mixture.')
+    
+    else:
+        # run model without using HOPP
+        hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
+        cement_annual_capacity, cement_production_capacity_margin_pc, cement_price_breakdown = \
+        cement_plant.run_pf()
+
+    
+

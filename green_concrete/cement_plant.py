@@ -151,6 +151,7 @@ class CementPlant:
                 'Carbon capture efficency (%)': 0,
                 'Hopp dict': None,
                 'Grid connection case': grid_connection_case,
+                'Using hydrogen': False,
             }
         
         elif css == 'Oxyfuel':
@@ -176,6 +177,7 @@ class CementPlant:
                 'Carbon capture efficency (%)': 0.9, # CEMCAP
                 'Hopp dict': None,
                 'Grid connection case': grid_connection_case,
+                'Using hydrogen': False,
             }
 
         elif css == 'CaL (tail-end)': # based on base-case from CEMCAP
@@ -204,7 +206,8 @@ class CementPlant:
                     # NOTE power is actually generated when ASU consumption is excluded
                 'Carbon capture efficency (%)': 0.936,
                 'Hopp dict': None,
-                'Grid connection case': grid_connection_case
+                'Grid connection case': grid_connection_case,
+                'Using hydrogen': False,
             }
 
         else:

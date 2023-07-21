@@ -43,6 +43,8 @@ CHANGES FOR CEMENT IMPLEMENTATION
         NOTE the selling of oxygen occurs in run_profast_for_steel.py, but the oxygen consumption from
         cement is already taken into account before this change
         [var_name]_mtpy --> the "mtpy" part means "metric tons per year" not "megatons per year"
+        we're like "well we made enough h2 over the year and estimated the hydrogen storage size 
+        so if we have a smart dispatch model, we could smooth the hydrogen dispatch profile"
 
 '''
 

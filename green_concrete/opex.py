@@ -202,7 +202,7 @@ def opex(self):
             'tires': 0,
         },
     }
-
+    
     ###\ NOTE converting NG and hydrogen from volume to energy basis --> CHECK THIS OR FIND DIFFERENT SOURCE
     from sympy import symbols, Eq, solve
     # x = energy fraction of natural gas
@@ -227,6 +227,9 @@ def opex(self):
 
     # select fuel composition configuration to use
     fuel_frac = fuel_comp[self.config['Fuel Mixture']]
+    
+    if fuel_frac['hydrogen'] != 0:
+        self.config['Using hydrogen'] = True
 
     # add fuels to feed_consumption dict
     feed_consumption = dict()

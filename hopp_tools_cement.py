@@ -1122,8 +1122,6 @@ def grid(
                 energy_to_electrolyzer[i] = kw_continuous - cement_electricity_consumption_kw
                 energy_total[i]=kw_continuous
     else:
-        # NOT IMPLEMENTED FOR CEMENT
-        print('this might not work (1126 hopp_tools_cement)')
         cost_to_buy_from_grid = 0.0
         energy_to_electrolyzer = [x if x < kw_continuous else kw_continuous for x in combined_pv_wind_storage_power_production_hopp]
         energy_total = combined_pv_wind_storage_power_production_hopp
