@@ -129,4 +129,4 @@ examples/reopt_load.py
 examples/data
 tests/hybrid/REoptResultsNoExportAboveLoad.json
 
-examples/H2_Analysis/Phase1B
+examples/H2_Analysis/Phase1B/**
