@@ -47,19 +47,19 @@ def capex(self):
     tpc, total_capex, total_direct_costs, land_cost = eur2013(1e6, tpc, total_capex, total_direct_costs, land_cost)
 
     # Carbon Capture Options
-    if self.config['CSS'] == 'Oxyfuel':
+    if self.config['CCUS'] == 'Oxyfuel':
         return *_oxyfuel_capex(equip_costs, tpc, total_capex, total_direct_costs), land_cost
-    elif self.config['CSS'] == 'CaL (tail-end)':
+    elif self.config['CCUS'] == 'CaL (tail-end)':
         return *_cal_tail_end_capex(equip_costs, tpc, total_capex, total_direct_costs), land_cost
-    elif self.config['CSS'] == 'None':
+    elif self.config['CCUS'] == 'None':
         return equip_costs, tpc, total_capex, total_direct_costs, land_cost 
     else: 
-        raise Exception('Invalid CSS Scenario')
+        raise Exception('Invalid CCUS Scenario')
 
 def _oxyfuel_capex(equip_costs, tpc, total_capex, total_direct_costs):
     # https://www.mdpi.com/1996-1073/12/3/542#app1-energies-12-00542 -- supplementary materials
     ''' 
-    Calculates CapEx values specific to the addition of an Oxyfuel CSS system
+    Calculates CapEx values specific to the addition of an Oxyfuel CCUS system
     
     NOTES:
     * EC (equipment cost) + IC (installation cost) = TDC (total direct cost)
@@ -114,7 +114,7 @@ def _oxyfuel_capex(equip_costs, tpc, total_capex, total_direct_costs):
 
 def _cal_tail_end_capex(equip_costs, tpc, total_capex, total_direct_costs):
     ''' 
-    Calculates CapEx values specific to the addition of an Oxyfuel CSS system
+    Calculates CapEx values specific to the addition of an Oxyfuel CCUS system
     
     NOTES:
     * EC (equipment cost) + IC (installation cost) = TDC (total direct cost)

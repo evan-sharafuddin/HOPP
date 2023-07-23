@@ -973,7 +973,7 @@ def batch_generator_kernel(arg_list):
 
         ######\ CEMENT: determining how much oxygen is consumed 
         total_leftover_oxygen_annual = float()
-        if cement_plant.config['CSS'] != 'None':
+        if cement_plant.config['CCUS'] != 'None':
             oxygen_annual_production = hydrogen_annual_production / 1.0078 / 2 * 15.999 # kg H2 --> kg O2 
             oxygen_annual_consumption_cement = cement_plant.config['Cement Production Rate (annual)'] * cement_plant.feed_consumption['oxygen (hybrids)']
             

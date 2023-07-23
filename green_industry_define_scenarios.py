@@ -200,7 +200,7 @@ if cement_plant.config['Steel & Ammonia'] or cement_plant.config['Using hydrogen
         batch_generator_kernel(arg_list[runs])
 
 else:
-    if cement_plant.config['CSS'] != 'None':
+    if cement_plant.config['CCUS'] != 'None':
         # oxygen must be purchased -- no hydrogen is being created 
         cement_plant.feed_consumption['oxygen (purchased)'] = cement_plant.feed_consumption['oxygen (hybrids)']
         cement_plant.feed_consumption['oxygen (hybrids)'] = 0

@@ -42,7 +42,7 @@ class CementPlant:
     Attributes:
         CAPEX
             self.config: holds  general plant information
-                CSS: 'None', 'Oxyfuel', 'CaL (tail-end)'
+                CCUS: 'None', 'Oxyfuel', 'CaL (tail-end)'
                     'Oxyfuel' and 'CaL (tail-end)' are both derived from the "base case" scenarios found in CEMCAP d4.6
                 Fuel Mixture: 'C1-C6' (percentages are LHV fractions unless otherwise stated)
                     C1: 100% coal
@@ -129,7 +129,7 @@ class CementPlant:
 
         if css == 'None':
             self.config = {
-                'CSS': css, # None, Oxyfuel, Calcium Looping
+                'CCUS': css, # None, Oxyfuel, Calcium Looping
                 'Fuel Mixture': fuel_mix, # C1-C5
                 'Hybrid electricity': hybrid_electricity,
                 'Steel & Ammonia': couple_with_steel_ammonia,
@@ -156,7 +156,7 @@ class CementPlant:
         
         elif css == 'Oxyfuel':
             self.config = {
-                'CSS': css, # None, Oxyfuel, Calcium Looping
+                'CCUS': css, # None, Oxyfuel, Calcium Looping
                 'Fuel Mixture': fuel_mix, # C1-C5
                 'Hybrid electricity': hybrid_electricity,
                 'Steel & Ammonia': couple_with_steel_ammonia,
@@ -184,7 +184,7 @@ class CementPlant:
             if fuel_mix != 'C1':
                 print('Be careful... CaL calciner might require coal as a fuel source in reality.')
             self.config = {
-                'CSS': css, # None, Oxyfuel, Calcium Looping
+                'CCUS': css, # None, Oxyfuel, Calcium Looping
                 'Fuel Mixture': fuel_mix, # C1-C5
                 'Hybrid electricity': hybrid_electricity,
                 'Steel & Ammonia': couple_with_steel_ammonia,
@@ -211,7 +211,7 @@ class CementPlant:
             }
 
         else:
-            raise Exception('Invalid CSS Scenario.')
+            raise Exception('Invalid CCUS Scenario.')
 
         
         # ---------- CAPEX and OPEX ----------

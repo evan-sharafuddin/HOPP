@@ -250,14 +250,14 @@ def opex(self):
     else:
         feed_consumption['alt fuel (IEAGHG mix)'] = 0
 
-    # /////////// CSS FEEDS ///////////
+    # /////////// CCUS FEEDS ///////////
     # NOTE if not enough oxygen is produced by the hybrid plant, then the rest of the 
     # feed consumption will be covered by the purchased oxygen
-    if self.config['CSS'] == 'Oxyfuel':
+    if self.config['CCUS'] == 'Oxyfuel':
         feed_consumption['oxygen (hybrids)'] = 1148 * 365 / 1000 / self.config['Cement Production Rate (annual)'] # tO2/day --> kg/t cement 
         feed_consumption['oxygen (purchased)'] = 0
         feed_consumption['cooling water make-up'] = 1
-    elif self.config['CSS'] == 'CaL (tail-end)': 
+    elif self.config['CCUS'] == 'CaL (tail-end)': 
         feed_consumption['oxygen (hybrids)'] = 440 * self.config['Clinker-to-cement ratio'] # kgO2/t cli --> kg/t cement
         feed_consumption['oxygen (purchased)'] = 0
         feed_consumption['cooling water make-up'] = 0.9
@@ -304,7 +304,7 @@ def opex(self):
 
     # ---------------- Fixed OPEX -----------------
     ## fixed ($/year)
-    if self.config['CSS'] == 'None':
+    if self.config['CCUS'] == 'None':
         num_workers = 100
     else:
         num_workers = 120 # CEMCAP spreadsheet

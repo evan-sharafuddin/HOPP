@@ -155,8 +155,8 @@ def run_profast_for_cement(
     lca, lca_css = self.lca_helper()
     
     # prepare outputs
-    lca['TITLE'] = 'LIFE CYCLE ANALYSIS (NO CSS)'
-    lca_css['TITLE'] = 'LIFE CYCLE ANALYSIS WITH CSS'
+    lca['TITLE'] = 'LIFE CYCLE ANALYSIS (NO CCUS)'
+    lca_css['TITLE'] = 'LIFE CYCLE ANALYSIS WITH CCUS'
     price_breakdown_manual['TITLE'] = 'MANUAL PRICE BREAKDOWN'
     self.config['TITLE'] = 'PLANT AND MODEL CONFIGURATIONS'
     config_no_hopp_dict = self.config
