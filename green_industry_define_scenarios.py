@@ -237,8 +237,8 @@ if __name__ == '__main__':
     inputs = {
         'Carbon capture': [
             'None',
-            'Oxyfuel',
-            'CaL (tail-end)',
+            # 'Oxyfuel',
+            # 'CaL (tail-end)',
         ],
 
         'Fuel mixture': [
@@ -247,7 +247,7 @@ if __name__ == '__main__':
             # 'C3',
             # 'C4',
             # 'C5',
-            'C6',
+            # 'C6',
         ],
 
         'Hybrid electricity': [
@@ -259,11 +259,6 @@ if __name__ == '__main__':
             'OPC',
             # 'US Average',
             # 'European Average',
-        ],
-
-        'Couple with steel/ammonia': [
-            True,
-            # False,
         ],
 
         'Simulation year': [
@@ -293,27 +288,30 @@ if __name__ == '__main__':
             0.9,
         ],
 
+        'Couple with steel/ammonia': [
+            True,
+            # False,
+        ],
 
         'Grid connection case': [
             'off-grid',
-            'grid-only',
+            # 'grid-only',
             # 'hybrid-grid',
         ],
     }
 
-    keys = list(inputs.keys())
-    keys.sort()
-    alphabetical_inputs = {i: inputs[i]for i in keys}
+    # keys = list(inputs.keys())
+    # keys.sort()
+    # alphabetical_inputs = {i: inputs[i]for i in keys}
 
-    values = inputs.values()
+    keys, values = zip(*inputs.items())
     combinations = list(product(*values))
 
     if input(f'{len(combinations)} combinations. Continue? (y/n)\n') == 'n':
         print('Aborting')
     else:
+        os.system('cls')
         for combination in combinations:
+            print(combination)
             simulate_cement_plant(*combination)
-
-            # this is not retaining order for some reason
-            # maybe use key value pairs? 
 

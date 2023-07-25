@@ -39,6 +39,7 @@ CHANGES FOR CEMENT IMPLEMENTATION
     other changes/notes
         commented print() in desal_model.py ("Max power allowed by system[...]")
         commented print() in site_info.py ("Doing this")
+        commented print()'s in run_PEM_master.py ("Took X sec to ...")
         added a few print statements in run_scenarios
         NOTE the selling of oxygen occurs in run_profast_for_steel.py, but the oxygen consumption from
         cement is already taken into account before this change
@@ -1181,6 +1182,7 @@ def batch_generator_kernel(arg_list):
      
     # ADDED CEMENT HERE
     cement_plant.config['Hopp dict'] = hopp_dict
+    cement_plant.hopp_misc['LCOH'] = lcoh
 
     hopp_dict, cement_econ_from_profast, cement_econ_summary, profast_cement_price_breakdown, \
         cement_breakeven_price, cement_annual_production_mtpy, cement_production_capacity_margin_pc, \
