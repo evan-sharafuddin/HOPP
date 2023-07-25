@@ -113,12 +113,9 @@ def run_profast_for_cement(
     price_breakdown = pf.get_cost_breakdown()
 
     print(f"price breakdown (ProFAST): {solution['price']}")
-    # print(f"price breakdown (paper): {eur2013(1, 50.9)}")
-    # print(f"price breakdown (CEMCAP spreadsheet, excluding carbon tax): {eur2013(1, 46.02)}")
-    # print(f"percent error from CEMCAP: {(solution['price'] - eur2013(1, 46.02))/eur2013(1, 46.02) * 100}%")
     
     price_breakdown = price_breakdown.drop(columns=['index', 'Amount'])
-    price_breakdown_manual = self.manual_price_breakdown_helper(gen_inflation, price_breakdown)
+    self.price_breakdown_manual = self.manual_price_breakdown_helper(gen_inflation, price_breakdown)
     cement_annual_capacity = self.config['Cement Production Rate (annual)']
     cement_nominal_capacity = self.config['Cement Production Rate (annual)'] * self.config['Plant capacity factor']
     cement_breakeven_price = solution.get('price')
@@ -138,26 +135,25 @@ def run_profast_for_cement(
             'cement_economics_summary': summary,
             'cement_breakeven_price': cement_breakeven_price,
             'cement_annual_capacity': cement_annual_capacity,
-            'cement_price_breakdown': price_breakdown_manual,
+            'cement_price_breakdown': self.price_breakdown_manual,
             'cement_plant_capex': self.total_capex,
         }
         hopp_dict.add('Models', {'steel_LCOS': {'output_dict': output_dict}})
 
 
-    ###\ write files (for testing)
-    path = Path('C:\\Users\\esharafu\\Documents\\profast_breakdown.csv')
-    thing = pd.DataFrame(price_breakdown)
-    thing.to_csv(path)
-    ###/
+    # UNCOMMENT FOR PROFAST BREAKDOWN
+    # path = os.path.join(self.output_dir, 'ProFAST_price_breakdown.csv')
+    # pd_price_breakdown = pd.DataFrame(price_breakdown)
+    # pd_price_breakdown.to_csv(path)
 
     ### run LCA and export results
 
-    lca, lca_css = self.lca_helper()
+    self.lca, self.lca_css = self.lca_helper()
     
     # prepare outputs
-    lca['TITLE'] = 'LIFE CYCLE ANALYSIS (NO CCUS)'
-    lca_css['TITLE'] = 'LIFE CYCLE ANALYSIS WITH CCUS'
-    price_breakdown_manual['TITLE'] = 'MANUAL PRICE BREAKDOWN'
+    self.lca['TITLE'] = 'LIFE CYCLE ANALYSIS (NO CCUS)'
+    self.lca_css['TITLE'] = 'LIFE CYCLE ANALYSIS WITH CCUS'
+    self.price_breakdown_manual['TITLE'] = 'MANUAL PRICE BREAKDOWN'
     self.config['TITLE'] = 'PLANT AND MODEL CONFIGURATIONS'
     config_no_hopp_dict = self.config
     del config_no_hopp_dict['Hopp dict']
@@ -168,19 +164,19 @@ def run_profast_for_cement(
     self.hopp_misc['TITLE'] = 'MISC. INFO FROM HOPP'
 
     # configure desired outputs here
-    output_csv('c:/Users/esharafu/documents', 
-                lca, 
-                lca_css, 
-                price_breakdown_manual, 
-                config_no_hopp_dict, 
-                self.feed_costs,
-                self.feed_consumption,
-                self.feed_units,
-                self.lhv,
-                self.hopp_misc,
-                )
+    output_csv(self.output_dir, 
+               self.filename_substr,
+               self.lca, 
+               self.lca_css, 
+               self.price_breakdown_manual, 
+               config_no_hopp_dict, 
+               self.feed_costs,
+               self.feed_consumption,
+               self.feed_units,
+               self.lhv,
+               self.hopp_misc,
+    )
     
-
-    
+    # TODO do I want to do anything with these return values?
     return hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
-        cement_annual_capacity, cement_production_capacity_margin_pc, price_breakdown_manual
+        cement_annual_capacity, cement_production_capacity_margin_pc, self.price_breakdown_manual

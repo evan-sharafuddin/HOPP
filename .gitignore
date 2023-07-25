@@ -132,3 +132,5 @@ tests/hybrid/REoptResultsNoExportAboveLoad.json
 examples/H2_Analysis/Phase1B/Energy_profiles/**
 examples/examples/H2_Analysis/Phase1B/ProFAST_price/**
 examples/examples/H2_Analysis/Phase1B/Fin_summary/**
+
+green_concrete/outputs/**

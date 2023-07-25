@@ -2,7 +2,7 @@ import pandas as pd
 import os.path
 from datetime import datetime
 
-def output_csv(dir, *dicts):
+def output_csv(dir, filename_substr, *dicts):
     '''
     Creates a .csv file for results formatted in a dictionary. 
 
@@ -27,11 +27,12 @@ def output_csv(dir, *dicts):
         dfs.append(df)
 
     now = datetime.now()
-    dt_string = now.strftime("%d-%m-%Y_%H%M.%S")
+    dt_string = now.strftime("%d-%m-%Y_%H.%M.%S")
 
     output = pd.concat(dfs, axis=1)
     output.fillna('')
-    filename = 'cement_output_data_' + dt_string + '.csv'
+
+    filename = 'CEMENT_' + filename_substr + dt_string + '.csv'
     
     path = os.path.join(dir, filename)
     

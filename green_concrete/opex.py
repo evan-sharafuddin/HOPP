@@ -94,7 +94,9 @@ def opex(self):
         'process water': 0.014, # €/ton cement
         'misc': 0.8, # €/ton cement
         'oxygen (hybrids)': 0, # ASSUMPTION
-        'oxygen (purchased)': 0.13 * 0.6998, # https://www.intratec.us/chemical-markets/oxygen-price, $/Nm^3 --> $/kg via http://www.uigi.com/o2_conv.html
+        'oxygen (purchased)': eur2014(1e-3, (80 + 100) / 2), # CEMCAP d3.2, page 45 (liquified oxygen tank delivery system)
+        # 0.13 * 0.6998, # https://www.intratec.us/chemical-markets/oxygen-price, $/Nm^3 --> $/kg via http://www.uigi.com/o2_conv.html
+        
         'cooling water make-up': 0.3, # €/ton cement
         'ammonia': 0.13, # EUR/t cem
     }
