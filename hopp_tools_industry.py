@@ -3,8 +3,6 @@ NOTE see header for green_industry_run_scenarios.py to view differences between
 this file and hopp_tools_steel.py
 
 '''
-
-
 # extra function in the osw_h2 file
 from math import floor
 import numpy as np 
@@ -653,7 +651,7 @@ def run_HOPP(
                     kw_continuous, load,
                     custom_powercurve,
                     max(load) / 1e3, grid_connected_hopp=True, wind_om_cost_kw=wind_om_cost_kw,solar_om_cost_kw=solar_om_cost_kw)
-                    # CEMENT: max(load) ARGUMENT USED TO BE electrolyzer_size
+                    # CEMENT: max(load) argument used to be electrolyzer_size -- this allows for cement plant to be powered by hybrid plant
     if floris == True: 
         technologies={}
         if run_wind_plant:
@@ -966,11 +964,7 @@ def run_H2_PEM_sim(
     use_degradation_penalty,
     grid_connection_scenario,
     h2_prod_capacity_required_kgphr,
-    cement_electricity_consumption_MW,
-
-    # TODO output seems to assume that electrolyzer power is the total power...
-    # change this so tot_power includes electricity and electrolyzer power
-    
+    cement_electricity_consumption_MW, # CEMENT
     #electrolyzer_design_eff_kwh_per_kg 
 ):
 
@@ -1006,7 +1000,6 @@ def run_H2_PEM_sim(
     # H2_Results, H2A_Results = run_h2_PEM.run_h2_PEM(electrical_generation_timeseries,electrolyzer_size_mw,
     #                 kw_continuous,electrolyzer_capex_kw,lcoe,adjusted_installed_cost,useful_life,
     #                 net_capital_costs)
-    # CEMENT: here hopp_dict is what I want it to be
     
     H2_Results,H2_Ts_Data,H2_Agg_data,energy_signal_to_electrolyzer = run_h2_PEM.run_h2_PEM(energy_to_electrolyzer, electrolyzer_size_mw,
                 useful_life, n_pem_clusters,  electrolysis_scale, pem_control_type, electrolyzer_direct_cost_kw,pem_param_dict, 
@@ -1029,9 +1022,7 @@ def run_H2_PEM_sim(
             hopp_dict.main_dict['Models']['grid']['ouput_dict']['energy_to_electrolyzer']=energy_signal_to_electrolyzer
             hopp_dict.main_dict['Models']['grid']['ouput_dict']['total_energy']=energy_signal_to_electrolyzer
             hopp_dict.main_dict['Models']['grid']['ouput_dict']['total_energy_old']=hopp_dict.main_dict['Models']['grid']['ouput_dict']['total_energy']
-            []
  
-        # TODO seems to repeat the calculations made in grid(), why is this?
         elif grid_connection_scenario=='hybrid-grid':
             renewables_energy=hopp_dict.main_dict['Models']['grid']['ouput_dict']['energy_from_renewables']
             
@@ -1040,7 +1031,7 @@ def run_H2_PEM_sim(
             
             power_from_grid_sat=np.where(power_from_grid<0,0,power_from_grid)
             renewables_curtailed=np.where(power_from_grid<0,-1*power_from_grid,0)
-            # TODO ERROR COULD BE HERE FOR CEMENT
+
             tot_energy=renewables_energy + power_from_grid_sat + cement_electricity_consumption_MW #more used to double check the re-calc
             #hopp_dict.main_dict['Models']['grid']['ouput_dict']['energy_from_the_grid_old']=hopp_dict.main_dict['Models']['grid']['ouput_dict']['energy_from_the_grid']
             hopp_dict.main_dict['Models']['grid']['ouput_dict']['energy_from_the_grid']=list(power_from_grid_sat)
@@ -1050,13 +1041,7 @@ def run_H2_PEM_sim(
             
             # CEMENT: changed this so that it would be the electrolyzer energy, and not the total energy
             hopp_dict.main_dict['Models']['grid']['ouput_dict']['energy_to_electrolyzer']=list(energy_signal_to_electrolyzer[0:len(renewables_energy)])
-            []
-            # TODO error for CEMENT could be in here
-            # note: energy signal from run_PEM is not the same as power for the electrolizers, 
-            # not sure why this is 
 
-
-        
         #update hopp dict
 
     if hopp_dict.save_model_output_yaml:
@@ -1117,9 +1102,9 @@ def grid(
                 energy_from_the_grid[i] += (kw_continuous-combined_pv_wind_storage_power_production_hopp[i])
                 cost_to_buy_from_grid += energy_from_the_grid[i]*buy_price
                 energy_total[i] = energy_from_the_grid[i] + combined_pv_wind_storage_power_production_hopp[i]
-                energy_to_electrolyzer[i] = kw_continuous - cement_electricity_consumption_kw
+                energy_to_electrolyzer[i] = kw_continuous - cement_electricity_consumption_kw # CEMENT CHANGE
             else:
-                energy_to_electrolyzer[i] = kw_continuous - cement_electricity_consumption_kw
+                energy_to_electrolyzer[i] = kw_continuous - cement_electricity_consumption_kw # CEMENT CHANGE
                 energy_total[i]=kw_continuous
     else:
         cost_to_buy_from_grid = 0.0
@@ -1969,9 +1954,6 @@ def steel_LCOS(
     # Could be good to make this more conservative, but it is probably fine if demand profile is flat
 
     max_steel_production_capacity_mtpy = min(steel_annual_production_rate_target_tpy/steel_capacity_factor,hydrogen_annual_production/1000/hydrogen_consumption_for_steel)
-    
-    # CEMENT: this variable is how much hydrogen is left for use with cement
-    hydrogen_consumed = max_steel_production_capacity_mtpy * steel_capacity_factor * hydrogen_consumption_for_steel
 
     # Should connect these to something (AEO, Cambium, etc.)
     natural_gas_cost = 4                        # $/MMBTU
@@ -1997,7 +1979,8 @@ def steel_LCOS(
     
 
     #electricity_cost = lcoe - (((policy_option['Wind PTC']) * 100) / 3) # over the whole lifetime 
-    
+            # CEMENT: created this function here, basically the same as the normal run_profast_for_steel,
+        # except it allows for oxygen to be used in cement instead of being sold
     steel_economics_from_profast,steel_economics_summary,profast_steel_price_breakdown,steel_annual_capacity,steel_price_breakdown,steel_plant_capex=\
         run_profast_for_steel_coupled(max_steel_production_capacity_mtpy,\
             steel_capacity_factor,steel_plant_life,levelized_cost_hydrogen,\

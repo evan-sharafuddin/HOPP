@@ -50,7 +50,7 @@ def opex(self):
     }
     
     lhv = {
-        ###\ Source: Fuel LHV values; Canada paper (see below) for volume based LHVs
+        ###\ Source: https://courses.engr.illinois.edu/npre470/sp2018/web/Lower_and_Higher_Heating_Values_of_Gas_Liquid_and_Solid_Fuels.pdf; Canada paper (see below) for volume based LHVs
         'coal': 26.122, # MJ/kg, ASSUMING "bituminous coal (wet basis)"
         'natural gas': 47.141, # MJ/kg
         'hydrogen': 120.21, # MJ/kg
@@ -122,8 +122,56 @@ def opex(self):
             'tires': 0,
         },
 
-        # COMPOSITION 2: IEAGHG Reference (70% coal, 30% alernative fuel mix)
+        # COMPOSITION 2: hypothetical
         'C2': {
+            'coal': 0,
+            'natural gas': 1,
+            'hydrogen': 0,
+            'pet coke': 0,
+            'alt fuel (IEAGHG mix)': 0,
+            'animal meal': 0,
+            'sewage sludge': 0,
+            'solvents': 0,
+            'SRF (wet)': 0,
+            'MBM (wet)': 0,
+            'glycerin': 0,
+            'tires': 0,
+        },
+
+        # COMPOSITION 3: hypothetical
+        'C3': {
+            'coal': 0,
+            'natural gas': 0.9,
+            'hydrogen': 0.1,
+            'pet coke': 0,
+            'alt fuel (IEAGHG mix)': 0,
+            'animal meal': 0,
+            'sewage sludge': 0,
+            'solvents': 0,
+            'SRF (wet)': 0,
+            'MBM (wet)': 0,
+            'glycerin': 0,
+            'tires': 0,
+        },
+
+        # COMPOSITION 4: hypothetical
+        'C4': {
+            'coal': 0,
+            'natural gas': 0.8,
+            'hydrogen': 0.2,
+            'pet coke': 0,
+            'alt fuel (IEAGHG mix)': 0,
+            'animal meal': 0,
+            'sewage sludge': 0,
+            'solvents': 0,
+            'SRF (wet)': 0,
+            'MBM (wet)': 0,
+            'glycerin': 0,
+            'tires': 0,
+        },
+
+        # COMPOSITION 5: IEAGHG Reference (70% coal, 30% alernative fuel mix)
+        'C5': {
             'coal': 0.7,
             'natural gas': 0,
             'hydrogen': 0,
@@ -138,71 +186,56 @@ def opex(self):
             'tires': 0,
         },
 
-        # COMPOSITION 3: Canada Natural Gas Substitution
-        'C3': {
-            'coal': 0.5,
-            'natural gas': 0.5,
-            'hydrogen': 0,
-            'pet coke': 0,
-            'alt fuel (IEAGHG mix)': 0,
-            'animal meal': 0,
-            'sewage sludge': 0,
-            'solvents': 0,
-            'SRF (wet)': 0,
-            'MBM (wet)': 0,
-            'glycerin': 0,
-            'tires': 0,
-        },
+        # # COMPOSITION 3: Canada Natural Gas Substitution
+        # 'C3': {
+        #     'coal': 0.5,
+        #     'natural gas': 0.5,
+        #     'hydrogen': 0,
+        #     'pet coke': 0,
+        #     'alt fuel (IEAGHG mix)': 0,
+        #     'animal meal': 0,
+        #     'sewage sludge': 0,
+        #     'solvents': 0,
+        #     'SRF (wet)': 0,
+        #     'MBM (wet)': 0,
+        #     'glycerin': 0,
+        #     'tires': 0,
+        # },
 
-        # COMPOSITION 4: Canada Hydrogen-Enriched Natural Gas Substitution
-        # see system solved below -- TODO compare results of this fuel mixture with the paper
-        'C4': {
-            'coal': 0.5,
-            'natural gas': 0.45,
-            'hydrogen': 0.05,
-            'pet coke': 0,
-            'alt fuel (IEAGHG mix)': 0,
-            'animal meal': 0,
-            'sewage sludge': 0,
-            'solvents': 0,
-            'SRF (wet)': 0,
-            'MBM (wet)': 0,
-            'glycerin': 0,
-            'tires': 0,
-        },      
+        # # COMPOSITION 4: Canada Hydrogen-Enriched Natural Gas Substitution
+        # # see system solved below -- TODO compare results of this fuel mixture with the paper
+        # 'C4': {
+        #     'coal': 0.5,
+        #     'natural gas': 0.45,
+        #     'hydrogen': 0.05,
+        #     'pet coke': 0,
+        #     'alt fuel (IEAGHG mix)': 0,
+        #     'animal meal': 0,
+        #     'sewage sludge': 0,
+        #     'solvents': 0,
+        #     'SRF (wet)': 0,
+        #     'MBM (wet)': 0,
+        #     'glycerin': 0,
+        #     'tires': 0,
+        # },      
 
-        # COMPOSITION 5: Experimental Climate Neutral Plant: https://www.heidelbergmaterials.com/en/pr-01-10-2021
-        # NOTE assuming energy basis here
-        'C5': {
-            'coal': 0,
-            'natural gas': 0,
-            'hydrogen': 0.39,
-            'pet coke': 0,
-            'alt fuel (IEAGHG mix)': 0,
-            'animal meal': 0,
-            'sewage sludge': 0,
-            'solvents': 0,
-            'SRF (wet)': 0,
-            'MBM (wet)': 0.12,
-            'glycerin': 0.49,
-            'tires': 0,
-        },
+        # # COMPOSITION 5: Experimental Climate Neutral Plant: https://www.heidelbergmaterials.com/en/pr-01-10-2021
+        # # NOTE assuming energy basis here
+        # 'C5': {
+        #     'coal': 0,
+        #     'natural gas': 0,
+        #     'hydrogen': 0.39,
+        #     'pet coke': 0,
+        #     'alt fuel (IEAGHG mix)': 0,
+        #     'animal meal': 0,
+        #     'sewage sludge': 0,
+        #     'solvents': 0,
+        #     'SRF (wet)': 0,
+        #     'MBM (wet)': 0.12,
+        #     'glycerin': 0.49,
+        #     'tires': 0,
+        # },
 
-        # COMPOSITION 6: hypothetical
-        'C6': {
-            'coal': 0,
-            'natural gas': 0.8,
-            'hydrogen': 0.2,
-            'pet coke': 0,
-            'alt fuel (IEAGHG mix)': 0,
-            'animal meal': 0,
-            'sewage sludge': 0,
-            'solvents': 0,
-            'SRF (wet)': 0,
-            'MBM (wet)': 0,
-            'glycerin': 0,
-            'tires': 0,
-        },
     }
     
     ###\ NOTE converting NG and hydrogen from volume to energy basis --> CHECK THIS OR FIND DIFFERENT SOURCE

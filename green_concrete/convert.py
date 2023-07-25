@@ -4,12 +4,16 @@ def eur2013(multiplyer, *costs):
 
     multiplyer argument allows you to account for prefix (ex: M, k)
 
-    works for individual values or an iterable of values
+    works for individual values or an arbitrary number of values
 
     NOTE: conversion factor is the average from 2013, which was the cost basis
     year given in the paper
 
     source: https://www.exchangerates.org.uk/EUR-USD-spot-exchange-rates-history-2013.html
+
+    EXAMPLE USAGE:
+        100 mega-Euros to USD: eur2013(1e-6, 100)
+          same as doing: 100 * 1e-6 * conversion_factor
 
     '''
     conversion_factor = 1.3284 # USD/EUR

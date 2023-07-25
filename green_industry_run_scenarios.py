@@ -1,7 +1,5 @@
 '''
-CHANGES FOR CEMENT IMPLEMENTATION 
-    storage_size(s)_mw and storage_size(s)_mwh 
-        set these equal to zero to avoid the nuances with battery discharge
+CHANGES FOR CEMENT IMPLEMENTATION (ctrl-f "CEMENT" to se specific locations)
     hydrogen_consumption_for_cement
         the same as hydrogen_consumption_for_steel, except based on the 
         fuel mixture used. 
@@ -18,7 +16,7 @@ CHANGES FOR CEMENT IMPLEMENTATION
     load
         used the new value for kw-continuous as above
     
-    functions/inputs changed in hopp_tools_cement
+    functions/inputs changed in hopp_tools_industry
         run_HOPP()
             changed the electrolyzer_size argument to max(load), so that HOPP accounts for the 
             total power consumption of electrolyzer and plant electricity requirements
@@ -42,10 +40,10 @@ CHANGES FOR CEMENT IMPLEMENTATION
         commented print()'s in run_PEM_master.py ("Took X sec to ...")
         added a few print statements in run_scenarios
         NOTE the selling of oxygen occurs in run_profast_for_steel.py, but the oxygen consumption from
-        cement is already taken into account before this change
+          cement is already taken into account before this change
         [var_name]_mtpy --> the "mtpy" part means "metric tons per year" not "megatons per year"
         we're like "well we made enough h2 over the year and estimated the hydrogen storage size 
-        so if we have a smart dispatch model, we could smooth the hydrogen dispatch profile"
+          so if we have a smart dispatch model, we could smooth the hydrogen dispatch profile"
 
 '''
 
@@ -74,11 +72,11 @@ import time
 warnings.filterwarnings("ignore")
 
 import hopp_tools
-import hopp_tools_cement
+import hopp_tools_industry
 import inputs_py
 import copy 
 import plot_results
-from hopp_tools_cement import hoppDict
+from hopp_tools_industry import hoppDict
 import yaml
 import run_RODeO
 import run_profast_for_hydrogen
@@ -361,7 +359,7 @@ def batch_generator_kernel(arg_list):
     hopp_dict.add('Configuration', plot_dict)
 
     # set policy values
-    hopp_dict, scenario, policy_option = hopp_tools_cement.set_policy_values(hopp_dict, scenario, policy, i)
+    hopp_dict, scenario, policy_option = hopp_tools_industry.set_policy_values(hopp_dict, scenario, policy, i)
     #print(scenario['Wind PTC'])
 
     scenario_df = xl.parse()
@@ -374,13 +372,13 @@ def batch_generator_kernel(arg_list):
     turbine_rating = site_df['Turbine Rating']
 
     # set turbine values
-    hopp_dict, scenario, nTurbs, floris_config = hopp_tools_cement.set_turbine_model(hopp_dict, turbine_model, scenario, parent_path,floris_dir, floris,site_location,grid_connection_scenario)
+    hopp_dict, scenario, nTurbs, floris_config = hopp_tools_industry.set_turbine_model(hopp_dict, turbine_model, scenario, parent_path,floris_dir, floris,site_location,grid_connection_scenario)
 
 
 # Establish wind farm and electrolyzer sizing
 
     if cement_plant.config['Steel & Ammonia']:
-        ################\ Steel & Ammonia (no changes)
+        #####\ Steel & Ammonia (no changes)
         # Calculate target hydrogen and electricity demand
         hydrogen_consumption_for_steel = 0.06596 # metric tonnes of hydrogen/metric tonne of steel production
         
@@ -392,11 +390,11 @@ def batch_generator_kernel(arg_list):
         # Calculate equivalent ammona production target
         hydrogen_consumption_for_ammonia = 0.197284403              # kg of hydrogen/kg of ammonia production
         ammonia_production_target_kgpy = hydrogen_production_target_kgpy_steel/hydrogen_consumption_for_ammonia*steel_ammonia_plant_cf
-        ################/
+        #####/
     else:
         hydrogen_production_target_kgpy_steel, ammonia_production_target_kgpy = 0, 0
 
-    ###############\ ADDED CEMENT HERE
+    #####\ CEMENT
     if cement_plant.feed_consumption['hydrogen'] != 0:
         hydrogen_consumption_for_cement = cement_plant.feed_consumption['hydrogen']
     else:
@@ -405,9 +403,8 @@ def batch_generator_kernel(arg_list):
     # NOTE dividing by cf, see above
     hydrogen_production_target_kgpy_cement = \
         hydrogen_consumption_for_cement * cement_plant.config['Cement Production Rate (annual)'] / cement_plant.config['Plant capacity factor']
-    #################/
+    #####/
 
-     # NOTE this value below is higher (i.e. efficency is assumed to be worse) than actual BOL, so this is why BOL instead of EOL used in 376
     electrolyzer_energy_kWh_per_kg_estimate_BOL = 54.61 # Eventually need to re-arrange things to get this from set_electrolyzer_info 54.55
     electrolyzer_energy_kWh_per_kg_estimate_EOL = electrolyzer_energy_kWh_per_kg_estimate_BOL*(1+electrolyzer_degradation_power_increase)
 
@@ -431,10 +428,9 @@ def batch_generator_kernel(arg_list):
 
         else:
             # If grid-connected, base capacity off of constant full-power operation (steel/ammonia plant CF is incorporated above)
-            # NOTE for cement I am going to be using grid connected scenario
             cf_estimate = 1
 
-        ###########\ ADDED CEMENT HERE
+        #####\ CEMENT
         # Electrolyzer rated hydrogen production capacity - independent of degradation
         # NOTE the capacity factor here refers to the cf of the electricity production method, not the cf of the elctrolyzers themselves
         hydrogen_production_capacity_required_kgphr = (hydrogen_production_target_kgpy_steel + hydrogen_production_target_kgpy_cement) \
@@ -446,7 +442,7 @@ def batch_generator_kernel(arg_list):
         else: 
             cement_plant.config['Hydrogen to cement frac'] = hydrogen_production_target_kgpy_cement \
                                                             / (hydrogen_production_target_kgpy_steel + hydrogen_production_target_kgpy_cement)
-        ############/                                            
+        #####/                                            
 
         # Electrolyzer power requirement at BOL - namplate capacity in MWe?
         electrolyzer_capacity_BOL_MW = hydrogen_production_capacity_required_kgphr*electrolyzer_energy_kWh_per_kg_estimate_BOL/1000
@@ -454,8 +450,7 @@ def batch_generator_kernel(arg_list):
         # Electrolyzer power requirement at EOL
         electrolyzer_capacity_EOL_MW = hydrogen_production_capacity_required_kgphr*electrolyzer_energy_kWh_per_kg_estimate_EOL/1000
         
-        ############\ ADDED CEMENT HERE
-
+        #####\ CEMENT
         if cement_plant.feed_consumption['hybrid electricity'] > 0:
             cement_electricity_consumption_MW = cement_plant.feed_consumption['hybrid electricity'] \
                 * cement_plant.config['Cement Production Rate (annual)'] / 8760 / 1000 # kWh/t cement --> MW
@@ -468,11 +463,10 @@ def batch_generator_kernel(arg_list):
         # than we would in reality becaue the model does not take into account degradation. Wind plant degradation can be factored
         # into capital cost later.
 
-        ############\ ADDED CEMENT HERE
         n_turbines = int(np.ceil(np.ceil(electrolyzer_capacity_EOL_MW + cement_electricity_consumption_MW)/turbine_rating))
         wind_size_mw = n_turbines*turbine_rating
         # wind_size_mw = electrolyzer_capacity_EOL_MW + cement_electricity_consumption_MW
-        ###############/
+        #####/
 
         #wind_size_mw = electrolyzer_capacity_EOL_MW*1.08
 
@@ -486,15 +480,13 @@ def batch_generator_kernel(arg_list):
         # # into account here (where it will influence amount of electricity available for hydrogen production)
         # wind_size_mw = electrolyzer_capacity_BOL_MW
         # #wind_size_mw = electrolyzer_capacity_EOL_MW*1.08
-    
-    ############\ NOTE IGNORING THIS FOR CEMENT
+
     else:
         raise NotImplementedError("Cannot use FLORIS with green cement")
         # if grid_connection_scenario != 'off-grid':
         #     hydrogen_production_capacity_required_kgphr = hydrogen_production_target_kgpy_steel/(8760)
         # else:
         hydrogen_production_capacity_required_kgphr = electrolyzer_capacity_BOL_MW*1000/electrolyzer_energy_kWh_per_kg_estimate_BOL
-    ##############/
 
     interconnection_size_mw = wind_size_mw # this makes sense because wind_size_mw captures extra electricity needed by electrolzyer at end of life
     #electrolyzer_size_mw = np.ceil(electrolyzer_capacity_EOL_MW)
@@ -502,7 +494,8 @@ def batch_generator_kernel(arg_list):
     cluster_cap_mw = 40
     n_pem_clusters_max = int(np.ceil(np.ceil(electrolyzer_capacity_BOL_MW)/cluster_cap_mw))
     electrolyzer_size_mw = n_pem_clusters_max*cluster_cap_mw
-    # TODO fix weird results --> electrolyze size greater than wind plant capacity
+    # TODO fix weird results --> electrolyzer size greater than wind plant capacity for very small wind farms
+    #   this might not be a problem though
 
     #n_pem_clusters = 12
     if electrolysis_scale == 'Distributed':
@@ -510,23 +503,19 @@ def batch_generator_kernel(arg_list):
     elif electrolysis_scale == 'Centralized':
         n_pem_clusters = n_pem_clusters_max
 
-
-
         # if grid_connection_scenario == 'off-grid':
-            
-
         #     cluster_size_mw = np.ceil(electrolyzer_size_mw/number_pem_stacks/cluster_cap_mw)*cluster_cap_mw
         #     n_pem_clusters = int(electrolyzer_size_mw/cluster_size_mw)
         # else:
         #     n_pem_clusters = number_pem_stacks
 
-    ###\ CHANGING THIS FOR CEMENT
+    #####\ CHANGING THIS FOR CEMENT
     kw_continuous = (electrolyzer_size_mw + cement_electricity_consumption_MW) * 1000
 
     
     load = [kw_continuous for _ in
             range(0, 8760)]  # * (sin(x) + pi) Set desired/required load profile for plant
-    ###/
+    #####/
     
     if battery_for_minimum_electrolyzer_op:
         battery_dispatch_load = list(0.1*np.array(load))
@@ -543,11 +532,8 @@ def batch_generator_kernel(arg_list):
         'hydrogen required production capacity (kgphr)': hydrogen_production_capacity_required_kgphr,
         'fraction of hydrogen used for cement': cement_plant.config['Hydrogen to cement frac'],
         'cement electricity consumption (MW)': cement_electricity_consumption_MW,
-
-
-
-
     })
+    
     # Add things to hopp_dict that we couldn't add before getting wind and electrolyzer size
     sub_dict = {
         'wind_size': wind_size_mw,
@@ -561,10 +547,10 @@ def batch_generator_kernel(arg_list):
     scenario['Useful Life'] = useful_life
 
     # financials
-    hopp_dict, scenario = hopp_tools_cement.set_financial_info(hopp_dict, scenario, debt_equity_split, discount_rate)
+    hopp_dict, scenario = hopp_tools_industry.set_financial_info(hopp_dict, scenario, debt_equity_split, discount_rate)
 
     # set electrolyzer information
-    hopp_dict, electrolyzer_capex_kw, electrolyzer_component_costs_kw,capex_ratio_dist, electrolyzer_energy_kWh_per_kg, time_between_replacement =  hopp_tools_cement.set_electrolyzer_info(hopp_dict, atb_year,electrolysis_scale,electrolyzer_cost_case,electrolyzer_degradation_power_increase,grid_connection_scenario,turbine_rating,direct_coupling)
+    hopp_dict, electrolyzer_capex_kw, electrolyzer_component_costs_kw,capex_ratio_dist, electrolyzer_energy_kWh_per_kg, time_between_replacement =  hopp_tools_industry.set_electrolyzer_info(hopp_dict, atb_year,electrolysis_scale,electrolyzer_cost_case,electrolyzer_degradation_power_increase,grid_connection_scenario,turbine_rating,direct_coupling)
 
 
     electrolyzer_installation_factor = 12/100
@@ -576,7 +562,7 @@ def batch_generator_kernel(arg_list):
 
     # site info
     # solar_size_mw=0
-    hopp_dict, site_df, sample_site = hopp_tools_cement.set_site_info(hopp_dict, site_df, sample_site)
+    hopp_dict, site_df, sample_site = hopp_tools_industry.set_site_info(hopp_dict, site_df, sample_site)
     site_name = site_df['State']
     #fixed_or_floating_wind = site_df['Substructure technology']
     site = SiteInfo(sample_site, hub_height=scenario['Tower Height'])
@@ -708,7 +694,7 @@ def batch_generator_kernel(arg_list):
             #if True: #grid_connection_scenario != 'grid-only':
                 # Run HOPP
             hopp_dict, combined_pv_wind_power_production_hopp, energy_shortfall_hopp, combined_pv_wind_curtailment_hopp, hybrid_plant, wind_size_mw, solar_size_mw, lcoe = \
-                hopp_tools_cement.run_HOPP(
+                hopp_tools_industry.run_HOPP(
                             hopp_dict,
                             scenario,
                             site,
@@ -772,7 +758,7 @@ def batch_generator_kernel(arg_list):
 
             #Step 5: Run Simple Dispatch Model
             hopp_dict, combined_pv_wind_storage_power_production_hopp, battery_SOC, battery_used, excess_energy = \
-                hopp_tools_cement.run_battery(
+                hopp_tools_industry.run_battery(
                     hopp_dict,
                     energy_shortfall_hopp,
                     combined_pv_wind_curtailment_hopp,
@@ -793,7 +779,8 @@ def batch_generator_kernel(arg_list):
             # )
 
             # grid information
-            hopp_dict, cost_to_buy_from_grid, profit_from_selling_to_grid, energy_to_electrolyzer = hopp_tools_cement.grid(
+            ## CEMENT: added last argument 
+            hopp_dict, cost_to_buy_from_grid, profit_from_selling_to_grid, energy_to_electrolyzer = hopp_tools_industry.grid(
                 hopp_dict,
                 combined_pv_wind_storage_power_production_hopp,
                 sell_price,
@@ -824,7 +811,7 @@ def batch_generator_kernel(arg_list):
         hybrid_plant = 0
     
         # grid information
-        hopp_dict, cost_to_buy_from_grid, profit_from_selling_to_grid, energy_to_electrolyzer = hopp_tools_cement.grid(
+        hopp_dict, cost_to_buy_from_grid, profit_from_selling_to_grid, energy_to_electrolyzer = hopp_tools_industry.grid(
             hopp_dict,
             combined_pv_wind_storage_power_production_hopp,
             sell_price,
@@ -932,7 +919,9 @@ def batch_generator_kernel(arg_list):
         #Run the H2_PEM model to get hourly hydrogen output, capacity factor, water consumption, etc.
         h2_model = 'Simple'
         h2_model = 'Simple'
-        hopp_dict, H2_Results, electrical_generation_timeseries = hopp_tools_cement.run_H2_PEM_sim(
+
+        # CEMENT: added last argument
+        hopp_dict, H2_Results, electrical_generation_timeseries = hopp_tools_industry.run_H2_PEM_sim(
             hopp_dict,
             #hybrid_plant,
             energy_to_electrolyzer,
@@ -962,7 +951,7 @@ def batch_generator_kernel(arg_list):
         
 
         #Step 6b: Run desal model
-        hopp_dict, desal_capex, desal_opex, desal_annuals = hopp_tools_cement.desal_model(
+        hopp_dict, desal_capex, desal_opex, desal_annuals = hopp_tools_industry.desal_model(
             hopp_dict,
             H2_Results, 
             electrolyzer_size_mw, 
@@ -973,7 +962,7 @@ def batch_generator_kernel(arg_list):
         hydrogen_annual_production = H2_Results['hydrogen_annual_output']
         cement_plant.hopp_misc['hydrogen production (kg/y)'] = hydrogen_annual_production
 
-        ######\ CEMENT: determining how much oxygen is consumed 
+        #####\ CEMENT: determining how much oxygen is consumed, and if oxygen needs to be purchased 
         total_leftover_oxygen_annual = float()
         if cement_plant.config['CCUS'] != 'None':
             oxygen_annual_production = hydrogen_annual_production / 1.0078 / 2 * 15.999 # kg H2 --> kg O2 
@@ -993,7 +982,7 @@ def batch_generator_kernel(arg_list):
                                                                     / cement_plant.config['Cement Production Rate (annual)']
                 cement_plant.feed_consumption['oxygen (hybrids)'] = oxygen_annual_excess_steel \
                                                                     / cement_plant.config['Cement Production Rate (annual)']
-                
+    
                 total_leftover_oxygen_annual = 0
                 oxygen_purchased = cement_plant.feed_consumption['oxygen (purchased)']
 
@@ -1009,11 +998,11 @@ def batch_generator_kernel(arg_list):
                 'leftover oxygen after steel & cement (kg/y)': total_leftover_oxygen_annual,
                 'oxygen purchased (kg/y)': oxygen_purchased,
             })
-        ######/
+        #####/
 
 
 
-        #######\ CEMENT: determining electricity costs for the plant
+        #####\ CEMENT: determining electricity costs for the plant
         # extracting the power time series from each source
         # NOTE had to change line 155 in hopp_for_h2.py
         if cement_plant.config['Hybrid electricity']:
@@ -1027,7 +1016,7 @@ def batch_generator_kernel(arg_list):
             # total cost of grid electricity over a year:
             grid_elec_OpEx = sum([grid_cost * p for p in grid_power_ts]) # $/year
 
-            lcoe = hopp_tools_cement.quick_lcoe(
+            lcoe = hopp_tools_industry.quick_lcoe(
                             renewable_power_ts,
                             wind_size_mw,
                             solar_size_mw,
@@ -1039,7 +1028,7 @@ def batch_generator_kernel(arg_list):
             cement_plant.feed_costs['hybrid electricity'] = lcoe
             cement_plant.hopp_misc['LCOE for hybrid plant ($/kWh)'] = lcoe
             cement_plant.hopp_misc['grid electricity price ($/kWh)'] = grid_cost
-        ############/
+        #####/
 
         # hydrogen_max_hourly_production_kg = max(H2_Results['hydrogen_hourly_production'])
 
@@ -1059,7 +1048,7 @@ def batch_generator_kernel(arg_list):
             storage_type = 'Salt cavern' #Unsure
         
         hydrogen_production_storage_system_output_kgprhr,hydrogen_storage_capacity_kg,hydrogen_storage_capacity_MWh_HHV,hydrogen_storage_duration_hr,hydrogen_storage_cost_USDprkg,storage_status_message\
-            = hopp_tools_cement.hydrogen_storage_capacity_cost_calcs(H2_Results,electrolyzer_size_mw,storage_type)   
+            = hopp_tools_industry.hydrogen_storage_capacity_cost_calcs(H2_Results,electrolyzer_size_mw,storage_type)   
         
         # Apply storage multiplier
         hydrogen_storage_capacity_kg = hydrogen_storage_capacity_kg*storage_capacity_multiplier
@@ -1127,7 +1116,7 @@ def batch_generator_kernel(arg_list):
         electrolyzer_capacity_factor = H2_Results['cap_factor']
 
     # Calculate hydrogen transmission cost and add to LCOH
-    hopp_dict,h2_transmission_economics_from_profast,h2_transmission_economics_summary,h2_transmission_price,h2_transmission_price_breakdown = hopp_tools_cement.levelized_cost_of_h2_transmission(hopp_dict,max_hydrogen_production_rate_kg_hr,
+    hopp_dict,h2_transmission_economics_from_profast,h2_transmission_economics_summary,h2_transmission_price,h2_transmission_price_breakdown = hopp_tools_industry.levelized_cost_of_h2_transmission(hopp_dict,max_hydrogen_production_rate_kg_hr,
     max_hydrogen_delivery_rate_kg_hr,electrolyzer_capacity_factor,atb_year,site_name)
     
     lcoh = lcoh + h2_transmission_price
@@ -1135,24 +1124,19 @@ def batch_generator_kernel(arg_list):
     # Policy impacts on LCOH
     
     if run_RODeO_selector == True: 
-        lcoh,lcoh_reduction_Ren_PTC,lcoh_reduction_H2_PTC, = hopp_tools_cement.policy_implementation_for_RODeO(grid_connection_scenario, atb_year, site_name, turbine_model, electrolysis_scale, policy_option, grid_price_scenario, electrolyzer_energy_kWh_per_kg, hydrogen_hourly_results_RODeO, RODeO_summary_results_dict, hydrogen_annual_production, useful_life, lcoh)
+        lcoh,lcoh_reduction_Ren_PTC,lcoh_reduction_H2_PTC, = hopp_tools_industry.policy_implementation_for_RODeO(grid_connection_scenario, atb_year, site_name, turbine_model, electrolysis_scale, policy_option, grid_price_scenario, electrolyzer_energy_kWh_per_kg, hydrogen_hourly_results_RODeO, RODeO_summary_results_dict, hydrogen_annual_production, useful_life, lcoh)
         
         #print('LCOH with policy:', lcoh)
     
 
-    ###############\ TODO ADDED CEMENT HERE
-        # have the correct amount of hydrogen required for cement, all I have to do is
-        # call the run_profast_for_cement function here -- the only thing the rest of HOPP
-        # is doing is gettign that hydrogen, the other stuff is stand alone (until I 
-        # implement electricity, O2, etc)
-
+    #####\ CEMENT
     if cement_plant.config["Steel & Ammonia"]:
         # Step 7: Calculate break-even cost of steel production without oxygen and heat integration
         lime_unit_cost = site_df['Lime ($/metric tonne)'] + site_df['Lime Transport ($/metric tonne)']
         carbon_unit_cost = site_df['Carbon ($/metric tonne)'] + site_df['Carbon Transport ($/metric tonne)']
         iron_ore_pellets_unit_cost = site_df['Iron Ore Pellets ($/metric tonne)'] + site_df['Iron Ore Pellets Transport ($/metric tonne)']
         o2_heat_integration = 0
-        hopp_dict,steel_economics_from_profast, steel_economics_summary, profast_steel_price_breakdown,steel_breakeven_price, steel_annual_production_mtpy,steel_production_capacity_margin_pc,steel_price_breakdown = hopp_tools_cement.steel_LCOS(hopp_dict,lcoh,hydrogen_annual_production,steel_annual_production_rate_target_tpy,
+        hopp_dict,steel_economics_from_profast, steel_economics_summary, profast_steel_price_breakdown,steel_breakeven_price, steel_annual_production_mtpy,steel_production_capacity_margin_pc,steel_price_breakdown = hopp_tools_industry.steel_LCOS(hopp_dict,lcoh,hydrogen_annual_production,steel_annual_production_rate_target_tpy,
                                                                                                                 lime_unit_cost,
                                                                                                                 carbon_unit_cost,
                                                                                                                 iron_ore_pellets_unit_cost,
@@ -1162,7 +1146,7 @@ def batch_generator_kernel(arg_list):
         
         # Calcualte break-even price of steel WITH oxygen and heat integration
         o2_heat_integration = 1
-        hopp_dict,steel_economics_from_profast_integration, steel_economics_summary_integration, profast_steel_price_breakdown_integration,steel_breakeven_price_integration, steel_annual_production_mtpy_integration,steel_production_capacity_margin_pc_integration,steel_price_breakdown_integration = hopp_tools_cement.steel_LCOS(hopp_dict,lcoh,hydrogen_annual_production,steel_annual_production_rate_target_tpy,
+        hopp_dict,steel_economics_from_profast_integration, steel_economics_summary_integration, profast_steel_price_breakdown_integration,steel_breakeven_price_integration, steel_annual_production_mtpy_integration,steel_production_capacity_margin_pc_integration,steel_price_breakdown_integration = hopp_tools_industry.steel_LCOS(hopp_dict,lcoh,hydrogen_annual_production,steel_annual_production_rate_target_tpy,
                                                                                                                 lime_unit_cost,
                                                                                                                 carbon_unit_cost,
                                                                                                                 iron_ore_pellets_unit_cost,
@@ -1174,21 +1158,21 @@ def batch_generator_kernel(arg_list):
         cooling_water_cost = 0.000113349938601175 # $/Gal
         iron_based_catalyst_cost = 23.19977341 # $/kg
         oxygen_cost = 0.0285210891617726       # $/kg 
-        hopp_dict,ammonia_economics_from_profast, ammonia_economics_summary, profast_ammonia_price_breakdown,ammonia_breakeven_price, ammonia_annual_production_kgpy,ammonia_production_capacity_margin_pc,ammonia_price_breakdown = hopp_tools_cement.levelized_cost_of_ammonia(hopp_dict,lcoh,hydrogen_annual_production,ammonia_production_target_kgpy,
+        hopp_dict,ammonia_economics_from_profast, ammonia_economics_summary, profast_ammonia_price_breakdown,ammonia_breakeven_price, ammonia_annual_production_kgpy,ammonia_production_capacity_margin_pc,ammonia_price_breakdown = hopp_tools_industry.levelized_cost_of_ammonia(hopp_dict,lcoh,hydrogen_annual_production,ammonia_production_target_kgpy,
                                                                                                                 cooling_water_cost,
                                                                                                                 iron_based_catalyst_cost,
                                                                                                                 oxygen_cost, 
                                                                                                                 atb_year,site_name)
 
      
-    # ADDED CEMENT HERE
+
     cement_plant.config['Hopp dict'] = hopp_dict
     cement_plant.hopp_misc['LCOH'] = lcoh
 
     hopp_dict, cement_econ_from_profast, cement_econ_summary, profast_cement_price_breakdown, \
         cement_breakeven_price, cement_annual_production_mtpy, cement_production_capacity_margin_pc, \
         cement_price_breakdown = cement_plant.run_pf(lcoh, hydrogen_annual_production)
-    
+    #####/
             
     # Step 7: Write outputs to file
     
@@ -1197,12 +1181,13 @@ def batch_generator_kernel(arg_list):
     total_export_system_cost=0
     total_export_om_cost=0
     
+    #####\ CEMENT
     if cement_plant.config["Steel & Ammonia"]:
         if run_RODeO_selector == True:             
             policy_option,turbine_model,scenario['Useful Life'], wind_cost_kw, solar_cost_kw,\
             scenario['Debt Equity'], atb_year, scenario['H2 PTC'],scenario['Wind ITC'],\
             discount_rate, tlcc_wind_costs, tlcc_solar_costs, tlcc_hvdc_costs, tlcc_total_costs,run_RODeO_selector,lcoh,\
-            wind_itc_total, total_itc_hvdc = hopp_tools_cement.write_outputs_RODeO(electrical_generation_timeseries,\
+            wind_itc_total, total_itc_hvdc = hopp_tools_industry.write_outputs_RODeO(electrical_generation_timeseries,\
                                 hybrid_plant,
                                 total_export_system_cost,
                                 total_export_om_cost,
@@ -1251,7 +1236,7 @@ def batch_generator_kernel(arg_list):
             policy_option,turbine_model,scenario['Useful Life'], wind_cost_kw, solar_cost_kw,\
             scenario['Debt Equity'], atb_year, scenario['H2 PTC'],scenario['Wind ITC'],\
             discount_rate, tlcc_wind_costs, tlcc_solar_costs, tlcc_hvdc_costs, tlcc_total_costs,run_RODeO_selector,lcoh,\
-            wind_itc_total, total_itc_hvdc = hopp_tools_cement.write_outputs_ProFAST(electrical_generation_timeseries,\
+            wind_itc_total, total_itc_hvdc = hopp_tools_industry.write_outputs_ProFAST(electrical_generation_timeseries,\
                                 cf_wind_annuals,
                                 cf_solar_annuals,
                                 wind_itc_total,
@@ -1321,7 +1306,7 @@ def batch_generator_kernel(arg_list):
                                 profast_h2_price_breakdown,
                                 profast_steel_price_breakdown,
                                 profast_ammonia_price_breakdown,
-                                # TODO ADDED CEMENT HERE
+                                # TODO CEMENT outputs (currently they are in the green_concrete directory)
                                 # cement_annual_production_mtpy,
                                 # cement_production_capacity_margin_pc,
                                 # cement_breakeven_price,
@@ -1329,5 +1314,5 @@ def batch_generator_kernel(arg_list):
                                 # cement_breakeven_price,
                                 hopp_dict) 
 
-    ###################/
+    #####/
     

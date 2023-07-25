@@ -17,9 +17,16 @@ def lca(self):
             this oxygen is "carbon free"
             For purchased oxygen, a LCA has not been implemented yet
         TODO add other assumptions here
+
+    Args:
+        self: CementPlant() instance
+    
+    Returns:
+        lca_results: dictionary containing LCA data, without carbon capture being applied
+        lca_results_ccus: dictionary containing LCA data, with carbon capture multiplyer being applied
     '''
 
-    if self.config['Fuel Mixture'] == 'C2':
+    if self.config['Fuel Mixture'] == 'IEAGHG':
         print('WARNING: this LCA does not account for emissions associated with the alternative fuel mix')
 
     dircambium = '../Examples/H2_Analysis/Cambium_data/StdScen21_MidCase95by2035_hourly_' 
@@ -143,7 +150,7 @@ def lca(self):
     ### Fuel emissions
     conversion_factor = btu_to_j(1e3, 1) # extracts conversion factor for below conversion
     ef = {
-        ###\ source: Emission factors for fuel
+        ###\ source: https://www.sciencedirect.com/science/article/pii/S0959652622014445
         # ef = emission factor (g/MMBtu --> kg/MJ; from the above source)
         'coal': 89920 / conversion_factor, 
         'natural gas': 59413 / conversion_factor, 
@@ -192,7 +199,7 @@ def lca(self):
             fuel_emissions += self.feed_consumption[key] * self.config['Cement Production Rate (annual)'] \
                 * self.lhv[key] * system_life * ef[key] # kg feed/t cem -> kg CO2
     
-    ###\ source: Emission factors for fuel  
+    ###\ source: https://www.sciencedirect.com/science/article/pii/S0959652622014445
     calcination_emissions_rate = 553 # kg CO2/tonne cem, assuming cli/cement ratio of 0.95 
     ###/
     calcination_emissions = calcination_emissions_rate * self.config['Cement Production Rate (annual)'] * system_life

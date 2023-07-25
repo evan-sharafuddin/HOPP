@@ -246,28 +246,28 @@ if __name__ == '__main__':
     inputs = {
         'Carbon capture': [
             'None',
-            # 'Oxyfuel',
-            # 'CaL (tail-end)',
+            'Oxyfuel',
+            'CaL (tail-end)',
         ],
 
         'Fuel mixture': [
-            'C1',
+            # 'C1',
             # 'C2',
             # 'C3',
             # 'C4',
-            # 'C5',
+            'C5',
             # 'C6',
         ],
 
         'Hybrid electricity': [
-            True,
+            # True,
             False,
         ],
 
         'Clinker-to-cement scenario': [
-            'OPC',
+            # 'OPC',
             # 'US Average',
-            # 'European Average',
+            'European Average',
         ],
 
         'Simulation year': [
@@ -294,11 +294,12 @@ if __name__ == '__main__':
         ],
         
         'Plant capacity factor': [
-            0.9,
+            # 0.9,
+            0.8,
         ],
 
         'Couple with steel/ammonia': [
-            True,
+            # True,
             False,
         ],
 

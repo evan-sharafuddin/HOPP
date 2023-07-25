@@ -72,9 +72,9 @@ def run_profast_for_steel_coupled(plant_capacity_mtpy,plant_capacity_factor,\
         oxygen_market_price = 0 # $/kgO2
     
     # TODO change this to reflect oxygen changed from cement
-    ##########\ CEMENT CHANGES HERE
+    #####\ CEMENT CHANGES HERE
     excess_oxygen = total_leftover_oxygen_annual / steel_production_mtpy # excess kg O2/metric tonne of steel
-    ########/
+    #####/
 
     capex_piping = 11815.72718*plant_capacity_mtpy**0.59983
     capex_elec_instr = 7877.15146*plant_capacity_mtpy**0.59983
