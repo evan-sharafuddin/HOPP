@@ -111,8 +111,6 @@ def run_profast_for_cement(
     solution = pf.solve_price()
     summary = pf.summary_vals
     price_breakdown = pf.get_cost_breakdown()
-
-    print(f"price breakdown (ProFAST): {solution['price']}")
     
     price_breakdown = price_breakdown.drop(columns=['index', 'Amount'])
     self.price_breakdown_manual = self.manual_price_breakdown_helper(gen_inflation, price_breakdown)
@@ -126,7 +124,7 @@ def run_profast_for_cement(
     #                                         / cement_annual_capacity * 100
 
     # hydrogen_annual_production: kg/yr
-    
+
     cement_production_capacity_margin_pc = 0 # TODO should I implement this?
 
     if hopp_dict is not None and hopp_dict.save_model_output_yaml:
@@ -148,11 +146,11 @@ def run_profast_for_cement(
 
     ### run LCA and export results
 
-    self.lca, self.lca_css = self.lca_helper()
+    self.lca, self.lca_ccus = self.lca_helper()
     
     # prepare outputs
     self.lca['TITLE'] = 'LIFE CYCLE ANALYSIS (NO CCUS)'
-    self.lca_css['TITLE'] = 'LIFE CYCLE ANALYSIS WITH CCUS'
+    self.lca_ccus['TITLE'] = 'LIFE CYCLE ANALYSIS WITH CCUS'
     self.price_breakdown_manual['TITLE'] = 'MANUAL PRICE BREAKDOWN'
     self.config['TITLE'] = 'PLANT AND MODEL CONFIGURATIONS'
     config_no_hopp_dict = self.config
@@ -167,7 +165,7 @@ def run_profast_for_cement(
     output_csv(self.output_dir, 
                self.filename_substr,
                self.lca, 
-               self.lca_css, 
+               self.lca_ccus, 
                self.price_breakdown_manual, 
                config_no_hopp_dict, 
                self.feed_costs,
@@ -176,6 +174,14 @@ def run_profast_for_cement(
                self.lhv,
                self.hopp_misc,
     )
+
+    # print results
+    print(f"price breakdown (ProFAST): {solution['price']}")
+    
+    if solution['price'] - self.price_breakdown_manual["cement price: Total ($/ton)"] > 1e-3:
+        print("WARNING: ProFAST and manual price breakdown are reporting different LCOC values")
+    
+    print(f'Total cement emissions after CCUS (kg CO2e/t cem): {self.lca_ccus["Total cement emissions (kg CO2e/ton cement)"]}')
     
     # TODO do I want to do anything with these return values?
     return hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \

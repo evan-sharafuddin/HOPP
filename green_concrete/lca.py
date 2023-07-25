@@ -228,7 +228,7 @@ def lca(self):
         'Total cement emissions (kg CO2e/ton cement)': total_cement_EI
     }
 
-    lca_results_css = {
+    lca_results_ccus = {
         'Emissions from grid electricity (kg CO2e/ton cement)': grid_electricity_EI,
         'Indirect emissions from renewable electricity (kg CO2e/ton cement)': renewable_electricity_EI,
         'Emissions from fuel (kg CO2e/ton cement)': fuel_EI * (1 - self.config["Carbon capture efficency (%)"]),
@@ -238,6 +238,6 @@ def lca(self):
                                                         + process_EI * (1 - self.config["Carbon capture efficency (%)"])
     }
     
-    return lca_results, lca_results_css
+    return lca_results, lca_results_ccus
     
     # TODO quantify the impact of quarrying, raw materials, etc on emissions?

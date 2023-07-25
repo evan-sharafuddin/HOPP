@@ -40,6 +40,16 @@ from green_concrete.cement_plant import CementPlant
 
 from itertools import product
 
+'''
+Use this script to run cement plant simulations.
+
+NOTE configuration options are below under the name = main statement, 
+comment out options that you don't want
+
+See HOPP/green_concrete for more information on the cement plant configurations
+
+'''
+
 def simulate_cement_plant(
         ccus_input,
         fuel_mix_input,
@@ -231,9 +241,8 @@ def simulate_cement_plant(
             cement_annual_capacity, cement_production_capacity_margin_pc, cement_price_breakdown = \
             cement_plant.run_pf()
 
-
 if __name__ == '__main__':
-    
+    # comment out undesired configuration options
     inputs = {
         'Carbon capture': [
             'None',
@@ -252,7 +261,7 @@ if __name__ == '__main__':
 
         'Hybrid electricity': [
             True,
-            # False,
+            False,
         ],
 
         'Clinker-to-cement scenario': [
@@ -290,28 +299,28 @@ if __name__ == '__main__':
 
         'Couple with steel/ammonia': [
             True,
-            # False,
+            False,
         ],
 
         'Grid connection case': [
-            'off-grid',
-            # 'grid-only',
+            # 'off-grid',
+            'grid-only',
             # 'hybrid-grid',
         ],
     }
 
-    # keys = list(inputs.keys())
-    # keys.sort()
-    # alphabetical_inputs = {i: inputs[i]for i in keys}
-
-    keys, values = zip(*inputs.items())
+    values = inputs.values()
     combinations = list(product(*values))
 
-    if input(f'{len(combinations)} combinations. Continue? (y/n)\n') == 'n':
+    if input(f'{len(combinations)} combinations. Continue? (y/n)\n') != 'y':
         print('Aborting')
     else:
         os.system('cls')
         for combination in combinations:
+            print('-----------')
             print(combination)
-            simulate_cement_plant(*combination)
-
+            
+            try:
+                simulate_cement_plant(*combination)
+            except Exception as e:
+                print(repr(e))

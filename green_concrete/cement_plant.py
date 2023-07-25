@@ -179,8 +179,8 @@ class CementPlant:
             }
 
         elif ccus == 'CaL (tail-end)': # based on base-case from CEMCAP
-            if fuel_mix != 'C1':
-                print('Be careful... CaL calciner might require coal as a fuel source in reality.')
+            # if fuel_mix != 'C1':
+            #     print('WARNING: CaL calciner might require coal as a fuel source in reality.')
             self.config = {
                 'CCUS': ccus, # None, Oxyfuel, Calcium Looping
                 'Fuel Mixture': fuel_mix, # C1-C5

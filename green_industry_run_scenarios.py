@@ -832,6 +832,7 @@ def batch_generator_kernel(arg_list):
             buy_price,
             kw_continuous,
             plot_grid,
+            cement_electricity_consumption_MW * 1e3,
         )
 
     # Calculate capacity factor of electricity. For now  basing off wind size because we are setting electrolyzer capacity = wind capacity,

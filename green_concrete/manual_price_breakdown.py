@@ -65,7 +65,7 @@ def manual_price_breakdown(
                         price_breakdown_financial_remaining]
                 
     price_breakdown_check = sum(breakdown_prices)
-    print(f'price breakdown (manual): {price_breakdown_check}')
+    # print(f'price breakdown (manual): {price_breakdown_check}')
         
     bos_savings = 0 * (price_breakdown_labor_cost_admin_support) * 0.3 # TODO is this applicable for cement?
 
