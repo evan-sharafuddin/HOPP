@@ -10,20 +10,10 @@ from pathlib import Path
 import os
 from green_concrete.convert import *
 
-# Unit conventions (mostly):
-# * electricity = kWh
-# * fuels = MJ
-# * mass = kg
-# * money = $
-# * functional unit = ton of cement
-
 # Source unless otherwise specified: IEAGHG REPORT (https://ieaghg.org/publications/technical-reports/reports-list/9-technical-reports/1016-2013-19-deployment-of-ccs-in-the-cement-industry)
 # Other Sources:
 #     CEMCAP Spreadsheet (https://zenodo.org/record/1475804)
 #     CEMCAP Report (https://www.sintef.no/globalassets/project/cemcap/2018-11-14-deliverables/d4.6-cemcap-comparative-techno-economic-analysis-of-co2-capture-in-cement-plants.pdf)
-#     Fuel LHV values (https://courses.engr.illinois.edu/npre470/sp2018/web/Lower_and_Higher_Heating_Values_of_Gas_Liquid_and_Solid_Fuels.pdf)
-#     Emission Factors for fuel (https://www.sciencedirect.com/science/article/pii/S0959652622014445)
-#     Emission factors for electricity (https://emissionsindex.org/)
 #     USA clinker-to-cement ratio (https://pcr-epd.s3.us-east-2.amazonaws.com/634.EPD_for_Portland_Athena_Final_revised_04082021.pdf)
 
 # TODO
@@ -32,62 +22,72 @@ from green_concrete.convert import *
 # * TPC calculations exclude "land property (in particula rthe quaqrry), emerging emission abatement technology 
 # (e.g. SCR) and developing cost (power and water supply)"
 # * Production Costs: "excl. freight, raw material deposit, land property, permits etc."
-# * The scope of this model seems to mainly be the clinkering plant, as there is no mention of any clinker additives, cement mixing, etc. 
-# So it makes sense that the cost of OPC is more than the cost of lower clinker-to-cement mixtures
+# * The scope of this model seems to mainly be the clinkering plant, as there is no mention of any clinker additives, cement mixing, etc., 
+# so it makes sense that the cost of OPC is more than the cost of lower clinker-to-cement mixtures
 
 class CementPlant:
     """  
     Class for green concrete analysis
 
     Attributes:
-        CAPEX
-            self.config: holds  general plant information
-                CCUS: 'None', 'Oxyfuel', 'CaL (tail-end)'
-                    'Oxyfuel' and 'CaL (tail-end)' are both derived from the "base case" scenarios found in CEMCAP d4.6
-                Fuel Mixture: 'C1-C6' (percentages are LHV fractions unless otherwise stated)
-                    C1: 100% coal
-                    C2: 70% coal, 30% IEAGHG alternative fuel mix
-                    C3: 50% coal, 50% natural gas
-                    C4: 50% coal, 50% natural gas with 10% hydrogen by volume
-                    C5: 39% hydrogen, 12% MBM, 49% glycerin (experimental fuel mix)
-                    C6: 80% natural gas, 20% hydrogen
-                Hybrid electricity: determines if grid electricity or HOPP hybrid renewable simulation will be used
-                Clinker/cement scenario: 'OPC', 'US Average', 'European Average'
-                ATB year: see define_scenarios
-                Site location: 'IA', 'WY', 'TX', 'MS', 'IN'
-                Clinker Production Rate (annual): ideal annual production rate of clinker
-                Clinker-to-cement ratio: fraction of clinker that goes into the final cement product
-                    NOTE this is essentially a multiplyer at this point. The scope of this model ends at clinker,
-                    and the cement produced depends on this clinker-to-cement ratio. Future work would involve
-                    replacing 
-                Plant lifespan: int, number of years
-                Plant capacity factor: percentage of the year that plant is operating 
-                    (accounts for maintenance closures, etc)
-                Construction time (months): int
-                Contingencies and fees: float, fraction of installed costs (CAPEX)
-                Taxation and insurance: float, fraction of installed costs, annual (fixed OPEX)
-                Cement Production Rate (annual): ideal annual production rate of cement 
-                    (calculated using clinker-to-cement ratio)
-                Thermal energy demand (MJ/kg clinker): specific thermal energy demand of the clinkering process
-                Electrical energy demand (kWh/t cement): specific electrical energy demand required by grinders, 
-                    rotating kiln, fans, etc
+        self.config: holds  general plant information
+            CCUS: 'None', 'Oxyfuel', 'CaL (tail-end)'
+                'Oxyfuel' and 'CaL (tail-end)' are both derived from the "base case" scenarios found in CEMCAP d4.6
+            Fuel Mixture: 'C1-C6' (percentages are LHV fractions unless otherwise stated)
+                C1: 100% coal
+                C2: 70% coal, 30% IEAGHG alternative fuel mix
+                C3: 50% coal, 50% natural gas
+                C4: 50% coal, 50% natural gas with 10% hydrogen by volume
+                C5: 39% hydrogen, 12% MBM, 49% glycerin (experimental fuel mix)
+                C6: 80% natural gas, 20% hydrogen
+            Hybrid electricity: determines if grid electricity or HOPP hybrid renewable simulation will be used
+            Clinker/cement scenario: 'OPC', 'US Average', 'European Average'
+            ATB year: starting year of scenario
+            Site location: 'IA', 'WY', 'TX', 'MS', 'IN'
+            Clinker Production Rate (annual): ideal annual production rate of clinker
+            Clinker-to-cement ratio: fraction of clinker that goes into the final cement product
+                NOTE this is essentially a multiplyer at this point. The scope of this model ends at clinker,
+                and the cement produced depends on this clinker-to-cement ratio. Future work would involve
+                replacing 
+            Plant lifespan: int, number of years
+            Plant capacity factor: percentage of the year that plant is operating 
+                (accounts for maintenance closures, etc)
+            Construction time (months): int
+            Contingencies and fees: float, fraction of installed costs (CAPEX)
+            Taxation and insurance: float, fraction of installed costs, annual (fixed OPEX)
+            Cement Production Rate (annual): ideal annual production rate of cement 
+                (calculated using clinker-to-cement ratio)
+            Thermal energy demand (MJ/kg clinker): specific thermal energy demand of the clinkering process
+            Electrical energy demand (kWh/t cement): specific electrical energy demand required by grinders, 
+                rotating kiln, fans, etc
         
+        CAPEX ($)
             self.equip_costs: holds names and costs of each major capital component
             self.tpc: total plant cost (equipment, installation, contingencies, etc)
             self.total_capex: tpc + land cost 
             self.total_direct_costs: i.e. installed costs (equipment + installation)
             self.land_cost: TODO model does not currently account for this 
 
-        VARIABLE OPEX
-            self.feed_consumption: consumption rates for each feedstock
-            self.feed_costs: costs per unit of each feedstock
+        VARIABLE OPEX 
+            self.feed_consumption: consumption rates for each feedstock ($UNIT$/t cement)
+            self.feed_costs: costs per unit of each feedstock ($)
             self.feed_units: units that each feedstock is measured in
         
-        FIXED OPEX
+        FIXED OPEX ($/year)
             self.operational_labor: labor costs for employees
             self.maintenance_equip: essentially a feedstock
             self.maintenance_labor: separate from maintenance equipment
             self.admin_support: labor in addition to maintenance and operations
+        
+    Functions:
+        self._capex_helper()
+        self._opex_helper()
+        self.lca_helper()
+        self.run_pf()
+
+
+            
+
     """
 
     def __init__(
@@ -113,14 +113,6 @@ class CementPlant:
             'European Average': 0.737 # from IEAGHG/CEMCAP
         }
 
-        '''
-        TODO decreasing clinker/cement ratio resulting in lower cost?
-        https://rmi.org/wp-content/uploads/2021/08/ConcreteGuide2.pdf
-        * might be valid, but need to be careful about assumptions "embedded" in the 73.7% cli/cem ratio
-        claimed by IEAGHG/CEMCAP
-        
-        '''
-        
         if cli_to_cem not in cli_cem_ratios.keys():
             raise Exception('Invalid clinker/cement ratio scenario')
         cli_cem_ratio = cli_cem_ratios[cli_to_cem]
@@ -280,8 +272,3 @@ class CementPlant:
         from green_concrete.manual_price_breakdown import manual_price_breakdown
         return manual_price_breakdown(self, gen_inflation, price_breakdown)
     
-# if __name__ == '__main__':
-#     plant = CementPlant()
-#     hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
-#     cement_annual_capacity, cement_production_capacity_margin_pc, cement_price_breakdown = \
-#     plant.run_pf()

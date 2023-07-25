@@ -7,6 +7,15 @@ def manual_price_breakdown(
     Exports a spreadsheet-ready dictionary needed for capatability with HOPP
 
     Holds essentially the same information as ProFAST's price breakdown
+
+    Args:
+        self: CementPlant() instance
+        gen_inflation: inflation rate (give as decimal)
+        price_breakdown: price breakdown given by ProFAST (pandas DataFrame)
+    
+    Returns:
+        cement_price_breakdown: price breakdown similar to ProFAST, but calculated in a slightly different way
+          (dictionary)
     '''  
 
     price_breakdown_capex = dict()  

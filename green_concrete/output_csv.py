@@ -12,6 +12,14 @@ def output_csv(dir, filename_substr, *dicts):
             key: "TITLE", value $SECTION_TITLE$
             $SECTION_TITLE$ will label the type of data the dictionary contains in the .csv
     
+    Args:
+        dir: str, the directory to which you want to write your data
+        filename_substr: str, descriptive keywords to add to the filename
+        *dicts: arbitrary number of dictionaries, each will be included in the output spreadsheet
+    
+    Returns:
+        nothing
+    
     '''
     dfs = []
     

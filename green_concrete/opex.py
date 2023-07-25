@@ -14,7 +14,15 @@ def opex(self):
         2. if using a fuel that does not already exist in feed_units,
         this new fuel must be added to feed_units, lhv, and feed_costs
 
+    Args: 
+        self: CementPlant() instance
+
+    Returns:
+        feed_consumption, feed_costs, feed_units, lhv, operational_labor, maintenance_equip, maintenance_labor, admin_support
+        (see CementPlant() class)
+
     ''' 
+
      
     
     
@@ -171,7 +179,7 @@ def opex(self):
         },
 
         # COMPOSITION 5: IEAGHG Reference (70% coal, 30% alernative fuel mix)
-        'C5': {
+        'IEAGHG': {
             'coal': 0.7,
             'natural gas': 0,
             'hydrogen': 0,
@@ -238,27 +246,28 @@ def opex(self):
 
     }
     
-    ###\ NOTE converting NG and hydrogen from volume to energy basis --> CHECK THIS OR FIND DIFFERENT SOURCE
-    from sympy import symbols, Eq, solve
-    # x = energy fraction of natural gas
-    # y = energy fraction of hydrogen gas
-    x, y = symbols('x y')
+    # NOTE ignore below code...
+    # ###\ NOTE converting NG and hydrogen from volume to energy basis --> CHECK THIS OR FIND DIFFERENT SOURCE
+    # from sympy import symbols, Eq, solve
+    # # x = energy fraction of natural gas
+    # # y = energy fraction of hydrogen gas
+    # x, y = symbols('x y')
 
-    # densities and specific energies for the fuels
-    rho_ng = 0.717 # kg/m^3 https://www.cs.mcgill.ca/~rwest/wikispeedia/wpcd/wp/n/Natural_gas.htm
-    rho_h2 = 0.08376 # kg/m^3 https://www1.eere.energy.gov/hydrogenandfuelcells/tech_validation/pdfs/fcm01r0.pdf
-    e_ng = 47.141 # see LHV's in opex()
-    e_h2 = 120.21 # see LHV's in opex()
+    # # densities and specific energies for the fuels
+    # rho_ng = 0.717 # kg/m^3 https://www.cs.mcgill.ca/~rwest/wikispeedia/wpcd/wp/n/Natural_gas.htm
+    # rho_h2 = 0.08376 # kg/m^3 https://www1.eere.energy.gov/hydrogenandfuelcells/tech_validation/pdfs/fcm01r0.pdf
+    # e_ng = 47.141 # see LHV's in opex()
+    # e_h2 = 120.21 # see LHV's in opex()
 
-    # equations
-    eq1 = Eq(x + y, 0.5)
-    eq2 = Eq(x / (rho_ng * e_ng) - 10 * y / (rho_h2 * e_h2), 0)
+    # # equations
+    # eq1 = Eq(x + y, 0.5)
+    # eq2 = Eq(x / (rho_ng * e_ng) - 10 * y / (rho_h2 * e_h2), 0)
 
-    solution = solve((eq1, eq2), (x, y))
+    # solution = solve((eq1, eq2), (x, y))
     
-    fuel_comp['C4']['natural gas'] = float(solution[x])
-    fuel_comp['C4']['hydrogen'] = float(solution[y])
-    ###/
+    # fuel_comp['C4']['natural gas'] = float(solution[x])
+    # fuel_comp['C4']['hydrogen'] = float(solution[y])
+    # ###/
 
     # select fuel composition configuration to use
     fuel_frac = fuel_comp[self.config['Fuel Mixture']]
@@ -279,8 +288,8 @@ def opex(self):
         'ammonia': 5, 
     })
 
-    # adding IEAGHG fuel mix if applicable... TODO eventually phase out this fuel mix and add a custom one
-    if self.config['Fuel Mixture'] == 'C2':
+    # adding IEAGHG fuel mix if applicable
+    if self.config['Fuel Mixture'] == 'IEAGHG':
         feed_consumption['alt fuel (IEAGHG mix)'] = 1
     else:
         feed_consumption['alt fuel (IEAGHG mix)'] = 0

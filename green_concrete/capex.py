@@ -1,16 +1,18 @@
 from green_concrete.convert import * 
    
 def capex(self):
-    '''
-    Calculates and assigns CapEx values to a ConcretePlant instance
+    '''Calculates and assigns CapEx values to a ConcretePlant instance.
 
     Source: CEMCAP and IEAGHG report, unless otherwise specified 
 
-    NOTE all values in M€
-    
     NOTE currently this does not include land property (in particular the quarry), 
     emerging emission abatement technology, developing cost (power & water supply)
 
+    Args:
+        self: CementPlant()
+    
+    Returns: 
+        equip_costs, tpc, total_capex, total_direct_costs (see CementPlant() class)
     '''
     config = self.config
 
