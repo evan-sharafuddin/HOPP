@@ -268,8 +268,8 @@ if __name__ == '__main__':
         ],
 
         'Hybrid electricity': [ # keep at grid, this doesn't really matter
-            # True,
-            False,
+            True,
+            # False,
         ],
 
         'Clinker-to-cement scenario': [
@@ -312,8 +312,8 @@ if __name__ == '__main__':
         ],
 
         'Grid connection case': [ # run all three of these
-            # 'off-grid',
-            'grid-only',
+            'off-grid',
+            # 'grid-only',
             # 'hybrid-grid',
         ],
     }

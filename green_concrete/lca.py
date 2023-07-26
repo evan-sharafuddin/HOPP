@@ -70,7 +70,7 @@ def lca(self):
     cambium_data['Interval']=cambium_data['Interval']+1
     cambium_data = cambium_data.set_index('Interval') 
 
-    if self.config['Using hydrogen'] or self.config['Steel & Ammonia']: 
+    if self.hopp_misc['Running HOPP']: 
         solar_size_mw = hopp_dict.main_dict['Configuration']['solar_size']
         storage_size_mw = hopp_dict.main_dict['Configuration']['storage_size_mw']
         # H2_Results = hopp_dict.main_dict['Models']['run_H2_PEM_sim']['output_dict']['H2_Results']
@@ -115,13 +115,16 @@ def lca(self):
 
             # finds the total amount of GRID energy used by cement (both electrical and for producing hydrogen), 
             # so steel energy consumption is not considered in the LCA
-            if self.config['Hybrid electricity']:
+            if self.config['Hybrid electricity'] != 0: # hybrid plant powering cement, need to account to that amount not going to the electrolyzer
+                print('shouldnt be here')
                 electricity_demand_cement_hourly = self.feed_consumption['hybrid electricity'] * self.config['Cement Production Rate (annual)'] / 8760
-            else:
-                electricity_demand_cement_hourly = self.feed_consumption['grid electricity'] * self.config['Cement Production Rate (annual)'] / 8760
-
-            grid_energy_used_cement = (electricity_demand_cement_hourly + \
+                grid_energy_used_cement = (electricity_demand_cement_hourly + \
                 (energy_used_total - electricity_demand_cement_hourly) * self.config['Hydrogen to cement frac']) * grid_frac
+            else: # cement plant powered by the grid
+                electricity_demand_cement_hourly = self.feed_consumption['grid electricity'] * self.config['Cement Production Rate (annual)'] / 8760
+                grid_energy_used_cement = electricity_demand_cement_hourly + \
+                (energy_used_total * self.config['Hydrogen to cement frac']) * grid_frac
+            
 
             total_grid_emissions[idx] = grid_energy_used_cement * cambium_data['LRMER CO2 equiv. total (kg-CO2e/MWh)'][idx + 1] / 1000
             scope2_grid_emissions[idx] = grid_energy_used_cement  * cambium_data['LRMER CO2 equiv. combustion (kg-CO2e/MWh)'][idx + 1] / 1000
