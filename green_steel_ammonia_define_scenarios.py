@@ -127,8 +127,8 @@ if __name__ == '__main__':
                           ]
     
     grid_connection_cases = [
-                            'off-grid',
-                            # 'grid-only',
+                            # 'off-grid',
+                            'grid-only',
                             # 'hybrid-grid'
                             ]
 

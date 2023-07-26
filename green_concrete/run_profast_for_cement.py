@@ -56,7 +56,7 @@ def run_profast_for_cement(
     pf.set_params('long term utilization',self.config['Plant capacity factor'])
     pf.set_params('maintenance',{"value":0,"escalation":gen_inflation})
     pf.set_params('installation months', self.config['Construction time (months)']) # source: CEMCAP
-    pf.set_params('analysis start year',2022) # is this ok? financials are based on 2013 conversion rates
+    pf.set_params('analysis start year',2014) # is this ok? financials are based on 2013 conversion rates
     pf.set_params('credit card fees',0)
     pf.set_params('sales tax',0) 
     pf.set_params('rent',{'value':0,'escalation':gen_inflation})
@@ -184,5 +184,4 @@ def run_profast_for_cement(
     print(f'Total cement emissions after CCUS (kg CO2e/t cem): {self.lca_ccus["Total cement emissions (kg CO2e/ton cement)"]}')
     
     # TODO do I want to do anything with these return values?
-    return hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
-        cement_annual_capacity, cement_production_capacity_margin_pc, self.price_breakdown_manual
+    return solution['price'], self.lca_ccus["Total cement emissions (kg CO2e/ton cement)"]

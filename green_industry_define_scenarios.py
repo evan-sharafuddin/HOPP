@@ -37,7 +37,7 @@ import run_profast_for_steel
 
 from green_industry_run_scenarios import batch_generator_kernel
 from green_concrete.cement_plant import CementPlant
-
+from green_concrete.output_csv import output_csv
 from itertools import product
 
 '''
@@ -215,13 +215,16 @@ def simulate_cement_plant(
     # decide if model requires HOPP based on configurations
     # NOTE HOPP cannot be run if no hydrogen is being produced (divide by zero errors occur with the electrolyzer)
 
+    results = []
     if cement_plant.config['Steel & Ammonia'] or cement_plant.config['Using hydrogen']:
         # run model using HOPP
         print('running HOPP...')
         cement_plant.hopp_misc['Running HOPP'] = True
 
         for runs in range(len(arg_list)):
-            batch_generator_kernel(arg_list[runs])
+            results.append(
+                batch_generator_kernel(arg_list[runs])
+            )
 
     else:
         if cement_plant.config['CCUS'] != 'None':
@@ -237,47 +240,52 @@ def simulate_cement_plant(
             print('not running HOPP...')
             cement_plant.hopp_misc['Running HOPP'] = False
 
-            hopp_dict, solution, summary, price_breakdown, cement_breakeven_price, \
-            cement_annual_capacity, cement_production_capacity_margin_pc, cement_price_breakdown = \
-            cement_plant.run_pf()
+            results.append(
+                cement_plant.run_pf()
+            )
+    
+    if len(results) != 1:
+        raise NotImplementedError("Have not sorted out running multiple HOPP scenarios yet, only adjust parameters for cement plant")
+    else:
+        results = results[0]
+        return results[0], results[1], cement_plant.output_dir
 
 if __name__ == '__main__':
     # comment out undesired configuration options
     inputs = {
         'Carbon capture': [
             'None',
-            'Oxyfuel',
-            'CaL (tail-end)',
+            # 'Oxyfuel',
+            # 'CaL (tail-end)',
         ],
 
         'Fuel mixture': [
-            # 'C1',
+            'C1',
             # 'C2',
             # 'C3',
             # 'C4',
-            'C5',
-            # 'C6',
+            # 'IEAGHG',
         ],
 
-        'Hybrid electricity': [
+        'Hybrid electricity': [ # keep at grid, this doesn't really matter
             # True,
             False,
         ],
 
         'Clinker-to-cement scenario': [
-            # 'OPC',
+            'OPC',
             # 'US Average',
-            'European Average',
+            # 'European Average',
         ],
 
         'Simulation year': [
-            2020,
+            2020, # do this to show that it's not viable at the moment
             # 2025,
-            # 2030,
+            # 2030, # maybe want to try multiple years -- when hydrogen becomes cost competetive
             # 2035,
         ],
 
-        'Site location': [
+        'Site location': [ # try out all five of these locations to see which works best
             'IA',
             # 'WY',
             # 'TX',
@@ -294,16 +302,16 @@ if __name__ == '__main__':
         ],
         
         'Plant capacity factor': [
-            # 0.9,
-            0.8,
+            0.9,
+            # 0.8,
         ],
 
         'Couple with steel/ammonia': [
-            # True,
-            False,
+            True,
+            # False,
         ],
 
-        'Grid connection case': [
+        'Grid connection case': [ # run all three of these
             # 'off-grid',
             'grid-only',
             # 'hybrid-grid',
@@ -313,15 +321,34 @@ if __name__ == '__main__':
     values = inputs.values()
     combinations = list(product(*values))
 
-    if input(f'{len(combinations)} combinations. Continue? (y/n)\n') != 'y':
+    if input(f'{len(combinations)} combinations. Continue? (y/n)\n').lower() != 'y':
         print('Aborting')
     else:
+        batch_name = 'BATCH_' + input('\nWhat do you want to name this simulation batch?\n') + '_'
         os.system('cls')
+
+        costs, emissions = dict(), dict()
         for combination in combinations:
             print('-----------')
             print(combination)
             
             try:
-                simulate_cement_plant(*combination)
+                costs[combination], emissions[combination], output_dir = simulate_cement_plant(*combination)
             except Exception as e:
                 print(repr(e))
+
+        costs['TITLE'] = f'LCOC (CCUS, Fuel, Hybrid elec, cli/cem, year, site loc, cli prod, plant life, cf, couple w/ steel, grid case)'
+        emissions['TITLE'] = f'Emissions (CCUS, Fuel, Hybrid elec, cli/cem, year, site loc, cli prod, plant life, cf, couple w/ steel, grid case)'
+
+        output_csv(output_dir, batch_name, costs, emissions)
+
+        # while True:
+        #     try:
+        #         output_csv(output_dir, batch_name, costs, emissions)
+        #     except Exception as e:
+        #         print(repr(e))
+        #         input('Close the spreadsheet pls (type anything to continue)')
+        #     else:
+        #         break
+            
+

@@ -1169,11 +1169,12 @@ def batch_generator_kernel(arg_list):
     cement_plant.config['Hopp dict'] = hopp_dict
     cement_plant.hopp_misc['LCOH'] = lcoh
 
-    hopp_dict, cement_econ_from_profast, cement_econ_summary, profast_cement_price_breakdown, \
-        cement_breakeven_price, cement_annual_production_mtpy, cement_production_capacity_margin_pc, \
-        cement_price_breakdown = cement_plant.run_pf(lcoh, hydrogen_annual_production)
+    lcoc, emissions = cement_plant.run_pf(lcoh, hydrogen_annual_production)
     #####/
-            
+
+    # NOTE if want below outputs, move this return statement to the end of the script
+    return lcoc, emissions 
+
     # Step 7: Write outputs to file
     
     total_h2export_system_cost=0

@@ -104,7 +104,7 @@ def _oxyfuel_capex(equip_costs, tpc, total_capex, total_direct_costs):
     # ////////// unit conversions ////////////// € --> $
     for key, value in co2_capture_equip_oxy.items():
         co2_capture_equip_oxy[key] = eur2014(1e3, value)
-    tpc_oxy, total_direct_costs_oxy = eur2014(1e3, tpc_oxy, total_direct_costs_oxy)
+    tpc_oxy, total_direct_costs_oxy, total_capex_oxy = eur2014(1e3, tpc_oxy, total_direct_costs_oxy, total_capex_oxy)
 
     # update reference plant CAPEX TODO only considering tpc and equipment for now
     equip_costs.update(co2_capture_equip_oxy)

@@ -115,9 +115,11 @@ def lca(self):
 
             # finds the total amount of GRID energy used by cement (both electrical and for producing hydrogen), 
             # so steel energy consumption is not considered in the LCA
-            
-            electricity_demand_cement_hourly = self.feed_consumption['hybrid electricity'] * self.config['Cement Production Rate (annual)'] / 8760
-        
+            if self.config['Hybrid electricity']:
+                electricity_demand_cement_hourly = self.feed_consumption['hybrid electricity'] * self.config['Cement Production Rate (annual)'] / 8760
+            else:
+                electricity_demand_cement_hourly = self.feed_consumption['grid electricity'] * self.config['Cement Production Rate (annual)'] / 8760
+
             grid_energy_used_cement = (electricity_demand_cement_hourly + \
                 (energy_used_total - electricity_demand_cement_hourly) * self.config['Hydrogen to cement frac']) * grid_frac
 
