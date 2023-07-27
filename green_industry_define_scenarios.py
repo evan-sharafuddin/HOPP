@@ -260,10 +260,10 @@ if __name__ == '__main__':
         ],
 
         'Fuel mixture': [
-            'C1',
+            # 'C1',
             # 'C2',
             # 'C3',
-            # 'C4',
+            'C4',
             # 'IEAGHG',
         ],
 
@@ -312,8 +312,8 @@ if __name__ == '__main__':
         ],
 
         'Grid connection case': [ # run all three of these
-            'off-grid',
-            # 'grid-only',
+            # 'off-grid',
+            'grid-only',
             # 'hybrid-grid',
         ],
     }
@@ -324,7 +324,7 @@ if __name__ == '__main__':
     if input(f'{len(combinations)} combinations. Continue? (y/n)\n').lower() != 'y':
         print('Aborting')
     else:
-        batch_name = 'BATCH_' + input('\nWhat do you want to name this simulation batch?\n') + '_'
+        batch_name = 'BATCH_' + input('What do you want to name this simulation batch?\n') + '_'
         os.system('cls')
 
         costs, emissions = dict(), dict()

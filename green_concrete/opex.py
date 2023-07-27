@@ -298,7 +298,7 @@ def opex(self):
     # NOTE if not enough oxygen is produced by the hybrid plant, then the rest of the 
     # feed consumption will be covered by the purchased oxygen
     if self.config['CCUS'] == 'Oxyfuel':
-        feed_consumption['oxygen (hybrids)'] = 1148 * 365 / 1000 / self.config['Cement Production Rate (annual)'] # tO2/day --> kg/t cement 
+        feed_consumption['oxygen (hybrids)'] = 191 / 0.6998 * self.config['Clinker-to-cement ratio'] # Nm3/t clinker --> kg/t cement, http://www.uigi.com/o2_conv.html for conversion
         feed_consumption['oxygen (purchased)'] = 0
         feed_consumption['cooling water make-up'] = 1
     elif self.config['CCUS'] == 'CaL (tail-end)': 

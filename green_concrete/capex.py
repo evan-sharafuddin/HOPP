@@ -96,7 +96,7 @@ def _oxyfuel_capex(equip_costs, tpc, total_capex, total_direct_costs):
     process_contingency_oxy = total_direct_costs_oxy * 0.42
     indirect_costs_oxy = total_direct_costs_oxy * 0.14
     owners_costs_oxy = total_direct_costs_oxy * 0.07
-    project_contingencies_oxy = total_direct_costs_oxy * 0.15
+    project_contingencies_oxy = total_direct_costs_oxy * (0.3 + 0.15) # CEMCAP: sum of contig related to TRL and equipment list
     tpc_oxy = total_direct_costs_oxy + process_contingency_oxy + indirect_costs_oxy \
         + owners_costs_oxy + project_contingencies_oxy
     total_capex_oxy = tpc_oxy # assuming no extra land needed for CO2 capture plant
@@ -154,11 +154,11 @@ def _cal_tail_end_capex(equip_costs, tpc, total_capex, total_direct_costs):
         'CaL TE: Heat exchangers': 48.8 + 305.1 + 12.8 + 37 + 6.4 + 9.2,
     }
 
-    total_direct_costs_cal = 81020.6 # sum of TEC and IC numbers in CEMCAP d4.6 supplementary info
-    total_direct_costs_steam_turbine = 9423.8 
-    process_contingency_cal = (total_direct_costs_cal - total_direct_costs_steam_turbine) * 0.32 \
-        + total_direct_costs_steam_turbine * 0.05
-    cost_avoided_no_asu = total_direct_costs_cal / 124.8
+    # TODO might want to consider separate process contingencies for both oxyfuel and CaL equipment
+    total_direct_costs_cal = 90444.4 # sum of TEC and IC numbers in CEMCAP d4.6 supplementary info
+    process_contingency_cal = total_direct_costs_cal  * (0.2 + 0.12) 
+        
+    cost_avoided_no_asu = total_direct_costs_cal / 124.8 # fraction of costs that are still applicable to the plant without ASU
     
     # these values were with ASU included, so assuming they are proportional to TDC
     indirect_costs_cal = 20.8 * cost_avoided_no_asu
