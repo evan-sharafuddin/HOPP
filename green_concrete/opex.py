@@ -14,6 +14,11 @@ def opex(self):
         2. if using a fuel that does not already exist in feed_units,
         this new fuel must be added to feed_units, lhv, and feed_costs
 
+    ADDING A NEW FEED COST
+        1. make sure the commodity is in feed costs, consumptions, and units
+        2. double check unit conversions, and make sure unit conversions
+        aren't occurring twice!
+
     Args: 
         self: CementPlant() instance
 
@@ -103,7 +108,6 @@ def opex(self):
         'misc': 0.8, # €/ton cement
         'oxygen (hybrids)': 0, # ASSUMPTION
         'oxygen (purchased)': eur2014(1e-3, (80 + 100) / 2), # CEMCAP d3.2, page 45 (liquified oxygen tank delivery system)
-        # 0.13 * 0.6998, # https://www.intratec.us/chemical-markets/oxygen-price, $/Nm^3 --> $/kg via http://www.uigi.com/o2_conv.html
         
         'cooling water make-up': 0.3, # €/ton cement
         'ammonia': 0.13, # EUR/t cem
@@ -342,7 +346,7 @@ def opex(self):
 
     # ///////////// unit conversions //////////// € --> $ 
     for key, value in feed_costs.items():
-        if 'electricity' in key or key == 'pet coke' or key == 'glycerin': # these have already been converted
+        if 'electricity' in key or key == 'pet coke' or key == 'glycerin' or 'oxygen' in key: # these have already been converted
             continue 
         feed_costs[key] = eur2013(1, value)
 

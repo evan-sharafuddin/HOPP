@@ -62,6 +62,7 @@ def simulate_cement_plant(
         plant_capacity_factor_input,
         couple_with_steel_ammonia_input,
         grid_connection_case_input,
+        policy_input,
 ):
 
     cement_plant = CementPlant(
@@ -150,24 +151,27 @@ def simulate_cement_plant(
                 2035
                 ]
 
-    policy = {
-        # 'no-policy': {'Wind ITC': 0, 'Wind PTC': 0, "H2 PTC": 0, 'Storage ITC': 0},
+    policy = { # NOTE only one of these will be selected per cement plant, see below
+        'no-policy': {'Wind ITC': 0, 'Wind PTC': 0, "H2 PTC": 0, 'Storage ITC': 0},
         'base': {'Wind ITC': 0, 'Wind PTC': 0.0051, "H2 PTC": 0.6, 'Storage ITC': 0.06},
-        # 'max': {'Wind ITC': 0, 'Wind PTC': 0.03072, "H2 PTC": 3.0, 'Storage ITC': 0.5},   
-        # 'max on grid hybrid': {'Wind ITC': 0, 'Wind PTC': 0.0051, "H2 PTC": 0.60, 'Storage ITC': 0.06},
+        'max': {'Wind ITC': 0, 'Wind PTC': 0.03072, "H2 PTC": 3.0, 'Storage ITC': 0.5},   
+        'max on grid hybrid': {'Wind ITC': 0, 'Wind PTC': 0.0051, "H2 PTC": 0.60, 'Storage ITC': 0.06},
         # 'max on grid hybrid': {'Wind ITC': 0, 'Wind PTC': 0.026, "H2 PTC": 0.60, 'Storage ITC': 0.5},
-        # 'option 3': {'Wind ITC': 0.06, 'Wind PTC': 0, "H2 PTC": 0.6}, 
-        # 'option 4': {'Wind ITC': 0.3, 'Wind PTC': 0, "H2 PTC": 3},
-        # 'option 5': {'Wind ITC': 0.5, 'Wind PTC': 0, "H2 PTC": 3}, 
+        'option 3': {'Wind ITC': 0.06, 'Wind PTC': 0, "H2 PTC": 0.6}, 
+        'option 4': {'Wind ITC': 0.3, 'Wind PTC': 0, "H2 PTC": 3},
+        'option 5': {'Wind ITC': 0.5, 'Wind PTC': 0, "H2 PTC": 3}, 
     }
 
     site_selection = [
-                    # 'Site 1', #IN
-                    # 'Site 2', #TX
-                    'Site 3', #IA
-                    # 'Site 4', #MS
-                    # 'Site 5' #WY
+                      'Site 1' if site_location_input == 'IN' else
+                      'Site 2' if site_location_input == 'TX' else
+                      'Site 3' if site_location_input == 'IA' else
+                      'Site 4' if site_location_input == 'MS' else
+                      'Site 5' if site_location_input == 'WY' else None
                     ] 
+    
+    if not site_selection:
+        raise Exception('site_selection did not get assinged properly')
 
     electrolysis_cases = [
                             'Centralized',
@@ -194,8 +198,10 @@ def simulate_cement_plant(
     # ensures that the hybrid plant/steel cases are same as those for cement
     if cement_plant:
         atb_years = [cement_plant.config['ATB year']]
-        site_selection == [cement_plant.config['site location']]
+        site_selection == ['Site 2'] # [cement_plant.config['site location']]
         grid_connection_cases = [cement_plant.config['Grid connection case']]
+        policy = {policy_input: policy[policy_input]} # select one policy option according to the configuration passed into the current cement plant
+        print(policy)
 
     #---- Create list of arguments to pass to batch generator kernel --------------    
     arg_list = []
@@ -279,16 +285,16 @@ if __name__ == '__main__':
         ],
 
         'Simulation year': [
-            2020, # do this to show that it's not viable at the moment
+            # 2020, # do this to show that it's not viable at the moment
             # 2025,
-            # 2030, # maybe want to try multiple years -- when hydrogen becomes cost competetive
+            2030, # maybe want to try multiple years -- when hydrogen becomes cost competetive
             # 2035,
         ],
 
         'Site location': [ # try out all five of these locations to see which works best
-            'IA',
+            # 'IA',
             # 'WY',
-            # 'TX',
+            'TX',
             # 'MS',
             # 'IN',
         ],
@@ -307,15 +313,25 @@ if __name__ == '__main__':
         ],
 
         'Couple with steel/ammonia': [
-            True,
-            # False,
+            # True,
+            False,
         ],
 
         'Grid connection case': [ # run all three of these
-            # 'off-grid',
-            'grid-only',
+            'off-grid',
+            # 'grid-only',
             # 'hybrid-grid',
         ],
+
+        'Policy': [
+            # 'no-policy',
+            # 'base',
+            'max',
+            # 'max on grid hybrid',
+            # 'option 3',
+            # 'option 4',
+            # 'option 5',
+        ]
     }
 
     values = inputs.values()
@@ -340,15 +356,11 @@ if __name__ == '__main__':
         costs['TITLE'] = f'LCOC (CCUS, Fuel, Hybrid elec, cli/cem, year, site loc, cli prod, plant life, cf, couple w/ steel, grid case)'
         emissions['TITLE'] = f'Emissions (CCUS, Fuel, Hybrid elec, cli/cem, year, site loc, cli prod, plant life, cf, couple w/ steel, grid case)'
 
-        output_csv(output_dir, batch_name, costs, emissions)
+        # will be /path/to/HOPP/green_concrete/outputs
 
-        # while True:
-        #     try:
-        #         output_csv(output_dir, batch_name, costs, emissions)
-        #     except Exception as e:
-        #         print(repr(e))
-        #         input('Close the spreadsheet pls (type anything to continue)')
-        #     else:
-        #         break
-            
+        if batch_name != '':
+            _script_dirname = os.path.dirname(os.path.abspath(__file__))
+            _script_dirname = os.path.join(_script_dirname, 'green_concrete')
+            output_dir = os.path.join(_script_dirname, 'outputs')
+            output_csv(output_dir, batch_name, costs, emissions)
 
