@@ -215,22 +215,22 @@ def lca(self):
     fuel_EI = fuel_emissions / cement_production
     process_EI = calcination_emissions / cement_production
     total_cement_EI = grid_electricity_EI + renewable_electricity_EI + fuel_EI + process_EI
-
-    # # Uncomment for debugging
-    # print('---------- LCA RESULTS --------------')
-    # print(f'Emissions from grid electricity (kg CO2e/ton cement): {grid_electricity_EI}\n',
-    #       f'Indirect emissions from renewable electricity (kg CO2e/ton cement): {renewable_electricity_EI}\n',
-    #       f'Emissions from fuel (kg CO2e/ton cement): {fuel_EI}\n',
-    #       f'Process emissions (kg CO2e/ton cement): {process_EI}\n',
-    #       f'Total cement emissions (kg CO2e/ton cement): {total_cement_EI}\n')
-
-    # print('---------- LCA RESULTS with carbon capture-----------')
-    # print(f'Emissions from grid electricity (kg CO2e/ton cement): {grid_electricity_EI}\n',
-    #       f'Indirect emissions from renewable electricity (kg CO2e/ton cement): {renewable_electricity_EI}\n',
-    #       f'Emissions from fuel (kg CO2e/ton cement): {fuel_EI * (1 - self.config["Carbon capture efficency (%)"])}\n',
-    #       f'Process emissions (kg CO2e/ton cement): {process_EI * (1 - self.config["Carbon capture efficency (%)"])}\n',
-    #       f'Total cement emissions (kg CO2e/ton cement): {grid_electricity_EI + renewable_electricity_EI + fuel_EI * (1 - self.config["Carbon capture efficency (%)"]) + process_EI * (1 - self.config["Carbon capture efficency (%)"])}\n')
     
+    fuel_EI_ccus = fuel_EI * (1 - self.config["Carbon capture efficency (%)"])
+    process_EI_ccus = process_EI * (1 - self.config["Carbon capture efficency (%)"])
+    total_cement_EI_ccus = grid_electricity_EI + renewable_electricity_EI \
+                         + fuel_EI * (1 - self.config["Carbon capture efficency (%)"]) \
+                         + process_EI * (1 - self.config["Carbon capture efficency (%)"])
+    
+    # Calculate policy rewards
+    capture_amt = total_cement_EI - total_cement_EI_ccus
+    # https://www.iea.org/policies/4986-section-45q-credit-for-carbon-oxide-sequestration
+    p = self.config['CCUS policy']
+    policy = 85 if p == 'max' else 17 if p == 'base' else 0 # $/t CO2
+    
+    ccus_award = capture_amt * policy * 1e-3 # (kg * t/kg * $/kg)
+
+
     lca_results = {
         'Emissions from grid electricity (kg CO2e/ton cement)': grid_electricity_EI,
         'Indirect emissions from renewable electricity (kg CO2e/ton cement)': renewable_electricity_EI,
@@ -242,13 +242,14 @@ def lca(self):
     lca_results_ccus = {
         'Emissions from grid electricity (kg CO2e/ton cement)': grid_electricity_EI,
         'Indirect emissions from renewable electricity (kg CO2e/ton cement)': renewable_electricity_EI,
-        'Emissions from fuel (kg CO2e/ton cement)': fuel_EI * (1 - self.config["Carbon capture efficency (%)"]),
-        'Process emissions (kg CO2e/ton cement)': process_EI * (1 - self.config["Carbon capture efficency (%)"]),
-        'Total cement emissions (kg CO2e/ton cement)': grid_electricity_EI + renewable_electricity_EI \
-                                                        + fuel_EI * (1 - self.config["Carbon capture efficency (%)"]) \
-                                                        + process_EI * (1 - self.config["Carbon capture efficency (%)"])
+        'Emissions from fuel (kg CO2e/ton cement)': fuel_EI_ccus,
+        'Process emissions (kg CO2e/ton cement)': process_EI_ccus,
+        'Total cement emissions (kg CO2e/ton cement)': total_cement_EI_ccus,
+        'Amount captured (kg CO2e/ton cement)': capture_amt,
+        'CCUS policy rate ($/ton CO2)': policy,
+        'CCUS policy credit ($/ton cement)': ccus_award,
     }
     
-    return lca_results, lca_results_ccus
+    return lca_results, lca_results_ccus, ccus_award
     
     # TODO quantify the impact of quarrying, raw materials, etc on emissions?

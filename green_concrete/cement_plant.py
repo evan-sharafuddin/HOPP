@@ -33,13 +33,13 @@ class CementPlant:
         self.config: holds  general plant information
             CCUS: 'None', 'Oxyfuel', 'CaL (tail-end)'
                 'Oxyfuel' and 'CaL (tail-end)' are both derived from the "base case" scenarios found in CEMCAP d4.6
-            Fuel Mixture: 'C1-C6' (percentages are LHV fractions unless otherwise stated)
+            Fuel Mixture: 'C1-C5', 'IEAGHG' -- percentages are % thermal energy
                 C1: 100% coal
-                C2: 70% coal, 30% IEAGHG alternative fuel mix
-                C3: 50% coal, 50% natural gas
-                C4: 50% coal, 50% natural gas with 10% hydrogen by volume
-                C5: 39% hydrogen, 12% MBM, 49% glycerin (experimental fuel mix)
-                C6: 80% natural gas, 20% hydrogen
+                C2: 100% ng
+                C3: 90% ng, 10% H2
+                C4: 80% ng, 20% H2
+                C5: 100% H2
+                IEAGHG: CEMCAP alternative fuel mixture (70% coal, 30% alt. fuel)
             Hybrid electricity: determines if grid electricity or HOPP hybrid renewable simulation will be used
             Clinker/cement scenario: 'OPC', 'US Average', 'European Average'
             ATB year: starting year of scenario
@@ -103,6 +103,7 @@ class CementPlant:
         plant_life=25, 
         plant_capacity_factor = 0.90, # same as steel/ammonia, for consistency
         grid_connection_case = 'grid-only',
+        policy = 'no-policy',
     ): 
         
         # ------------ Plant Info ------------
@@ -142,6 +143,7 @@ class CementPlant:
                 'Hopp dict': None,
                 'Grid connection case': grid_connection_case,
                 'Using hydrogen': False,
+                'CCUS policy': policy,
             }
         
         elif ccus == 'Oxyfuel':
@@ -168,6 +170,7 @@ class CementPlant:
                 'Hopp dict': None,
                 'Grid connection case': grid_connection_case,
                 'Using hydrogen': False,
+                'CCUS policy': policy,
             }
 
         elif ccus == 'CaL (tail-end)': # based on base-case from CEMCAP
@@ -198,6 +201,7 @@ class CementPlant:
                 'Hopp dict': None,
                 'Grid connection case': grid_connection_case,
                 'Using hydrogen': False,
+                'CCUS policy': policy,
             }
 
         else:
@@ -229,7 +233,8 @@ class CementPlant:
                              + str(atb_year) + '_' \
                              + site_location + '_' \
                              + str(cli_to_cem) + '_' \
-                             + grid_connection_case + '_'
+                             + grid_connection_case + '_' \
+                             + policy + '_'
         
         if hybrid_electricity:
             self.filename_substr += 'hybrid-elec_'

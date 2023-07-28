@@ -42,6 +42,10 @@ def run_profast_for_cement(
 
     # overwrite hydrogen feed cost (this is calculated in run_scenarios after cement_plant was created and other feed costs initialized)
     self.feed_costs['hydrogen'] = lcoh
+
+    # ------------------ Life Cycle Analysis ------------------------
+    ### run LCA and export results
+    self.lca, self.lca_ccus, ccus_award = self.lca_helper()
     
     # ------------------------------ ProFAST ------------------------------
     # Set up ProFAST
@@ -107,6 +111,10 @@ def run_profast_for_cement(
     # TODO add this to dictionary
     pf.add_feedstock(name='Maintenance Materials',usage=1.0,unit='Units per ton of cement',cost=self.maintenance_equip / self.config['Cement Production Rate (annual)'],escalation=gen_inflation)
 
+    # Add policy award
+    # https://www.iea.org/policies/4986-section-45q-credit-for-carbon-oxide-sequestration AND green steel powerpoint
+    pf.add_incentive(name ='CCUS policy credit', value=ccus_award, decay = 0, sunset_years = 12, tax_credit = True) 
+    
     # ------------------------------ Solve for breakeven price ------------------------------
     solution = pf.solve_price()
     summary = pf.summary_vals
@@ -143,10 +151,6 @@ def run_profast_for_cement(
     # path = os.path.join(self.output_dir, 'ProFAST_price_breakdown.csv')
     # pd_price_breakdown = pd.DataFrame(price_breakdown)
     # pd_price_breakdown.to_csv(path)
-
-    ### run LCA and export results
-
-    self.lca, self.lca_ccus = self.lca_helper()
     
     # prepare outputs
     self.lca['TITLE'] = 'LIFE CYCLE ANALYSIS (NO CCUS)'
@@ -176,12 +180,12 @@ def run_profast_for_cement(
     )
 
     # print results
-    print(f"price breakdown (ProFAST): {solution['price']}")
+    # print(f"price breakdown (ProFAST): {solution['price']}")
     
-    if solution['price'] - self.price_breakdown_manual["cement price: Total ($/ton)"] > 1e-3:
-        print("WARNING: ProFAST and manual price breakdown are reporting different LCOC values")
+    # if solution['price'] - self.price_breakdown_manual["cement price: Total ($/ton)"] > 1e-3:
+    #     print("WARNING: ProFAST and manual price breakdown are reporting different LCOC values")
     
-    print(f'Total cement emissions after CCUS (kg CO2e/t cem): {self.lca_ccus["Total cement emissions (kg CO2e/ton cement)"]}')
+    # print(f'Total cement emissions after CCUS (kg CO2e/t cem): {self.lca_ccus["Total cement emissions (kg CO2e/ton cement)"]}')
     
     # TODO do I want to do anything with these return values?
     return solution['price'], self.lca_ccus["Total cement emissions (kg CO2e/ton cement)"]

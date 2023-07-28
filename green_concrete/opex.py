@@ -182,7 +182,23 @@ def opex(self):
             'tires': 0,
         },
 
-        # COMPOSITION 5: IEAGHG Reference (70% coal, 30% alernative fuel mix)
+        # COMPOSITION 5: very hypothetical
+        'C5': {
+            'coal': 0,
+            'natural gas': 0.8,
+            'hydrogen': 0.2,
+            'pet coke': 0,
+            'alt fuel (IEAGHG mix)': 0,
+            'animal meal': 0,
+            'sewage sludge': 0,
+            'solvents': 0,
+            'SRF (wet)': 0,
+            'MBM (wet)': 0,
+            'glycerin': 0,
+            'tires': 0,
+        },
+
+        # IEAGHG Reference (70% coal, 30% alernative fuel mix)
         'IEAGHG': {
             'coal': 0.7,
             'natural gas': 0,
