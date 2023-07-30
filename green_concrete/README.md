@@ -12,3 +12,7 @@ This file provides some info on the feature/green_cement_concrete branch of HOPP
 * information about the cement plant configurations, assumptions made, sources, etc can be found in the `HOPP/green_concrete` directory scripts
 * the `green industry define/run scenarios`, `hopp_tools_industry`, etc. scripts are a bit messy and not super well commented. But I tried to make it clear where changes for cement were made
     * ctrl-f "CEMENT" to see where chanes were made
+* I was a little bit sloppy with using the eur2013() and eur2014() conversion functions in the correct places
+    * did this because IEAGHG had 2013 cash basis and CEMCAP 2014
+    * both sources had pretty similar information, which was why I was drawing numbers from both of them
+    * the 2013 and 2014 euro to usd conversion rates were pretty similar, so not sure if this even matters that much 

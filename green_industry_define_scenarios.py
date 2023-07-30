@@ -39,6 +39,7 @@ from green_industry_run_scenarios import batch_generator_kernel
 from green_concrete.cement_plant import CementPlant
 from green_concrete.output_csv import output_csv
 from itertools import product
+from tqdm import tqdm
 
 '''
 Use this script to run cement plant simulations.
@@ -77,6 +78,7 @@ def simulate_cement_plant(
         plant_capacity_factor=plant_capacity_factor_input, 
         couple_with_steel_ammonia=couple_with_steel_ammonia_input,
         grid_connection_case=grid_connection_case_input,
+        policy=policy_input
     )
 
     warnings.filterwarnings("ignore")
@@ -223,7 +225,7 @@ def simulate_cement_plant(
     results = []
     if cement_plant.config['Steel & Ammonia'] or cement_plant.config['Using hydrogen']:
         # run model using HOPP
-        print('running HOPP...')
+        # print('running HOPP...')
         cement_plant.hopp_misc['Running HOPP'] = True
 
         for runs in range(len(arg_list)):
@@ -242,7 +244,7 @@ def simulate_cement_plant(
         
         else:
             # run model without using HOPP
-            print('not running HOPP...')
+            # print('not running HOPP...')
             cement_plant.hopp_misc['Running HOPP'] = False
 
             results.append(
@@ -260,15 +262,16 @@ if __name__ == '__main__':
     inputs = {
         'Carbon capture': [
             'None',
-            # 'Oxyfuel',
-            # 'CaL (tail-end)',
+            'Oxyfuel',
+            'CaL (tail-end)',
         ],
 
         'Fuel mixture': [
-            # 'C1',
+            'C1',
             # 'C2',
-            # 'C3',
-            'C4',
+            'C3',
+            # 'C4',
+            'C5',
             # 'IEAGHG',
         ],
 
@@ -277,22 +280,22 @@ if __name__ == '__main__':
             False,
         ],
 
-        'Clinker-to-cement scenario': [
-            'OPC',
+        'Clinker-to-cement scenario': [ # Use OPC tests for 
+            # 'OPC',
             # 'US Average',
-            # 'European Average',
+            'European Average',
         ],
 
         'Simulation year': [
             2020, # do this to show that it's not viable at the moment
             # 2025,
             # 2030, # maybe want to try multiple years -- when hydrogen becomes cost competetive
-            # 2035,
+            # 2035, # NOTE policy ends this year
         ],
 
         'Site location': [ # try out all five of these locations to see which works best
-            'IA',
-            'WY',
+            # 'IA',
+            # 'WY',
             'TX',
             # 'MS',
             # 'IN',
@@ -307,25 +310,26 @@ if __name__ == '__main__':
         ],
         
         'Plant capacity factor': [
-            0.9,
-            # 0.8,
+            # 0.9,
+            # 0.8, # IEAGHG
+            0.913, # CEMCAP
         ],
 
         'Couple with steel/ammonia': [
-            True,
+            # True,
             False,
         ],
 
         'Grid connection case': [ # run all three of these
-            'off-grid',
-            # 'grid-only',
+            # 'off-grid',
+            'grid-only',
             # 'hybrid-grid',
         ],
 
         'Policy': [
             'no-policy',
-            'base',
-            'max',
+            # 'base',
+            # 'max',
             # 'max on grid hybrid',
             # 'option 3',
             # 'option 4',
@@ -343,9 +347,9 @@ if __name__ == '__main__':
         os.system('cls')
 
         costs, emissions = dict(), dict()
-        for combination in combinations:
-            print('-----------')
-            print(combination)
+        for combination in tqdm(combinations):
+            # print('-----------')
+            # print(combination)
             
             try:
                 costs[combination], emissions[combination], output_dir = simulate_cement_plant(*combination)
@@ -357,9 +361,10 @@ if __name__ == '__main__':
 
         # will be /path/to/HOPP/green_concrete/outputs
 
-        if batch_name != '':
-            _script_dirname = os.path.dirname(os.path.abspath(__file__))
-            _script_dirname = os.path.join(_script_dirname, 'green_concrete')
-            output_dir = os.path.join(_script_dirname, 'outputs')
-            output_csv(output_dir, batch_name, costs, emissions)
+        
+        _script_dirname = os.path.dirname(os.path.abspath(__file__))
+        _script_dirname = os.path.join(_script_dirname, 'green_concrete')
+        output_dir = os.path.join(_script_dirname, 'outputs')
+        output_csv(output_dir, batch_name, costs, emissions)
+
 
