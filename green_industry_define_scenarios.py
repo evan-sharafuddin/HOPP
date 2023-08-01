@@ -261,25 +261,24 @@ if __name__ == '__main__':
     # comment out undesired configuration options
     inputs = {
         'Carbon capture': [
-            'None',
+            # 'None',
             'Oxyfuel',
             'CaL (tail-end)',
         ],
 
         'Fuel mixture': [
+            'US',
             # 'C1',
             # 'C2',
-            'C3',
+            # 'C3',
             'C4',
-            # 'C5',
+            'C5',
             # 'IEAGHG',
-            'US',
-            # 'US_ng', # same as C2, don't really need this...
         ],
 
         'Hybrid electricity': [ # keep at grid, this doesn't really matter
             True,
-            False,
+            # False,
         ],
 
         'Clinker-to-cement scenario': [ # Use OPC tests for 
@@ -291,8 +290,8 @@ if __name__ == '__main__':
         'Simulation year': [
             2020, # do this to show that it's not viable at the moment
             # 2025,
-            # 2030, # maybe want to try multiple years -- when hydrogen becomes cost competetive
-            # 2035, # NOTE policy ends this year
+            2030, # maybe want to try multiple years -- when hydrogen becomes cost competetive
+            2035, # NOTE policy ends this year
         ],
 
         'Site location': [ # try out all five of these locations to see which works best
@@ -319,19 +318,19 @@ if __name__ == '__main__':
 
         'Couple with steel/ammonia': [
             True,
-            False,
+            # False,
         ],
 
         'Grid connection case': [ # run all three of these
             'off-grid',
-            # 'grid-only',
-            # 'hybrid-grid',
+            'grid-only',
+            'hybrid-grid',
         ],
 
         'Policy': [
             'no-policy',
-            # 'base',
-            # 'max',
+            'base',
+            'max',
             # 'max on grid hybrid',
             # 'option 3',
             # 'option 4',
@@ -358,8 +357,8 @@ if __name__ == '__main__':
             except Exception as e:
                 print(repr(e))
 
-        costs['TITLE'] = f'LCOC (CCUS, Fuel, Hybrid elec, cli/cem, year, site loc, cli prod, plant life, cf, couple w/ steel, grid case)'
-        emissions['TITLE'] = f'Emissions (CCUS, Fuel, Hybrid elec, cli/cem, year, site loc, cli prod, plant life, cf, couple w/ steel, grid case)'
+        costs['TITLE'] = f'(CCUS, Fuel, Hybrid elec, cli/cem, year, site loc, cli prod, plant life, cf, couple w/ steel, grid case) -- LCOC'
+        emissions['TITLE'] = f'(CCUS, Fuel, Hybrid elec, cli/cem, year, site loc, cli prod, plant life, cf, couple w/ steel, grid case) -- Emissions'
 
         # will be /path/to/HOPP/green_concrete/outputs
 

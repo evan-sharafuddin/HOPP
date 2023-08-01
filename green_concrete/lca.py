@@ -180,7 +180,7 @@ def lca(self):
         #     advantage is that no residues are generated since the ashes are completely 
         #     incorporated in clinker [21]
         # '''
-        'SRF (wet)': 0.009,
+        'SRF (wet)': 9,
         'MBM (wet)': 0,
         ###/
 

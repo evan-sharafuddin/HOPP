@@ -38,9 +38,13 @@ def manual_price_breakdown(
         - price_breakdown.loc[price_breakdown['Name'] == 'Monetized tax losses','NPV'].tolist()[0]
     
     for key in self.feed_units.keys():
-        if key in price_breakdown.loc[price_breakdown['Type']=='Operating Revenue', 'Name'].tolist():
-            # revenue from feedstock (i.e. excess electricity)
+        if key in price_breakdown.loc[price_breakdown['Type']=='Operating Revenue', 'Name'].tolist(): # renewable or grid electricity
             price_breakdown_feed[key] = -1 * price_breakdown.loc[price_breakdown['Name']==key,'NPV'].tolist()[0]
+        elif key == 'hydrogen': # feed cost of hydrogen can be negative with policy
+            if self.feed_costs[key] < 0:
+                price_breakdown_feed[key] = -1 * price_breakdown.loc[price_breakdown['Name']==key,'NPV'].tolist()[0]
+            else:
+                price_breakdown_feed[key] = price_breakdown.loc[price_breakdown['Name']==key,'NPV'].tolist()[0]  
         else:
             price_breakdown_feed[key] = price_breakdown.loc[price_breakdown['Name']==key,'NPV'].tolist()[0]
     

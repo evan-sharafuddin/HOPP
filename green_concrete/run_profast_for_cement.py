@@ -182,8 +182,8 @@ def run_profast_for_cement(
     # print results
     # print(f"price breakdown (ProFAST): {solution['price']}")
     
-    # if solution['price'] - self.price_breakdown_manual["cement price: Total ($/ton)"] > 1e-3:
-    #     print("WARNING: ProFAST and manual price breakdown are reporting different LCOC values")
+    if abs(solution['price'] - self.price_breakdown_manual["cement price: Total ($/ton)"]) > 1e-3:
+        print("WARNING: ProFAST and manual price breakdown are reporting different LCOC values")
     
     # print(f'Total cement emissions after CCUS (kg CO2e/t cem): {self.lca_ccus["Total cement emissions (kg CO2e/ton cement)"]}')
     
