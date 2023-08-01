@@ -267,23 +267,25 @@ if __name__ == '__main__':
         ],
 
         'Fuel mixture': [
-            'C1',
+            # 'C1',
             # 'C2',
             'C3',
-            # 'C4',
-            'C5',
+            'C4',
+            # 'C5',
             # 'IEAGHG',
+            'US',
+            # 'US_ng', # same as C2, don't really need this...
         ],
 
         'Hybrid electricity': [ # keep at grid, this doesn't really matter
-            # True,
+            True,
             False,
         ],
 
         'Clinker-to-cement scenario': [ # Use OPC tests for 
             # 'OPC',
-            # 'US Average',
-            'European Average',
+            'US Average',
+            # 'European Average',
         ],
 
         'Simulation year': [
@@ -310,19 +312,19 @@ if __name__ == '__main__':
         ],
         
         'Plant capacity factor': [
-            # 0.9,
+            0.9,
             # 0.8, # IEAGHG
-            0.913, # CEMCAP
+            # 0.913, # CEMCAP
         ],
 
         'Couple with steel/ammonia': [
-            # True,
+            True,
             False,
         ],
 
         'Grid connection case': [ # run all three of these
-            # 'off-grid',
-            'grid-only',
+            'off-grid',
+            # 'grid-only',
             # 'hybrid-grid',
         ],
 
@@ -348,8 +350,8 @@ if __name__ == '__main__':
 
         costs, emissions = dict(), dict()
         for combination in tqdm(combinations):
-            # print('-----------')
-            # print(combination)
+            
+            # costs[combination], emissions[combination], output_dir = simulate_cement_plant(*combination)
             
             try:
                 costs[combination], emissions[combination], output_dir = simulate_cement_plant(*combination)

@@ -160,9 +160,9 @@ def lca(self):
         'natural gas': 59413 / conversion_factor, 
         'hydrogen': 0,
         'pet coke': 106976 / conversion_factor, 
-        'waste': 145882 / conversion_factor, 
-        'tire': 60876 / conversion_factor, 
-        'solvent': 72298 / conversion_factor, 
+        # 'waste': 145882 / conversion_factor, 
+        'tires': 60876 / conversion_factor, 
+        'solvents': 72298 / conversion_factor, 
         ###/
 
         ###\ source: https://backend.orbit.dtu.dk/ws/portalfiles/portal/161972551/808873_PhD_thesis_Morten_Nedergaard_Pedersen_fil_fra_trykkeri.pdf (table 3-2)
@@ -180,7 +180,7 @@ def lca(self):
         #     advantage is that no residues are generated since the ashes are completely 
         #     incorporated in clinker [21]
         # '''
-        'SRF (wet)': 9,
+        'SRF (wet)': 0.009,
         'MBM (wet)': 0,
         ###/
 

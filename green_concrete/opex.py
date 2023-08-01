@@ -39,8 +39,6 @@ def opex(self):
         'hydrogen': 'kg', 
         'pet coke': 'kg',
         'alt fuel (IEAGHG mix)': 'units',
-        'animal meal': 'n/a',
-        'sewage sludge': 'n/a',
         'solvents': 'n/a',
         'SRF (wet)': 'kg',
         'MBM (wet)': 'kg',
@@ -71,8 +69,8 @@ def opex(self):
         ###/
 
         ###\ "european alternative fuel input" -- IEAGHG
-        'animal meal': 18, # MJ/kg
-        'sewage sludge': 4, # MJ/kg (wide range exists, including heating value for the dry substance...)
+        # 'animal meal': 18, # MJ/kg
+        # 'sewage sludge': 4, # MJ/kg (wide range exists, including heating value for the dry substance...)
             # https://www.sludge2energy.de/sewage-sludge/calorific-value-energy-content/#:~:text=The%20dry%20substance%2Dbased%20(DS,planning%20a%20sludge2energy%20plant%20concept.
         'tires': 28, # MJ/kg # TODO this might be too conservative
         'solvents': (23 + 29) / 2, # MJ/kg (given as range)
@@ -93,10 +91,8 @@ def opex(self):
         'coal': 3e-3 * lhv['coal'], # €/GJ coal --> €/kg coal
         'natural gas': 6e-3 * lhv['natural gas'], # €/kg ng
         'hydrogen': 0, # $/kg, will be inserted in run_profast_for_cement()
-        'pet coke': btu_to_j(1, 2.81) * lhv['pet coke'],  # $/MMBtu --> $/MJ --> $/kg coke
+        'pet coke': 2.81 / 1055.06 * lhv['pet coke'],  # $/MMBtu --> $/MJ --> $/kg coke, https://www.statista.com/statistics/657096/average-cost-of-petroleum-coke-for-us-electricity-generation/
         'alt fuel (IEAGHG mix)': 1, # €/ton cement
-        'animal meal': 0,
-        'sewage sludge': 0,
         'solvents': 0,
         'tires': 0,
         'SRF (wet)': 0,
@@ -125,8 +121,6 @@ def opex(self):
             'hydrogen': 0,
             'pet coke': 0,
             'alt fuel (IEAGHG mix)': 0,
-            'animal meal': 0,
-            'sewage sludge': 0,
             'solvents': 0,
             'SRF (wet)': 0,
             'MBM (wet)': 0,
@@ -141,8 +135,6 @@ def opex(self):
             'hydrogen': 0,
             'pet coke': 0,
             'alt fuel (IEAGHG mix)': 0,
-            'animal meal': 0,
-            'sewage sludge': 0,
             'solvents': 0,
             'SRF (wet)': 0,
             'MBM (wet)': 0,
@@ -157,8 +149,6 @@ def opex(self):
             'hydrogen': 0.1,
             'pet coke': 0,
             'alt fuel (IEAGHG mix)': 0,
-            'animal meal': 0,
-            'sewage sludge': 0,
             'solvents': 0,
             'SRF (wet)': 0,
             'MBM (wet)': 0,
@@ -173,8 +163,6 @@ def opex(self):
             'hydrogen': 0.2,
             'pet coke': 0,
             'alt fuel (IEAGHG mix)': 0,
-            'animal meal': 0,
-            'sewage sludge': 0,
             'solvents': 0,
             'SRF (wet)': 0,
             'MBM (wet)': 0,
@@ -185,12 +173,10 @@ def opex(self):
         # COMPOSITION 5: very hypothetical
         'C5': {
             'coal': 0,
-            'natural gas': 0.8,
-            'hydrogen': 0.2,
+            'natural gas': 0,
+            'hydrogen': 1,
             'pet coke': 0,
             'alt fuel (IEAGHG mix)': 0,
-            'animal meal': 0,
-            'sewage sludge': 0,
             'solvents': 0,
             'SRF (wet)': 0,
             'MBM (wet)': 0,
@@ -205,13 +191,40 @@ def opex(self):
             'hydrogen': 0,
             'pet coke': 0,
             'alt fuel (IEAGHG mix)': 0.3,
-            'animal meal': 0,
-            'sewage sludge': 0,
             'solvents': 0,
             'SRF (wet)': 0,
             'MBM (wet)': 0,
             'glycerin': 0,
             'tires': 0,
+        },
+
+        # US reference https://www.sciencedirect.com/science/article/pii/S0959652622014445
+        # NOTE: excluding alternative fuels, and using the relative proportions of the fossil fuels instead
+        'US': {
+            'coal': 0.41 / (0.41 + 0.23 + 0.24),
+            'natural gas': 0.23 / (0.41 + 0.23 + 0.24),
+            'hydrogen': 0,
+            'pet coke': 0.24/ (0.41 + 0.23 + 0.24),
+            'alt fuel (IEAGHG mix)': 0,
+            'solvents': 0,
+            'SRF (wet)': 0, 
+            'MBM (wet)': 0,
+            'glycerin': 0,
+            'tires': 0, # 
+        },
+
+        # US reference https://www.sciencedirect.com/science/article/pii/S0959652622014445
+        'US_ng': {
+            'coal': 0,
+            'natural gas': 1,
+            'hydrogen': 0,
+            'pet coke': 0,
+            'alt fuel (IEAGHG mix)': 0,
+            'solvents': 0,
+            'SRF (wet)': 0., 
+            'MBM (wet)': 0,
+            'glycerin': 0,
+            'tires': 0, 
         },
 
         # # COMPOSITION 3: Canada Natural Gas Substitution
