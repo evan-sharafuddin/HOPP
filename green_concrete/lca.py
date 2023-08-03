@@ -106,19 +106,25 @@ def lca(self):
             scope3_grid_emissions = [0] * len(energy_from_grid_df)
 
         for idx in range(len(energy_from_grid_df)):
-
             energy_used_total = energy_from_grid_df['Energy from the grid (kWh)'][idx] + energy_from_renewables_df['Energy from renewables (kWh)'][idx]
-            if energy_used_total == 0:
+            if energy_used_total == 0 or self.config['CCUS'] == 'CaL (tail-end)': 
                 grid_frac = 0
             else:
                 grid_frac = energy_from_grid_df['Energy from the grid (kWh)'][idx] / energy_used_total
 
             # finds the total amount of GRID energy used by cement (both electrical and for producing hydrogen), 
             # so steel energy consumption is not considered in the LCA
-            if self.config['Hybrid electricity'] != 0: # hybrid plant powering cement, need to account to that amount not going to the electrolyzer
+
+            if self.config['CCUS'] == 'CaL (tail-end)': # accounts for electricity produced with CaL
+                # use Electrical energy demand because feed consumption can be either hybrid or grid elec
+                electricity_demand_cement_hourly = self.config['Electrical energy demand (kWh/t cement)'] * self.config['Cement Production Rate (annual)'] / 8760
+                grid_energy_used_cement = electricity_demand_cement_hourly
+
+            elif self.config['Hybrid electricity'] != 0: # hybrid plant powering cement, need to account to that amount not going to the electrolyzer
                 electricity_demand_cement_hourly = self.feed_consumption['hybrid electricity'] * self.config['Cement Production Rate (annual)'] / 8760
                 grid_energy_used_cement = (electricity_demand_cement_hourly + \
                 (energy_used_total - electricity_demand_cement_hourly) * self.config['Hydrogen to cement frac']) * grid_frac
+            
             else: # cement plant powered by the grid
                 electricity_demand_cement_hourly = self.feed_consumption['grid electricity'] * self.config['Cement Production Rate (annual)'] / 8760
                 grid_energy_used_cement = electricity_demand_cement_hourly + \

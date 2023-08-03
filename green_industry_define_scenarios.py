@@ -262,7 +262,7 @@ if __name__ == '__main__':
     inputs = {
         'Carbon capture': [
             # 'None',
-            'Oxyfuel',
+            # 'Oxyfuel',
             'CaL (tail-end)',
         ],
 
@@ -271,14 +271,14 @@ if __name__ == '__main__':
             # 'C1',
             # 'C2',
             # 'C3',
-            'C4',
-            'C5',
+            # 'C4',
+            # 'C5',
             # 'IEAGHG',
         ],
 
         'Hybrid electricity': [ # keep at grid, this doesn't really matter
             True,
-            # False,
+            False,
         ],
 
         'Clinker-to-cement scenario': [ # Use OPC tests for 
@@ -290,8 +290,8 @@ if __name__ == '__main__':
         'Simulation year': [
             2020, # do this to show that it's not viable at the moment
             # 2025,
-            2030, # maybe want to try multiple years -- when hydrogen becomes cost competetive
-            2035, # NOTE policy ends this year
+            # 2030, # maybe want to try multiple years -- when hydrogen becomes cost competetive
+            # 2035, # NOTE policy ends this year
         ],
 
         'Site location': [ # try out all five of these locations to see which works best
@@ -323,14 +323,14 @@ if __name__ == '__main__':
 
         'Grid connection case': [ # run all three of these
             'off-grid',
-            'grid-only',
-            'hybrid-grid',
+            # 'grid-only',
+            # 'hybrid-grid',
         ],
 
         'Policy': [
             'no-policy',
-            'base',
-            'max',
+            # 'base',
+            # 'max',
             # 'max on grid hybrid',
             # 'option 3',
             # 'option 4',
