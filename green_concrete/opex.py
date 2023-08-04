@@ -200,6 +200,9 @@ def opex(self):
 
         # US reference https://www.sciencedirect.com/science/article/pii/S0959652622014445
         # NOTE: excluding alternative fuels, and using the relative proportions of the fossil fuels instead
+        # NOTE I might've linked the wrong source for this, not sure where these numbers are coming from
+        #   could be coming from table 1, where the "Share" column refers to the proportion of LHV the fuel 
+        #   makes up, rather than the proportion of emissions
         'US': {
             'coal': 0.41 / (0.41 + 0.23 + 0.24),
             'natural gas': 0.23 / (0.41 + 0.23 + 0.24),

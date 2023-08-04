@@ -261,9 +261,9 @@ if __name__ == '__main__':
     # comment out undesired configuration options
     inputs = {
         'Carbon capture': [
-            # 'None',
+            'None',
             # 'Oxyfuel',
-            'CaL (tail-end)',
+            # 'CaL (tail-end)',
         ],
 
         'Fuel mixture': [
@@ -277,7 +277,7 @@ if __name__ == '__main__':
         ],
 
         'Hybrid electricity': [ # keep at grid, this doesn't really matter
-            True,
+            # True,
             False,
         ],
 
@@ -317,8 +317,8 @@ if __name__ == '__main__':
         ],
 
         'Couple with steel/ammonia': [
-            True,
-            # False,
+            # True,
+            False,
         ],
 
         'Grid connection case': [ # run all three of these
