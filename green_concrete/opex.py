@@ -112,7 +112,13 @@ def opex(self):
     # SOURCES:
     # Canada: Synergizing hydrogen and cement industries for Canada's climate plan - case study
     # IEAGHG: https://ieaghg.org/publications/technical-reports/reports-list/9-technical-reports/1016-2013-19-deployment-of-ccs-in-the-cement-industry 
-   
+    
+    # densities and specific energies for the fuels -- energy to volume fractions
+    rho_ng = 0.717 # kg/m^3 https://www.cs.mcgill.ca/~rwest/wikispeedia/wpcd/wp/n/Natural_gas.htm
+    rho_h2 = 0.08376 # kg/m^3 https://www1.eere.energy.gov/hydrogenandfuelcells/tech_validation/pdfs/fcm01r0.pdf
+    e_ng = 47.141 # see LHV's in opex()
+    e_h2 = 120.21 # see LHV's in opex()
+
     fuel_comp = {
         # COMPOSITION 1: Canada Reference (100% coal)
         'C1': {
@@ -142,11 +148,11 @@ def opex(self):
             'tires': 0,
         },
 
-        # COMPOSITION 3: hypothetical
+        # COMPOSITION 3: hypothetical, 10% hydrogen by volume
         'C3': {
             'coal': 0,
-            'natural gas': 0.9,
-            'hydrogen': 0.1,
+            'natural gas': (0.9 * e_ng * rho_ng) / (0.1 * e_h2 * rho_h2 + 0.9 * e_ng * rho_ng),
+            'hydrogen': 1 - (0.9 * e_ng * rho_ng) / (0.1 * e_h2 * rho_h2 + 0.9 * e_ng * rho_ng),
             'pet coke': 0,
             'alt fuel (IEAGHG mix)': 0,
             'solvents': 0,
@@ -156,11 +162,11 @@ def opex(self):
             'tires': 0,
         },
 
-        # COMPOSITION 4: hypothetical
+        # COMPOSITION 4: hypothetical, 20% hydrogen by volume
         'C4': {
             'coal': 0,
-            'natural gas': 0.8,
-            'hydrogen': 0.2,
+            'natural gas': (0.8 * e_ng * rho_ng) / (0.2 * e_h2 * rho_h2 + 0.8 * e_ng * rho_ng),
+            'hydrogen': 1 - (0.8 * e_ng * rho_ng) / (0.2 * e_h2 * rho_h2 + 0.8 * e_ng * rho_ng),
             'pet coke': 0,
             'alt fuel (IEAGHG mix)': 0,
             'solvents': 0,
