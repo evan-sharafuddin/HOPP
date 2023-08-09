@@ -261,9 +261,9 @@ if __name__ == '__main__':
     # comment out undesired configuration options
     inputs = {
         'Carbon capture': [
-            'None',
-            # 'Oxyfuel',
-            # 'CaL (tail-end)',
+            # 'None',
+            'Oxyfuel',
+            'CaL (tail-end)',
         ],
 
         'Fuel mixture': [
@@ -271,14 +271,14 @@ if __name__ == '__main__':
             # 'C1',
             # 'C2',
             # 'C3',
-            # 'C4',
-            # 'C5',
+            'C4',
+            'C5',
             # 'IEAGHG',
         ],
 
         'Hybrid electricity': [ # keep at grid, this doesn't really matter
-            # True,
-            False,
+            True,
+            # False,
         ],
 
         'Clinker-to-cement scenario': [ # Use OPC tests for 
@@ -290,7 +290,7 @@ if __name__ == '__main__':
         'Simulation year': [
             2020, # do this to show that it's not viable at the moment
             # 2025,
-            # 2030, # maybe want to try multiple years -- when hydrogen becomes cost competetive
+            2030, # maybe want to try multiple years -- when hydrogen becomes cost competetive
             # 2035, # NOTE policy ends this year
         ],
 
@@ -317,8 +317,8 @@ if __name__ == '__main__':
         ],
 
         'Couple with steel/ammonia': [
-            # True,
-            False,
+            True,
+            # False,
         ],
 
         'Grid connection case': [ # run all three of these

@@ -135,7 +135,7 @@ class CementPlant:
                 'Contingencies and fees': 1e-2, # fraction of installed costs (CAPEX)
                 'Taxation and insurance': 1e-2, # fraction of installed costs, per year (OPEX)
                 'Construction time (months)': 36,
-                'Thermal energy demand (MJ/kg clinker)': 3.136, # MJ/kg cli 
+                'Thermal energy demand (MJ/kg clinker)': 3.136, # MJ/kg cli, based on hydrogen economy paper (see below) 
                 'Electrical energy demand (kWh/t cement)': 90, # kWh/t cement (NOTE assuming this does not depend on the clinker-to-cement ratio, because 
                                                                #               addition of clinker additives increases electrical consumption for grinding, etc)
                                                                # Source of assumption: https://docs.wbcsd.org/2017/06/CSI_ECRA_Technology_Papers_2017.pdf, No 31
@@ -164,7 +164,7 @@ class CementPlant:
                 'Taxation and insurance': 1e-2, # fraction of installed costs, per year (OPEX)
                 # https://www.sciencedirect.com/science/article/pii/S0306261922005529#b0150 & CEMCAP Oxyfuel base case
                 'Construction time (months)': 60, # combined plant and carbon capture system construction
-                'Thermal energy demand (MJ/kg clinker)': 3.349, # MJ / kg cli
+                'Thermal energy demand (MJ/kg clinker)': 3.136 * 1.07, # MJ / kg cli, based off hydrogen economy paper
                 'Electrical energy demand (kWh/t cement)': 132 * 1.67 * cli_cem_ratio, # kWh/t cem, using 67% increase claimed in article
                 'Carbon capture efficency (%)': 0.9, # CEMCAP
                 'Hopp dict': None,
