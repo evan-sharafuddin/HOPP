@@ -11,7 +11,7 @@ This file provides some info on the feature/green_cement_concrete branch of HOPP
 * the only file that should be executed is the `green_industry_define_scenarios.py` script. 
 * information about the cement plant configurations, assumptions made, sources, etc can be found in the `HOPP/green_concrete` directory scripts
 * the `green industry define/run scenarios`, `hopp_tools_industry`, etc. scripts are a bit messy and not super well commented. But I tried to make it clear where changes for cement were made
-    * ctrl-f "CEMENT" to see where chanes were made
+    * ctrl-f "CEMENT" to see where changes were made
 * I was a little bit sloppy with using the eur2013() and eur2014() conversion functions in the correct places
     * did this because IEAGHG had 2013 cash basis and CEMCAP 2014
     * both sources had pretty similar information, which was why I was drawing numbers from both of them

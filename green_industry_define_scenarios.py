@@ -261,17 +261,17 @@ if __name__ == '__main__':
     # comment out undesired configuration options
     inputs = {
         'Carbon capture': [
-            # 'None',
-            'Oxyfuel',
-            'CaL (tail-end)',
+            'None',
+            # 'Oxyfuel',
+            # 'CaL (tail-end)',
         ],
 
         'Fuel mixture': [
-            'US',
+            # 'US',
             # 'C1',
             # 'C2',
             # 'C3',
-            'C4',
+            # 'C4',
             'C5',
             # 'IEAGHG',
         ],
@@ -290,7 +290,7 @@ if __name__ == '__main__':
         'Simulation year': [
             2020, # do this to show that it's not viable at the moment
             # 2025,
-            2030, # maybe want to try multiple years -- when hydrogen becomes cost competetive
+            # 2030, # maybe want to try multiple years -- when hydrogen becomes cost competetive
             # 2035, # NOTE policy ends this year
         ],
 

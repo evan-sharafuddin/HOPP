@@ -19,7 +19,7 @@ def run_profast_for_cement(
     hopp_dict = self.config['Hopp dict']
 
     if hopp_dict is not None and hopp_dict.save_model_input_yaml:
-        input_dict = { # TODO make sure this is in the right format
+        input_dict = {
             'levelized_cost_hydrogen': lcoh,
             'hydrogen_annual_production': hydrogen_annual_production,
             'configuration dictionary': self.config,
@@ -108,7 +108,6 @@ def run_profast_for_cement(
         else:
             pf.add_feedstock(name=key, usage=self.feed_consumption[key], unit=f'{self.feed_units[key]} per ton cement',cost=self.feed_costs[key],escalation=gen_inflation)
 
-    # TODO add this to dictionary
     pf.add_feedstock(name='Maintenance Materials',usage=1.0,unit='Units per ton of cement',cost=self.maintenance_equip / self.config['Cement Production Rate (annual)'],escalation=gen_inflation)
 
     # Add policy award

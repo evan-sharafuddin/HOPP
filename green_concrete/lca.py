@@ -16,7 +16,8 @@ def lca(self):
             for this oxygen is associated with the steel plant, and for the scope of the cement plant
             this oxygen is "carbon free"
             For purchased oxygen, a LCA has not been implemented yet
-        TODO add other assumptions here
+        This LCA only considers the effect of fuel combustion, clinkering emissions, and 
+        grid electricity consumption
 
     Args:
         self: CementPlant() instance
@@ -258,4 +259,3 @@ def lca(self):
     
     return lca_results, lca_results_ccus, ccus_award
     
-    # TODO quantify the impact of quarrying, raw materials, etc on emissions?

@@ -19,7 +19,7 @@ from green_concrete.convert import *
 # TODO
 # Important Assumptions
 # * "It is worth noting that the development and land costs are not considered in the project estimates."
-# * TPC calculations exclude "land property (in particula rthe quaqrry), emerging emission abatement technology 
+# * TPC calculations exclude "land property (in particular the quarry), emerging emission abatement technology 
 # (e.g. SCR) and developing cost (power and water supply)"
 # * Production Costs: "excl. freight, raw material deposit, land property, permits etc."
 # * The scope of this model seems to mainly be the clinkering plant, as there is no mention of any clinker additives, cement mixing, etc., 
@@ -84,10 +84,6 @@ class CementPlant:
         self._opex_helper()
         self.lca_helper()
         self.run_pf()
-
-
-            
-
     """
 
     def __init__(
