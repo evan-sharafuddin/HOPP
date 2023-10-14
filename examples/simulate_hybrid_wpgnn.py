@@ -6,26 +6,38 @@ from hopp.simulation.hybrid_simulation import HybridSimulation
 from hopp.utilities.log import hybrid_logger as logger
 from hopp.utilities.keys import set_nrel_key_dot_env
 
+# NOTE packages required for WPGNN (make sure environment supports these!)
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+import numpy as np
+import tensorflow as tf
+tf.get_logger().setLevel('ERROR')
+# from WPGNN.wpgnn import WPGNN # NOTE make sure to clone WPGNN into hopp repository
+from scipy import optimize
+import tensorflow as tf
+from graph_nets.utils_tf import *
+from graph_nets.utils_np import graphs_tuple_to_data_dicts
+# import utils
+
 examples_dir = Path(__file__).parent.absolute()
 
 # Set API key
 set_nrel_key_dot_env()
 
-# Set wind, solar, and interconnection capacities (in MW)
-solar_size_mw = 50
-wind_size_mw = 50
+# only concerted with wind resource at the moment
+wind_size_mw = 100
 interconnection_size_mw = 50
 
-technologies = {'pv': {
-                    'system_capacity_kw': solar_size_mw * 1000
-                },
-                'wind': {
-                    'num_turbines': 10,
-                    'turbine_rating_kw': 2000,
-                },
-                'grid': {
-                    'interconnect_kw': interconnection_size_mw * 1000
-                }}
+technologies = {
+    'wind': {
+        'num_turbines': 10, # seems to be dummy variable
+        'turbine_rating_kw': 2000,
+        'model_name': 'wpgnn'
+    },
+    'grid': {
+        'interconnect_kw': interconnection_size_mw * 1e3,
+    },
+}
 
 # Get resource
 lat = flatirons_site['lat']
@@ -36,7 +48,7 @@ site = SiteInfo(flatirons_site, grid_resource_file=prices_file)
 # Create model
 hybrid_plant = HybridSimulation(technologies, site)
 
-hybrid_plant.pv.system_capacity_kw = solar_size_mw * 1000
+# hybrid_plant.pv.system_capacity_kw = solar_size_mw * 1000
 hybrid_plant.wind.system_capacity_by_num_turbines(wind_size_mw * 1000)
 hybrid_plant.ppa_price = 0.1
 hybrid_plant.pv.dc_degradation = [0] * 25
