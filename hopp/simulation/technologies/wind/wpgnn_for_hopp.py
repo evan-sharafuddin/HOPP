@@ -8,14 +8,26 @@
 
 import csv
 import numpy as np
+import yaml
+from tqdm import tqdm
+import matplotlib.pyplot as plt
 
-from floris.tools import FlorisInterface
+# from floris.tools import FlorisInterface
 
 from hopp.simulation.base import BaseClass
 from hopp.simulation.technologies.sites import SiteInfo
 from hopp.type_dec import resource_file_converter
 
-class WPGNNForHOPP(WPGNN): 
+from wpgnn.wpgnn import WPGNN
+from wpgnn.playgen import PLayGen
+from wpgnn import utils
+
+from graph_nets.utils_tf import *
+from graph_nets.utils_np import graphs_tuple_to_data_dicts
+
+from floris.tools import FlorisInterface
+
+class WPGNNForHOPP(): 
     '''
         Parameters:
             w_init - Sonnet initializer object for network weights
@@ -30,19 +42,47 @@ class WPGNNForHOPP(WPGNN):
             optmizer - Sonnet optimizer object that will be used for training
     '''
     
-    def __init__(self, farm_config, site, eN=2, nN=3, gN=3, graph_size=None,
+    def __init__(self, site, farm_config, eN=2, nN=3, gN=3, graph_size=None,
                        scale_factors=None, model_path=None, name=None):    
         
-        # initialize model (not sure if inheretance is needed here)
-        self.model = super(WPGNNForHOPP, self).__init__(eN, nN, gN, graph_size, scale_factors, model_path, name)
-        self.config_dict = farm_config
+        # initialize model
+        self.model = WPGNN(eN, nN, gN, graph_size, scale_factors, model_path, name)
+        self.config = farm_config
         self.site = site
+
+        floris_input_file = self.config.floris_config
+
+        if floris_input_file is None:
+            raise ValueError("A floris configuration must be provided")
+        if self.config.timestep is None:
+            raise ValueError("A timestep is required.")
+        
+        # for now using FI To pull data...
+        self.fi = FlorisInterface(floris_input_file)
+        self._timestep = self.config.timestep
 
         # get wind resource data
         self.wind_resource_data = self.site.wind_resource.data
         self.num_simulations = len(self.wind_resource_data['data'])
         self.speeds, self.wind_dirs = self.parse_resource_data()
 
+        self.wind_farm_xCoordinates = self.fi.layout_x
+        self.wind_farm_yCoordinates = self.fi.layout_y
+        self.nTurbs = len(self.wind_farm_xCoordinates)
+        self.turb_rating = self.config.turbine_rating_kw
+        self.wind_turbine_rotor_diameter = self.fi.floris.farm.rotor_diameters[0]
+        self.system_capacity = self.nTurbs * self.turb_rating
+
+        self.wind_turbine_powercurve_powerout = [1] * 30    # dummy for now
+
+    def value(self, name: str, set_value=None):
+        """
+        if set_value = None, then retrieve value; otherwise overwrite variable's value
+        """
+        if set_value:
+            self.__setattr__(name, set_value)
+        else:
+            return self.__getattribute__(name)
 
     def parse_resource_data(self):
         # NOTE copied this from FLORIS
@@ -69,36 +109,55 @@ class WPGNNForHOPP(WPGNN):
 
         return speeds, wind_dirs
     
-    def execute(self):
+    def execute(self, project_life):
         print('Simulating wind farm output in WPGNN...')
 
         # generate plant layout 
-        generator = PLayGen()
-        wind_plant = generator()
+        # generator = PLayGen(N_turbs=self.nTurbs)
+        # wind_plant = generator()
+
+        # generate plant layout manually (taken from floris config file)
+        wind_plant = np.array([[0.0, 0.0], [630.0, 0.0], [1260.0, 0.0], [1800.0, 0.0]])
+        
+        # plt.figure(figsize=(4, 4))
+        # plt.scatter(wind_plant[:, 0], wind_plant[:, 1], s=15, facecolor='b', edgecolor='k')
+        # xlim = plt.gca().get_xlim()
+        # ylim = plt.gca().get_ylim()
+        # plt.xlim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
+        # plt.ylim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
+        # plt.gca().set_aspect(1.)
+        # plt.title('Number of Turbines: {}'.format(wind_plant.shape[0]))
+        # plt.show()
+
         # set yaw angles for each turbine to zero
-        yaw_angles = np.zeros(wind_plant.shape[0], 1)
+        yaw_angles = np.zeros((wind_plant.shape[0], 1)) 
+
         # TODO leaving this as the value set in the WPGNN example
         turb_intensity = 0.08
 
         # Create list of graphs (one for each hour)
         input_graphs = []
-        for i in range(self.num_simulations):
+        for i in tqdm(range(self.num_simulations)):
             uv = utils.speed_to_velocity([self.speeds[i], self.wind_dirs[i]]) # converts speeds to vectors?
             edges, senders, receivers = utils.identify_edges(wind_plant, self.wind_dirs[i])
-            input_graphs.append({'globals': np.array([uv[0], uv[1], turb_intensity]),
+            input_graphs.append([{'globals': np.array([uv[0], uv[1], turb_intensity]),
                                 'nodes': np.concatenate((wind_plant, yaw_angles), axis=1),
                                 'edges': edges,
                                 'senders': senders,
-                            'receivers': receivers})
+                            'receivers': receivers}])
             
-        # Should have 8760 graphs 
+        # Should have 8760 graphs s
         print(f"Number of graphs created: {len(input_graphs)}")
 
         # Evaluate model
 
         plant_power = [] # total wind plant output, hourly time series
-        for i in range(len(input_graphs))
-            normed_input_graph, _ = utils.norm_data(xx=input_graphs[i], scale_factors=self.scale_factors)
+        for i in tqdm(range(len(input_graphs))):
+        # for i in range(len(input_graphs)):
+            normed_input_graph, _ = utils.norm_data(xx=input_graphs[i], scale_factors=self.model.scale_factors)
             normed_output_graph = graphs_tuple_to_data_dicts(self.model(data_dicts_to_graphs_tuple(normed_input_graph)))
-            output_graph = utils.unnorm_data(ff=normed_output_graph, scale_factors=self.scale_factors)
-            plant_power.append()
+            output_graph = utils.unnorm_data(ff=normed_output_graph, scale_factors=self.model.scale_factors)
+            plant_power.append(sum(output_graph[0]['nodes'][:, 0])) # power output of all the turbines in MW
+        print(f"Annual power output (MW): {sum(plant_power)}")
+
+        #  note: input graph contains spatial data, output graph contains power values

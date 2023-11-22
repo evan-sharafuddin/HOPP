@@ -21,6 +21,8 @@ resource_files/grid
 
 .vscode/*
 
+workspace.code-workspace
+
 # Distribution / packaging
 .Python
 env*/*
