@@ -75,6 +75,11 @@ class WPGNNForHOPP():
 
         self.wind_turbine_powercurve_powerout = [1] * 30    # dummy for now
 
+        # results
+        self.gen = []
+        self.annual_energy = None
+        self.capacity_factor = None
+
     def value(self, name: str, set_value=None):
         """
         if set_value = None, then retrieve value; otherwise overwrite variable's value
@@ -119,6 +124,7 @@ class WPGNNForHOPP():
         # generate plant layout manually (taken from floris config file)
         wind_plant = np.array([[0.0, 0.0], [630.0, 0.0], [1260.0, 0.0], [1800.0, 0.0]])
         
+        # UNCOMMENT TO PLOT WINDPLANT
         # plt.figure(figsize=(4, 4))
         # plt.scatter(wind_plant[:, 0], wind_plant[:, 1], s=15, facecolor='b', edgecolor='k')
         # xlim = plt.gca().get_xlim()
@@ -140,24 +146,54 @@ class WPGNNForHOPP():
         for i in tqdm(range(self.num_simulations)):
             uv = utils.speed_to_velocity([self.speeds[i], self.wind_dirs[i]]) # converts speeds to vectors?
             edges, senders, receivers = utils.identify_edges(wind_plant, self.wind_dirs[i])
-            input_graphs.append([{'globals': np.array([uv[0], uv[1], turb_intensity]),
+            input_graphs.append({'globals': np.array([uv[0], uv[1], turb_intensity]),
                                 'nodes': np.concatenate((wind_plant, yaw_angles), axis=1),
                                 'edges': edges,
                                 'senders': senders,
-                            'receivers': receivers}])
+                            'receivers': receivers})
             
-        # Should have 8760 graphs s
+        # Should have 8760 graphs
         print(f"Number of graphs created: {len(input_graphs)}")
 
-        # Evaluate model
+        # Evaluate model (can evaluate as batch)
+        normed_input_graph, _ = utils.norm_data(xx=input_graphs, scale_factors=self.model.scale_factors)
+        normed_output_graph = graphs_tuple_to_data_dicts(self.model(data_dicts_to_graphs_tuple(normed_input_graph)))
+        output_graph = utils.unnorm_data(ff=normed_output_graph, scale_factors=self.model.scale_factors)
 
-        plant_power = [] # total wind plant output, hourly time series
-        for i in tqdm(range(len(input_graphs))):
-        # for i in range(len(input_graphs)):
-            normed_input_graph, _ = utils.norm_data(xx=input_graphs[i], scale_factors=self.model.scale_factors)
-            normed_output_graph = graphs_tuple_to_data_dicts(self.model(data_dicts_to_graphs_tuple(normed_input_graph)))
-            output_graph = utils.unnorm_data(ff=normed_output_graph, scale_factors=self.model.scale_factors)
-            plant_power.append(sum(output_graph[0]['nodes'][:, 0])) # power output of all the turbines in MW
-        print(f"Annual power output (MW): {sum(plant_power)}")
+        # extract plant power time series
+        plant_power = [output_graph[i]['globals'][0] for i in range(len(output_graph))]
+        self.gen = plant_power
+
+        self.annual_energy = sum(plant_power)
+        print(f"Annual power output (MW): {self.annual_energy/1e6}")
+
+        self.capacity_factor = self.annual_energy/1e6 / (8760 * self.system_capacity) * 100
+        print(f"Plant capacity factor: {self.capacity_factor}")
 
         #  note: input graph contains spatial data, output graph contains power values
+
+
+        # REPLACE WITH ABOVE CODE IF YOU WANT TO EXPAND EACH STEP 
+        # print("preparing batch input...")
+        # batch_inputs = []
+        # for i in tqdm(range(len(input_graphs))):
+        #     normed_input_graph, _ = utils.norm_data(xx=input_graphs[i], scale_factors=self.model.scale_factors)
+        #     batch_inputs.append(normed_input_graph)
+
+        # print("evaluating batch input...")
+        # for i in tqdm(range(len(input_graphs))):
+        #     batch_inputs[i] = data_dicts_to_graphs_tuple(batch_inputs[i])
+
+        # batch_outputs = []
+        # for i in tqdm(range(len(input_graphs))):
+        #     batch_outputs.append(self.model(batch_inputs[i]))
+
+        # for i in tqdm(range(len(input_graphs))):
+        #     batch_outputs[i] = graphs_tuple_to_data_dicts(batch_outputs[i])
+ 
+
+        # print("unnorming outputs...")
+        # plant_power = []
+        # for i in tqdm(range(len(input_graphs))):
+        #     plant_power.append(sum(batch_outputs[i][0]['nodes'][:, 0])) # power output of all the turbines in MW
+
