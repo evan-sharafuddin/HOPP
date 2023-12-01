@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Optional, Tuple, Union, Sequence
+import os
 
 import PySAM.Windpower as Windpower
 import PySAM.Singleowner as Singleowner
@@ -93,7 +94,9 @@ class WindPlant(PowerSource):
         # WPGNN ADDITIONS
         elif self.config.model_name == 'wpgnn':
             print('WPGNN is the system model...')
-            system_model = WPGNNForHOPP(self.site, self.config)
+            # TODO add this path to the config file
+            model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wpgnn.h5")
+            system_model = WPGNNForHOPP(site=self.site, farm_config=self.config, model_path=model_path)
             financial_model = Singleowner.default(self.config_name) # copied from above
 
         else:
