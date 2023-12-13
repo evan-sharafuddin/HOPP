@@ -38,9 +38,11 @@ technologies:
   wind:
     num_turbines: 4
     turbine_rating_kw: 5000.0
-    model_name: wpgnn
+    model_name: floris
     timestep: [0, 8760]
     floris_config: examples/inputs/floris/gch.yaml
+    wpgnn_model: examples/inputs/wpgnn/wpgnn.h5
+    opt_layout: True
   grid:
     interconnect_kw: 50000
 config:

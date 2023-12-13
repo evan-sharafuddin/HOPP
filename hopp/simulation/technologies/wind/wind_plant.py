@@ -16,6 +16,8 @@ from hopp.simulation.technologies.power_source import PowerSource
 from hopp.simulation.technologies.sites import SiteInfo
 from hopp.simulation.technologies.layout.wind_layout import WindLayout, WindBoundaryGridParameters
 from hopp.simulation.technologies.financial import CustomFinancialModel, FinancialModelType
+
+from hopp.simulation.technologies.wind.layout_opt import layout_opt
 from hopp.utilities.log import hybrid_logger as logger
 
 
@@ -60,6 +62,9 @@ class WindConfig(BaseClass):
     timestep: Optional[Tuple[int, int]] = field(default=None)
     fin_model: Optional[Union[dict, FinancialModelType]] = field(default=None)
 
+    layout_opt: Optional[bool] = field(default=False)
+    wpgnn_model: Optional[Union[dict, str, Path]] = field(default=None)
+
     def __attrs_post_init__(self):
         if self.model_name == 'floris' and self.timestep is None:
             raise ValueError("Timestep (Tuple[int, int]) required for floris")
@@ -88,15 +93,19 @@ class WindPlant(PowerSource):
 
         if self.config.model_name == 'floris':
             print('FLORIS is the system model...')
+
+            if self.config.layout_opt: 
+                print('Performing layout optimization using WPGNN...')
+                self.site = layout_opt(self.site, self.config, self.wpgnn_model)
+
+
             system_model = Floris(self.site, self.config)
             financial_model = Singleowner.default(self.config_name)
 
         # WPGNN ADDITIONS
         elif self.config.model_name == 'wpgnn':
             print('WPGNN is the system model...')
-            # TODO add this path to the config file
-            model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wpgnn.h5")
-            system_model = WPGNNForHOPP(site=self.site, farm_config=self.config, model_path=model_path)
+            system_model = WPGNNForHOPP(site=self.site, farm_config=self.config, model_path=self.wpgnn_model)
             financial_model = Singleowner.default(self.config_name) # copied from above
 
         else:
