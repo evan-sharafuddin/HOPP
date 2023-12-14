@@ -159,22 +159,9 @@ class WPGNNForOpt():
 
         # again, currently not using yaw
         result = optimize.minimize(self.objective_noYaw,  x.reshape((-1, )),
-                                    args=(yaw, ws, wd, ti, wind_rose, model),
+                                    args=(yaw, ws, wd, ti, model),
                                     method='SLSQP', jac=True,
                                     constraints=constraints)
-
-    def eval_model(x, wind_rose, model):
-        with tf.GradientTape() as tape:
-            tape.watch(x.nodes)
-
-            P = (500000000./1000000.)*model(x).globals[:, 0] # wind plant capacities divided by 1e6 conversion factor
-            P = tf.transpose(tf.reshape(P, tf.transpose(wind_rose).shape))
-
-            AEP = -8760.*tf.reduce_sum(P*wind_rose)
-
-        dAEP = tape.jacobian(AEP, x.nodes)
-
-        return AEP, dAEP
     
     def spacing_func(x, n_windDirs=0, min_spacing=250.):
         x = x.reshape((-1, 2+n_windDirs))[:, :2]
@@ -186,7 +173,7 @@ class WPGNNForOpt():
 
         return D[mask] - min_spacing
     
-    def objective_noYaw(self, x, yaw, ws, wd, ti, wind_rose, model):
+    def objective_noYaw(self, x, yaw, ws, wd, ti, model):
         x = x.reshape((-1, 2))
         n_turbines = x.shape[0]
 
@@ -207,12 +194,35 @@ class WPGNNForOpt():
         x_graph_tuple = data_dicts_to_graphs_tuple(normed_input_graphs)
         x_graph_tuple = x_graph_tuple.replace(nodes=tf.Variable(x_graph_tuple.nodes))
 
-        AEP, dAEP = eval_model(x_graph_tuple, wind_rose, model)
+        LCOH, dLCOH = self.eval_model(x_graph_tuple)
 
-        dAEP = dAEP.numpy()/np.array([[75000., 85000., 15.]])
-        dAEP = np.sum(dAEP.reshape((wd.size, ws.size, x.shape[0], 3)), axis=(0, 1))[:, :2].reshape((-1, ))
+        dLCOH = dLCOH.numpy()/np.array([[75000., 85000., 15.]])
+        dLCOH = np.sum(dLCOH.reshape((wd.size, ws.size, x.shape[0], 3)), axis=(0, 1))[:, :2].reshape((-1, ))
 
-        return AEP.numpy(), dAEP
+        return LCOH.numpy(), dLCOH
+    
+    @tf.function
+    def eval_model(self, x_graph_tuple):
+        with tf.GradientTape() as tape:
+            tape.watch(x_graph_tuple.nodes)
+
+            normed_output_graph = graphs_tuple_to_data_dicts(self.model(x_graph_tuple))
+            output_graph = utils.unnorm_data(ff=normed_output_graph, scale_factors=self.model.scale_factors)
+            plant_power = [output_graph[i]['globals'][0] for i in range(len(output_graph))]
+
+            
+        # need rudimentary cost calculation -- base off Sanjana's paper
+        # lifetime cost can be entire lifespan of plant, assuming that the hydrogen
+        # production will be roughly the same from year to year
+
+        lifetime_cost = get_lifetime_cost()
+        hydrogen_production = get_hydrogen_production()
+
+        LCOH = lifetime_cost / hydrogen_production
+
+        dLCOH = tape.jacobian(LCOH, x.nodes)
+
+        return LCOH, dLCOH
     
     #######################
 
