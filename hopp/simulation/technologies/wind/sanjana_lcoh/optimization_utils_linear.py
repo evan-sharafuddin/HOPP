@@ -6,7 +6,7 @@ import time
 
 a_coeff = 0.57766336
 b_coeff = 0.01495504
-from Electrolyzer_Files.replacement_cost import EL_Cost_Schnuelle
+from replacement_cost import EL_Cost_Schnuelle
 
 
 def baseline(

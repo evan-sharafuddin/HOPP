@@ -214,84 +214,17 @@ class WPGNNForOpt():
         # need rudimentary cost calculation -- base off Sanjana's paper
         # lifetime cost can be entire lifespan of plant, assuming that the hydrogen
         # production will be roughly the same from year to year
-
-        lifetime_cost = get_lifetime_cost()
-        hydrogen_production = get_hydrogen_production()
-
-        LCOH = lifetime_cost / hydrogen_production
+        from sanjana_lcoh.baseline_controller import get_loch
+        LCOH = get_loch()
 
         dLCOH = tape.jacobian(LCOH, x.nodes)
 
         return LCOH, dLCOH
     
-    #######################
-
-    # for wpgnn_for_hopp
-    def execute(self, project_life):
-        print('Simulating wind farm output in WPGNN...')
-
-        # generate plant layout 
-        # generator = PLayGen(N_turbs=self.nTurbs)
-        # wind_plant = generator()
-
-        # generate plant layout manually (taken from floris config file)
-        wind_plant = np.array([[0.0, 0.0], [630.0, 0.0], [1260.0, 0.0], [1800.0, 0.0]])
-        
-        # UNCOMMENT TO PLOT WINDPLANT
-        # plt.figure(figsize=(4, 4))
-        # plt.scatter(wind_plant[:, 0], wind_plant[:, 1], s=15, facecolor='b', edgecolor='k')
-        # xlim = plt.gca().get_xlim()
-        # ylim = plt.gca().get_ylim()
-        # plt.xlim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
-        # plt.ylim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
-        # plt.gca().set_aspect(1.)
-        # plt.title('Number of Turbines: {}'.format(wind_plant.shape[0]))
-        # plt.show()
-
-        # set yaw angles for each turbine to zero
-        yaw_angles = np.zeros((wind_plant.shape[0], 1)) 
-
-        # TODO leaving this as the value set in the WPGNN example
-        turb_intensity = 0.08
-
-        # Create list of graphs (one for each hour)
-        input_graphs = []
-        for i in range(self.num_simulations):
-            uv = utils.speed_to_velocity([self.speeds[i], self.wind_dirs[i]]) # converts speeds to vectors?
-            edges, senders, receivers = utils.identify_edges(wind_plant, self.wind_dirs[i])
-            input_graphs.append({'globals': np.array([uv[0], uv[1], turb_intensity]),
-                                'nodes': np.concatenate((wind_plant, yaw_angles), axis=1),
-                                'edges': edges,
-                                'senders': senders,
-                            'receivers': receivers})
-            
-        # Should have 8760 graphs
-        print(f"Number of graphs created: {len(input_graphs)}")
-
-        # Evaluate model (can evaluate as batch)
-        normed_input_graph, _ = utils.norm_data(xx=input_graphs, scale_factors=self.model.scale_factors)
-        normed_output_graph = graphs_tuple_to_data_dicts(self.model(data_dicts_to_graphs_tuple(normed_input_graph)))
-        output_graph = utils.unnorm_data(ff=normed_output_graph, scale_factors=self.model.scale_factors)
-
-        # extract plant power time series
-        plant_power = [output_graph[i]['globals'][0] for i in range(len(output_graph))]
-        self.gen = plant_power
-
-        # TODO confirm units
-        self.annual_energy = sum(plant_power)
-        print(f"Annual energy output (MWh): {self.annual_energy/1e6}")
-
-        self.capacity_factor = self.annual_energy/1e6 / (8760 * self.system_capacity/1e3) * 100
-        print(f"Plant capacity factor (MWh/MWh): {self.capacity_factor}")
-
-        
-        # calculate values with PySAM losses
-        annual_energy_corr = self.annual_energy * ((100 - 12.83)/100) / 1e6
-        capacity_factor_corr = annual_energy_corr / (8760 * self.system_capacity/1e3) * 100
-        print(f"Annual energy output (w/ PySAM correction factors) (MWh): {annual_energy_corr}")
-        print(f"Plant capacity factor (w/ PySAM correction factors) (MWh/MWh): "
-              f"{capacity_factor_corr}")
     
+
+
+   
 # def spacing_func(x, n_windDirs=0, min_spacing=250.):
 #     x = x.reshape((-1, 2+n_windDirs))[:, :2]
 
