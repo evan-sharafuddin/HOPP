@@ -12,6 +12,7 @@ from hopp.utilities import load_yaml
 from hopp.utilities.validators import gt_zero, contains
 from hopp.simulation.technologies.wind.floris import Floris
 from hopp.simulation.technologies.wind.wpgnn_for_hopp import WPGNNForHOPP
+from hopp.simulation.technologies.wind.wpgnn_for_opt import WPGNNForOpt
 from hopp.simulation.technologies.power_source import PowerSource
 from hopp.simulation.technologies.sites import SiteInfo
 from hopp.simulation.technologies.layout.wind_layout import WindLayout, WindBoundaryGridParameters
@@ -94,11 +95,11 @@ class WindPlant(PowerSource):
         if self.config.model_name == 'floris':
             print('FLORIS is the system model...')
 
-            if self.config.layout_opt: 
+            if True: # TODO need to figure out how to add additional inputs to the yaml
                 print('Performing layout optimization using WPGNN...')
-                self.site = layout_opt(self.site, self.config, self.wpgnn_model)
-
-
+                layout_optimizer = WPGNNForOpt(self.site, self.config)
+                self.site = layout_optimizer.opt()
+                
             system_model = Floris(self.site, self.config)
             financial_model = Singleowner.default(self.config_name)
 
@@ -112,7 +113,7 @@ class WindPlant(PowerSource):
             if self.config.model_input_file is None:
                 system_model = Windpower.default(self.config_name)
                 financial_model = Singleowner.from_existing(system_model, self.config_name)
-            else:
+            else: 
                 # initialize system using pysam input file
                 input_file_path = resource_file_converter(self.config.model_input_file)
                 input_dict = load_yaml(input_file_path)

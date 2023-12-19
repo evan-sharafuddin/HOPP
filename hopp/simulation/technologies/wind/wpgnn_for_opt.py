@@ -27,13 +27,15 @@ from graph_nets.utils_np import graphs_tuple_to_data_dicts
 
 from floris.tools import FlorisInterface
 
+from hopp.simulation.technologies.wind.power_to_h2 import get_lcoh
+
 # example_opt imports
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import numpy as np
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
-from wpgnn import WPGNN
+from wpgnn.wpgnn import WPGNN
 from scipy import optimize
 import tensorflow as tf
 from graph_nets.utils_tf import *
@@ -76,19 +78,24 @@ class WPGNNForOpt():
         self.fi = FlorisInterface(floris_input_file)
         self._timestep = self.config.timestep
 
+        # TODO use yaml here instead?
+        # self.wind_farm_xCoordinates = self.fi.layout_x
+        # self.wind_farm_yCoordinates = self.fi.layout_y
+        # self.nTurbs = len(self.wind_farm_xCoordinates)
+        # self.x = np.array([[0.0, 0.0], [630.0, 0.0], [1260.0, 0.0], [1800.0, 0.0]])
+        self.domain = np.array([[-1000., 1000.],
+                        [-1000., 1000.]]) # in m, hardcoded for now (TODO transition to using site verts in yaml?)
+        self.nTurbs = 12
+        self.x = poisson_disc_samples(self.nTurbs, self.domain, R=[250., 350.])
+        
+        self.ti = 0.08 # turbulance intensity
+
         # get wind resource data
         self.wind_resource_data = self.site.wind_resource.data
         self.num_simulations = len(self.wind_resource_data['data'])
         self.ws, self.wd = self.parse_resource_data()
-        self.yaw = np.zeros((self.nTurbs, self.wd.size))
-
-        # TODO use Poisson disc samples here instead?
-        self.wind_farm_xCoordinates = self.fi.layout_x
-        self.wind_farm_yCoordinates = self.fi.layout_y
-        self.nTurbs = len(self.wind_farm_xCoordinates)
-        self.domain = np.array([[-1000., 1000.],
-                        [-1000., 1000.]]) # in m, hardcoded for now (TODO transition to using site verts in yaml?)
-        self.x = np.array([[0.0, 0.0], [630.0, 0.0], [1260.0, 0.0], [1800.0, 0.0]])
+        # self.yaw = np.zeros((self.nTurbs, self.wd.size))
+        self.yaw = np.zeros((self.x.shape[0], 1)) # choose this for the yaw because not using wind rose
 
         self.turb_rating = self.config.turbine_rating_kw
         self.wind_turbine_rotor_diameter = self.fi.floris.farm.rotor_diameters[0]
@@ -148,9 +155,9 @@ class WPGNNForOpt():
         domainConstraint = optimize.LinearConstraint(A, lb, ub)
 
         # currently not using yaw
-        spacing_constraint = {'type': 'ineq', 'fun': self.spacing_func, 'args': [0, 250.]}
+        spacing_constraint = {'type': 'ineq', 'fun': spacing_func, 'args': [0, 250.]}
 
-        A = np.eye(self.N_turbs*2)
+        A = np.eye(self.nTurbs*2)
         lb = np.repeat(np.expand_dims(self.domain[:, 0], axis=0), N_turbs, axis=0).reshape((-1, ))
         ub = np.repeat(np.expand_dims(self.domain[:, 1], axis=0), N_turbs, axis=0).reshape((-1, ))
         domain_constraint = optimize.LinearConstraint(A, lb, ub)
@@ -158,37 +165,27 @@ class WPGNNForOpt():
         constraints = [spacing_constraint, domain_constraint]
 
         # again, currently not using yaw
-        result = optimize.minimize(self.objective_noYaw,  x.reshape((-1, )),
-                                    args=(yaw, ws, wd, ti, model),
+        result = optimize.minimize(self.objective_noYaw,  self.x.reshape((-1, )),
+                                    args=(yaw, self.ws, self.wd, self.ti, self.model),
                                     method='SLSQP', jac=True,
                                     constraints=constraints)
-    
-    def spacing_func(x, n_windDirs=0, min_spacing=250.):
-        x = x.reshape((-1, 2+n_windDirs))[:, :2]
-
-        D = np.sqrt(np.sum((np.expand_dims(x, axis=0) - np.expand_dims(x, axis=1))**2, axis=2))
-
-        r = np.arange(D.shape[0])
-        mask = r[:, None] < r
-
-        return D[mask] - min_spacing
+        
+        return result
     
     def objective_noYaw(self, x, yaw, ws, wd, ti, model):
         x = x.reshape((-1, 2))
         n_turbines = x.shape[0]
 
-        wind_rose = tf.convert_to_tensor(wind_rose, dtype=np.float64)
-
         # Create list of graphs (one for each hour)
         input_graphs = []
         for i in range(self.num_simulations):
-            uv = utils.speed_to_velocity([self.speeds[i], self.wind_dirs[i]]) # converts speeds to vectors?
+            uv = utils.speed_to_velocity([self.ws[i], self.wd[i]]) # converts speeds to vectors?
             edges, senders, receivers = utils.identify_edges(x, wd[i])
             input_graphs.append({'globals': np.array([uv[0], uv[1], ti]),
                                 'nodes': np.concatenate((x, yaw), axis=1),
                                 'edges': edges,
                                 'senders': senders,
-                            'receivers': receivers})
+                                'receivers': receivers})
         
         normed_input_graphs, _ = utils.norm_data(xx=input_graphs, scale_factors=self.model.scale_factors)
         x_graph_tuple = data_dicts_to_graphs_tuple(normed_input_graphs)
@@ -201,36 +198,69 @@ class WPGNNForOpt():
 
         return LCOH.numpy(), dLCOH
     
-    @tf.function
+    # @tf.function
     def eval_model(self, x_graph_tuple):
         with tf.GradientTape() as tape:
             tape.watch(x_graph_tuple.nodes)
 
-            normed_output_graph = graphs_tuple_to_data_dicts(self.model(x_graph_tuple))
-            output_graph = utils.unnorm_data(ff=normed_output_graph, scale_factors=self.model.scale_factors)
-            plant_power = [output_graph[i]['globals'][0] for i in range(len(output_graph))]
+            plant_power = (500000000./1000000.)*self.model(x_graph_tuple).globals[:, 0] # unnorming result
 
-            
-        # need rudimentary cost calculation -- base off Sanjana's paper
-        # lifetime cost can be entire lifespan of plant, assuming that the hydrogen
-        # production will be roughly the same from year to year
-        from sanjana_lcoh.baseline_controller import get_loch
-        LCOH = get_loch()
+        LCOH = get_lcoh(plant_power)
 
-        dLCOH = tape.jacobian(LCOH, x.nodes)
+        dLCOH = tape.jacobian(LCOH, x_graph_tuple.nodes)
 
         return LCOH, dLCOH
     
-    
 
+# had to move this out of the class decleration for some reason
+def spacing_func(x, n_windDirs=0, min_spacing=250.):
+    '''used as constraint in the optimization problem'''
 
-   
-# def spacing_func(x, n_windDirs=0, min_spacing=250.):
-#     x = x.reshape((-1, 2+n_windDirs))[:, :2]
+    x = x.reshape((-1, 2+n_windDirs))[:, :2]
 
-#     D = np.sqrt(np.sum((np.expand_dims(x, axis=0) - np.expand_dims(x, axis=1))**2, axis=2))
+    D = np.sqrt(np.sum((np.expand_dims(x, axis=0) - np.expand_dims(x, axis=1))**2, axis=2))
 
-#     r = np.arange(D.shape[0])
-#     mask = r[:, None] < r
+    r = np.arange(D.shape[0])
+    mask = r[:, None] < r
 
-#     return D[mask] - min_spacing
+    return D[mask] - min_spacing
+
+def poisson_disc_samples(N_turbs, domain, R=[250., 1000.], turb_locs=None):
+    '''generates plant layout with number of turbines and domain within which 
+    the turbines must be located'''
+
+    if turb_locs is None:
+        turb_locs = 0.*np.random.uniform(low=domain[:, 0], high=domain[:, 1], size=(1, 2))
+
+    active_indices = [i for i in range(turb_locs.shape[0])]
+    while active_indices and (turb_locs.shape[0] < N_turbs):
+        idx = np.random.choice(active_indices)
+        active_pt = turb_locs[idx]
+
+        counter, valid_pt = 0, False
+        while (counter < 50) and not valid_pt:
+            rho, theta = np.random.uniform(R[0], R[1]), np.random.uniform(0, 2*np.pi)
+            new_pt = np.array([[active_pt[0] + rho*np.cos(theta), active_pt[1] + rho*np.sin(theta)]])
+
+            tf_inDomain = (domain[0, 0] <= new_pt[0, 0]) and (new_pt[0, 0] <= domain[0, 1]) and \
+                          (domain[1, 0] <= new_pt[0, 1]) and (new_pt[0, 1] <= domain[1, 1])
+            if not tf_inDomain:
+                counter += 1
+                continue
+
+            D = np.sqrt(np.sum((turb_locs - new_pt)**2, axis=1))
+            tf_farFromOthers = np.all(R[0] <= D)
+            if not tf_farFromOthers:
+                counter += 1
+                continue
+
+            valid_pt = True
+
+        if valid_pt:
+            turb_locs = np.concatenate((turb_locs, new_pt), axis=0)
+
+            active_indices.append(turb_locs.shape[0]-1)
+        else:
+            active_indices.remove(idx)
+
+    return turb_locs

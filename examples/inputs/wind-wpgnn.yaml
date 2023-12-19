@@ -42,7 +42,7 @@ technologies:
     timestep: [0, 8760]
     floris_config: examples/inputs/floris/gch.yaml
     wpgnn_model: examples/inputs/wpgnn/wpgnn.h5
-    opt_layout: True
+    # opt_layout: True
   grid:
     interconnect_kw: 50000
 config:
