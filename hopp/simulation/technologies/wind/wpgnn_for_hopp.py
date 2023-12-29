@@ -125,15 +125,15 @@ class WPGNNForHOPP():
         wind_plant = np.array([[0.0, 0.0], [630.0, 0.0], [1260.0, 0.0], [1800.0, 0.0]])
         
         # UNCOMMENT TO PLOT WINDPLANT
-        # plt.figure(figsize=(4, 4))
-        # plt.scatter(wind_plant[:, 0], wind_plant[:, 1], s=15, facecolor='b', edgecolor='k')
-        # xlim = plt.gca().get_xlim()
-        # ylim = plt.gca().get_ylim()
-        # plt.xlim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
-        # plt.ylim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
-        # plt.gca().set_aspect(1.)
-        # plt.title('Number of Turbines: {}'.format(wind_plant.shape[0]))
-        # plt.show()
+        plt.figure(figsize=(4, 4))
+        plt.scatter(wind_plant[:, 0], wind_plant[:, 1], s=15, facecolor='b', edgecolor='k')
+        xlim = plt.gca().get_xlim()
+        ylim = plt.gca().get_ylim()
+        plt.xlim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
+        plt.ylim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
+        plt.gca().set_aspect(1.)
+        plt.title('Number of Turbines: {}'.format(wind_plant.shape[0]))
+        plt.show()
 
         # set yaw angles for each turbine to zero
         yaw_angles = np.zeros((wind_plant.shape[0], 1)) 
@@ -150,7 +150,7 @@ class WPGNNForHOPP():
                                 'nodes': np.concatenate((wind_plant, yaw_angles), axis=1),
                                 'edges': edges,
                                 'senders': senders,
-                            'receivers': receivers})
+                                'receivers': receivers})
             
         # Should have 8760 graphs
         print(f"Number of graphs created: {len(input_graphs)}")
@@ -158,6 +158,8 @@ class WPGNNForHOPP():
         # Evaluate model (can evaluate as batch)
         normed_input_graph, _ = utils.norm_data(xx=input_graphs, scale_factors=self.model.scale_factors)
         normed_output_graph = graphs_tuple_to_data_dicts(self.model(data_dicts_to_graphs_tuple(normed_input_graph)))
+
+        plant_power_test = [5e8 * normed_output_graph[i]['globals'][0] for i in range(len(normed_output_graph))]
         output_graph = utils.unnorm_data(ff=normed_output_graph, scale_factors=self.model.scale_factors)
 
         # extract plant power time series

@@ -97,7 +97,7 @@ class WindPlant(PowerSource):
 
             if True: # TODO need to figure out how to add additional inputs to the yaml
                 print('Performing layout optimization using WPGNN...')
-                layout_optimizer = WPGNNForOpt(self.site, self.config)
+                layout_optimizer = WPGNNForOpt(site=self.site, farm_config=self.config, model_path=self.config.wpgnn_model)
                 self.site = layout_optimizer.opt()
                 
             system_model = Floris(self.site, self.config)
@@ -106,7 +106,7 @@ class WindPlant(PowerSource):
         # WPGNN ADDITIONS
         elif self.config.model_name == 'wpgnn':
             print('WPGNN is the system model...')
-            system_model = WPGNNForHOPP(site=self.site, farm_config=self.config, model_path=self.wpgnn_model)
+            system_model = WPGNNForHOPP(site=self.site, farm_config=self.config, model_path=self.config.wpgnn_model)
             financial_model = Singleowner.default(self.config_name) # copied from above
 
         else:

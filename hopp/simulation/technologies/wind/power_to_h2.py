@@ -100,7 +100,7 @@ def simple_approximate_lcoh(electrolyzer_size_mw, H2_Results, electrolyzer_unit_
     return LCOH_approx
 
 def get_lcoh(plant_power):
-    wind_generation_kWh = plant_power.numpy() / 1e3#output from WPGNN
+    wind_generation_kWh = plant_power.numpy() / 1e3 #output from WPGNN
         
     n_turbines = 12
     turbine_size_MW = 3.4 #MW
