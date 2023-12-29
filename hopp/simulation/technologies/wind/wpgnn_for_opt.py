@@ -82,7 +82,7 @@ class WPGNNForOpt():
         # self.wind_farm_xCoordinates = self.fi.layout_x
         # self.wind_farm_yCoordinates = self.fi.layout_y
         # self.nTurbs = len(self.wind_farm_xCoordinates)
-        # self.x = np.array([[0.0, 0.0], [630.0, 0.0], [1260.0, 0.0], [1800.0, 0.0]])
+
         self.domain = np.array([[-1000., 1000.],
                         [-1000., 1000.]]) # in m, hardcoded for now (TODO transition to using site verts in yaml?)
         self.nTurbs = 4 # TODO hardcoded
@@ -204,15 +204,16 @@ class WPGNNForOpt():
         normed_input_graphs, _ = utils.norm_data(xx=input_graphs, scale_factors=self.model.scale_factors)
         x_graph_tuple = data_dicts_to_graphs_tuple(normed_input_graphs)
 
-        out_graph = graphs_tuple_to_data_dicts(self.model(x_graph_tuple))
-        plant_power_test3 = [5e8 * out_graph[i]['globals'][0] for i in range(len(out_graph))] # seeing what tf.Variable does, if it makes a change
+        # out_graph = graphs_tuple_to_data_dicts(self.model(x_graph_tuple))
+        # plant_power_test3 = [5e8 * out_graph[i]['globals'][0] for i in range(len(out_graph))] # seeing what tf.Variable does, if it makes a change
 
         x_graph_tuple = x_graph_tuple.replace(nodes=tf.Variable(x_graph_tuple.nodes))
 
-        plant_power_test = 5e8*self.model(x_graph_tuple).globals[:, 0] # unnorming result, NOTE in example_opt divided by 1e6 to convert to MW 
+        # plant_power_test = 5e8*self.model(x_graph_tuple).globals[:, 0] # unnorming result, NOTE in example_opt divided by 1e6 to convert to MW 
         
-        out_graph = graphs_tuple_to_data_dicts(self.model(x_graph_tuple))
-        plant_power_test2 = [5e8 * out_graph[i]['globals'][0] for i in range(len(out_graph))] # using logic from wpgnn_for_hopp
+        # out_graph = graphs_tuple_to_data_dicts(self.model(x_graph_tuple))
+        # plant_power_test2 = [5e8 * out_graph[i]['globals'][0] for i in range(len(out_graph))] # using logic from wpgnn_for_hopp
+        
         LCOH, dLCOH = self.eval_model(x_graph_tuple)
 
         dLCOH = dLCOH.numpy()/np.array([[75000., 85000., 15.]])
