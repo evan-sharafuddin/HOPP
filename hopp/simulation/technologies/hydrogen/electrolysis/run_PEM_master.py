@@ -65,7 +65,12 @@ class run_PEM_clusters:
         user_defined_electrolyzer_params,
         degradation_penalty,
         turndown_ratio,
+        grad=False
     ):
+        if grad:
+            import tensorflow.experimental.numpy as np
+            np.experimental_enable_numpy_behavior()
+            
         # nomen
         self.cluster_cap_mw = np.round(system_size_mw / num_clusters)
         # capacity of each cluster, must be a multiple of 1 MW
@@ -155,6 +160,40 @@ class run_PEM_clusters:
         self.clusters = clusters
         print("Took {} sec to run the RUN function".format(round(end - start, 3)))
         return h2_df_ts, h2_df_tot
+        # return h2_dict_ts, h2_df_tot
+    
+    def run_grad(self, optimize=False):
+        '''use in the place of run_PEM_master.run() to maintain TF autograd capabilities
+        
+        args
+            self: run_PEM_clusters instance -> run_PEM_clusters
+
+        returns
+            h2_production: annual H2 production [kg/yr] -> np.ndarray
+            refurb_schedule: refurbishment schedule [MW replaced/year] -> np.ndarray
+            annual_avg_efficency: annual average efficency [kWh/kg] -> np.ndarray
+        '''
+
+        # TODO: add control type as input!
+        clusters = self.create_clusters()  # initialize clusters
+        if optimize:
+            raise NotImplementedError('Optimizing PEM dispatch during layout optimization does not work yet')
+        else:
+            power_to_clusters = self.even_split_power()
+        
+        h2_dict_tot = {}
+
+        col_names = []
+        start = time.perf_counter()
+        for ci, cluster in enumerate(clusters):
+            cl_name = "Cluster #{}".format(ci)
+            col_names.append(cl_name)
+            _, h2_tot = clusters[ci].run(power_to_clusters[ci])
+
+            h2_dict_tot[cl_name] = h2_tot
+            
+        self.clusters = clusters
+        return None, h2_dict_tot
         # return h2_dict_ts, h2_df_tot
 
     def optimize_power_split(self):

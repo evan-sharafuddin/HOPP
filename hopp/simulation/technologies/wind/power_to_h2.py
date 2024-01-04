@@ -17,7 +17,7 @@ user_defined_pem_param_dictionary = {
     "EOL Rated Efficiency Drop": EOL_eff_drop,
 }
 
-def run_electrolyzer(wind_generation_kWh,electrolyzer_size_mw,number_electrolyzer_stacks):
+def run_electrolyzer(wind_generation_kWh,electrolyzer_size_mw,number_electrolyzer_stacks, grad=False):
     """
     Inputs
     ----------
@@ -27,6 +27,8 @@ def run_electrolyzer(wind_generation_kWh,electrolyzer_size_mw,number_electrolyze
         total installed electrolyzer capacity [MW]
     number_electrolyzer_stacks : int
         the number of electrolyzer stacks in electrolyzer farm
+    grad : bool
+        turns on JAX numpy wrapper for autograd capabilities (used in layout opt)
 
     Returns
     -------
@@ -35,6 +37,11 @@ def run_electrolyzer(wind_generation_kWh,electrolyzer_size_mw,number_electrolyze
     aH2p_avg : float
         annual average hydrogen production across plant life [kg/year]
     """
+
+    if grad:
+        import tensorflow.experimental.numpy as np
+        np.experimental_enable_numpy_behavior()
+
     #01: define electrolyzer inputs
 
     #here is where we run the electrolyzer
@@ -43,13 +50,20 @@ def run_electrolyzer(wind_generation_kWh,electrolyzer_size_mw,number_electrolyze
     electrolyzer_size_mw,
     plant_life, number_electrolyzer_stacks,[],
     pem_control_type,100,user_defined_pem_param_dictionary,
-    use_degradation_penalty,grid_connection_scenario,[])
+    use_degradation_penalty,grid_connection_scenario,[], grad=grad)
 
     #H2 production per year of plant life in kg-H2/year
-    aH2p_life = H2_Results['Performance Schedules']['Annual H2 Production [kg/year]'].values
-    aH2p_avg = np.mean(aH2p_life)
+
+    # need to call values method for dictionary, values is member var for df
+    if grad: 
+        aH2p_life = H2_Results['Performance Schedules']['Annual H2 Production [kg/year]'].values()
+        aH2p_avg = np.mean(list(aH2p_life))
+    else:
+        aH2p_life = H2_Results['Performance Schedules']['Annual H2 Production [kg/year]'].values     
+        aH2p_avg = np.mean(aH2p_life)
+    
     return H2_Results, aH2p_avg
-def simple_approximate_lcoh(electrolyzer_size_mw, H2_Results, electrolyzer_unit_capex = 500, stack_replacement_cost = 15/100,discount_rate = 0.08):
+def simple_approximate_lcoh(electrolyzer_size_mw, H2_Results, electrolyzer_unit_capex = 500, stack_replacement_cost = 15/100,discount_rate = 0.08,grad=False):
     """
     Inputs
     ----------
@@ -68,6 +82,11 @@ def simple_approximate_lcoh(electrolyzer_size_mw, H2_Results, electrolyzer_unit_
     LCOH_approx : float
         approximate ratio of electrolyzer costs to hydrogen produced [$/kg-H2]
     """
+
+    if grad:
+        import tensorflow.experimental.numpy as np
+        np.experimental_enable_numpy_behavior()
+        
     years = np.arange(0,plant_life,1)
     # stack_replacement_cost = 15/100  #[% of installed capital cost]
     variable_OM = 1.30  #[$/MWh]
@@ -78,9 +97,14 @@ def simple_approximate_lcoh(electrolyzer_size_mw, H2_Results, electrolyzer_unit_
     electrolyzer_total_CapEx = electrolyzer_overnight_unit_capex*(electrolyzer_size_mw*1e3) #[$]
 
     #H2 production per year of plant life in kg-H2/year
-    aH2p_life = H2_Results['Performance Schedules']['Annual H2 Production [kg/year]'].values
-    percent_of_capacity_replaced = H2_Results['Performance Schedules']['Refurbishment Schedule [MW replaced/year]'].values/electrolyzer_size_mw
-    elec_efficiency_per_yr_kWhprkg=H2_Results['Performance Schedules']['Annual Average Efficiency [kWh/kg]'].values
+    if grad:
+        aH2p_life = np.array(list(H2_Results['Performance Schedules']['Annual H2 Production [kg/year]'].values()))
+        percent_of_capacity_replaced = np.array(list(H2_Results['Performance Schedules']['Refurbishment Schedule [MW replaced/year]'].values()))/electrolyzer_size_mw
+        elec_efficiency_per_yr_kWhprkg= np.array(list(H2_Results['Performance Schedules']['Annual Average Efficiency [kWh/kg]'].values()))
+    else:
+        aH2p_life = H2_Results['Performance Schedules']['Annual H2 Production [kg/year]'].values
+        percent_of_capacity_replaced = H2_Results['Performance Schedules']['Refurbishment Schedule [MW replaced/year]'].values/electrolyzer_size_mw
+        elec_efficiency_per_yr_kWhprkg=H2_Results['Performance Schedules']['Annual Average Efficiency [kWh/kg]'].values
     
     electrolyzer_refurbishment_schedule = percent_of_capacity_replaced*stack_replacement_cost
     variable_OM_perkg = (variable_OM/1000)*elec_efficiency_per_yr_kWhprkg #[$/kg-year]
@@ -99,8 +123,13 @@ def simple_approximate_lcoh(electrolyzer_size_mw, H2_Results, electrolyzer_unit_
     
     return LCOH_approx
 
+# TODO add the grad flag to this, not sure if this function is called elsewhere in HOPP
 def get_lcoh(plant_power):
-    wind_generation_kWh = plant_power.numpy() / 1e3 #output from WPGNN
+
+    import tensorflow.experimental.numpy as np
+    np.experimental_enable_numpy_behavior()
+
+    wind_generation_kWh = plant_power / 1e3 #output from WPGNN
         
     n_turbines = 12
     turbine_size_MW = 3.4 #MW
@@ -108,7 +137,7 @@ def get_lcoh(plant_power):
     stack_size_MW = 10
     electrolyzer_size_MW = 60
     n_stacks = 6
-    H2_Results, annual_H2 = run_electrolyzer(wind_generation_kWh,electrolyzer_size_MW,n_stacks)
-    LCOH_estimate = simple_approximate_lcoh(electrolyzer_size_MW, H2_Results)
+    H2_Results, annual_H2 = run_electrolyzer(wind_generation_kWh,electrolyzer_size_MW,n_stacks,grad=True)
+    LCOH_estimate = simple_approximate_lcoh(electrolyzer_size_MW, H2_Results,grad=True)
 
     return LCOH_estimate

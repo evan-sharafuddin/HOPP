@@ -36,27 +36,71 @@ def combine_cluster_annual_performance_info(h2_tot):
       new_dict[k]= dict(zip(yr_keys,vals))
    return new_dict
 
+def combine_cluster_annual_performance_info_grad(h2_tot):
+   '''Same functionality as combine_cluster_annual_performance_info except
+   designed for dict input instead of pd dataframe'''
+
+   clusters = list(h2_tot.keys())
+   performance_metrics = list(h2_tot[clusters[0]]['Performance By Year'].keys())
+   n_years = len(h2_tot[clusters[0]]['Performance By Year'][performance_metrics[0]])
+   yr_keys = list(range(n_years))
+
+   vals_to_average = [k for k in performance_metrics if '/year' not in k]
+   new_dict = {}
+
+   for k in performance_metrics:
+      vals = np.zeros(n_years)
+      for c in clusters:
+         vals += np.array(list(h2_tot[c]['Performance By Year'][k].values()))
+      
+      if k in vals_to_average:
+         vals = vals/len(clusters)
+      new_dict[k]= dict(zip(yr_keys,vals))
+
+   return new_dict
+
 def run_h2_PEM(electrical_generation_timeseries, electrolyzer_size,
                 useful_life, n_pem_clusters,  electrolysis_scale, 
                 pem_control_type,electrolyzer_direct_cost_kw, user_defined_pem_param_dictionary,
                 use_degradation_penalty, grid_connection_scenario,
-                hydrogen_production_capacity_required_kgphr,debug_mode = False,turndown_ratio = 0.1,
+                hydrogen_production_capacity_required_kgphr,debug_mode = False,turndown_ratio = 0.1, grad=False
                 ):
    #last modified by Elenya Grant on 9/21/2023
    from hopp.simulation.technologies.hydrogen.electrolysis.run_PEM_master import run_PEM_clusters
+
+   if grad:
+      import tensorflow.experimental.numpy as np
+      np.experimental_enable_numpy_behavior()
    
-   pem=run_PEM_clusters(electrical_generation_timeseries,electrolyzer_size,n_pem_clusters,electrolyzer_direct_cost_kw,useful_life,user_defined_pem_param_dictionary,use_degradation_penalty,turndown_ratio)
+   pem=run_PEM_clusters(electrical_generation_timeseries,electrolyzer_size,n_pem_clusters,electrolyzer_direct_cost_kw,useful_life,user_defined_pem_param_dictionary,use_degradation_penalty,turndown_ratio,grad=grad)
 
    if grid_connection_scenario!='off-grid':
       h2_ts,h2_tot=pem.run_grid_connected_pem(electrolyzer_size,hydrogen_production_capacity_required_kgphr)
    else:
+      # NOTE added 'grad' flag to the logic so returning numpy arrays instead of pandas dataframes
       if pem_control_type == 'optimize':
-         h2_ts,h2_tot=pem.run(optimize=True)
+         h2_ts,h2_tot = pem.run_grad(optimize=True) if grad else pem.run(optimize=True)
       else:
-         h2_ts,h2_tot=pem.run()
+         h2_ts,h2_tot = pem.run_grad() if grad else pem.run()
+
+      # if pem_control_type == 'optimize':
+      #    h2_ts,h2_tot = pem.run(optimize=True)
+      # else:
+      #    h2_ts,h2_tot = pem.run()
+      
    #dictionaries of performance during each year of simulation, 
    #good to use for a more accurate financial analysis
-   annual_avg_performance = combine_cluster_annual_performance_info(h2_tot)
+   if grad:
+      annual_avg_performance = combine_cluster_annual_performance_info_grad(h2_tot)
+   else:
+      annual_avg_performance = combine_cluster_annual_performance_info(h2_tot)
+   
+   # NOTE for layout opt, skip the rest of this function and jump to LCOH calculation
+   # TODO having different control paths returning different types of variables could result
+   # in errors down the line
+   if grad:
+      H2_Results= {'Performance Schedules': annual_avg_performance}
+      return H2_Results, None, h2_tot, None
    
    #time-series info (unchanged)
    energy_input_to_electrolyzer=h2_ts.loc['Input Power [kWh]'].sum()
@@ -64,7 +108,12 @@ def run_h2_PEM(electrical_generation_timeseries, electrolyzer_size,
    hourly_system_electrical_usage=h2_ts.loc['Power Consumed [kWh]'].sum()
    water_hourly_usage = h2_ts.loc['water_hourly_usage_kg'].sum()
    avg_eff_perc=39.41*hydrogen_hourly_production/hourly_system_electrical_usage
-   hourly_efficiency=np.nan_to_num(avg_eff_perc)
+   
+   # NOTE altered the below commented line to work with TF numpy TODO REMOVE THIS
+   hourly_efficiency = np.where(np.isnan(avg_eff_perc), 0, avg_eff_perc)
+   # hourly_efficiency=np.nan_to_num(avg_eff_perc)
+
+
    #simulation based average performance (unchanged)
    average_uptime_hr=h2_tot.loc['Total Uptime [sec]'].mean()/3600
    water_annual_usage = np.sum(water_hourly_usage)
@@ -90,8 +139,9 @@ def run_h2_PEM(electrical_generation_timeseries, electrolyzer_size,
    system_avg_life_eff_perc = pd.Series(annual_avg_performance['Annual Average Efficiency [%-HHV]']).mean()
    system_avg_life_energy_kWh_pr_yr = pd.Series(annual_avg_performance['Annual Energy Used [kWh/year]']).mean()
    
-   average_stack_life_hrs = np.nanmean(h2_tot.loc['Stack Life [hours]'].values)
-   average_time_until_replacement = np.nanmean(h2_tot.loc['Time until replacement [hours]'].values)
+   # NOTE added .astype(np.float32) to next two lines for compatability with TF numpy TODO REMOVE THIS
+   average_stack_life_hrs = np.nanmean(h2_tot.loc['Stack Life [hours]'].values.astype(np.float32))
+   average_time_until_replacement = np.nanmean(h2_tot.loc['Time until replacement [hours]'].values.astype(np.float32))
    life_vals = [system_avg_life_capfac,system_total_annual_h2_kg_pr_year,average_stack_life_hrs,average_time_until_replacement,system_avg_life_eff_kWh_pr_kg,system_avg_life_eff_perc,system_avg_life_energy_kWh_pr_yr]
    life_desc = ["Life: Capacity Factor","Life: Annual H2 production [kg/year]","Stack Life [hrs]","Time Until Replacement [hrs]","Life: Efficiency [kWh/kg]","Life: Efficiency [%-HHV]",'Life: Annual Power Consumption [kWh/year]']
    

@@ -44,6 +44,10 @@ import wpgnn.utils
 
 import matplotlib.pyplot as plt
 
+# numpy API on tensorflow
+import tensorflow.experimental.numpy as tnp
+tnp.experimental_enable_numpy_behavior()
+
 class WPGNNForOpt(): 
     '''
         Parameters:
@@ -90,15 +94,15 @@ class WPGNNForOpt():
         # self.x = poisson_disc_samples(self.nTurbs, self.domain, R=[250., 350.])
         self.x = np.array([[0.0, 0.0], [630.0, 0.0], [1260.0, 0.0], [1800.0, 0.0]])
 
-        plt.figure(figsize=(4, 4))
-        plt.scatter(self.x[:, 0], self.x[:, 1], s=15, facecolor='b', edgecolor='k')
-        xlim = plt.gca().get_xlim()
-        ylim = plt.gca().get_ylim()
-        plt.xlim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
-        plt.ylim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
-        plt.gca().set_aspect(1.)
-        plt.title('Number of Turbines: {}'.format(self.x.shape[0]))
-        plt.show()
+        # plt.figure(figsize=(4, 4))
+        # plt.scatter(self.x[:, 0], self.x[:, 1], s=15, facecolor='b', edgecolor='k')
+        # xlim = plt.gca().get_xlim()
+        # ylim = plt.gca().get_ylim()
+        # plt.xlim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
+        # plt.ylim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
+        # plt.gca().set_aspect(1.)
+        # plt.title('Number of Turbines: {}'.format(self.x.shape[0]))
+        # plt.show()
 
         self.ti = 0.08 # turbulance intensity
 
@@ -213,7 +217,7 @@ class WPGNNForOpt():
         
         # out_graph = graphs_tuple_to_data_dicts(self.model(x_graph_tuple))
         # plant_power_test2 = [5e8 * out_graph[i]['globals'][0] for i in range(len(out_graph))] # using logic from wpgnn_for_hopp
-        
+
         LCOH, dLCOH = self.eval_model(x_graph_tuple)
 
         dLCOH = dLCOH.numpy()/np.array([[75000., 85000., 15.]])
@@ -223,20 +227,92 @@ class WPGNNForOpt():
     
     # @tf.function
     def eval_model(self, x_graph_tuple):
-        with tf.GradientTape() as tape:
+        
+        with tf.GradientTape(persistent=True) as tape:
             tape.watch(x_graph_tuple.nodes)
 
-            plant_power = 5e8*self.model(x_graph_tuple).globals[:, 0] # unnorming result, NOTE in example_opt divided by 1e6 to convert to MW 
-
-            # from past debugging... this should never be triggered
-            if max(plant_power) == 0:
-                raise Exception("WPGNN evaluated to plant power output of zero...")
-        
+            plant_power = 5e8*self.model(x_graph_tuple).globals[:, 0] # unnorming result, units of power W 
             LCOH = get_lcoh(plant_power)
+            
+            ########## test gradients
+            # print('\n\n\nBEGIN TESTS')
+            # # 1) should definitely work
+            # test1 = sum(plant_power[:100])
+            # jac1 = tape.jacobian(test1, x_graph_tuple.nodes)
+
+            # print(jac1.shape) # works
+
+            # # 2) using numpy operations... not sure if it will work
+            # import tensorflow.experimental.numpy as np
+            # np.experimental_enable_numpy_behavior()
+            # test2 = np.sum(plant_power[:100])
+            # jac2 = tape.jacobian(test2, x_graph_tuple.nodes)
+
+            # print(jac2.shape) # works
+
+            # 3) nested functions using numpy operations
+            # def fun2(input):
+            #     import tensorflow.experimental.numpy as np
+            #     np.experimental_enable_numpy_behavior()
+            #     input *= input
+            #     input = input + 5.129035234
+            #     return input
+            
+            # def fun1(input):
+            #     import tensorflow.experimental.numpy as np
+            #     np.experimental_enable_numpy_behavior()
+            #     return fun2(input) + np.zeros(input.shape)
+            
+            # import tensorflow.experimental.numpy as np
+            # np.experimental_enable_numpy_behavior()
+
+            # test3 = plant_power[:100]
+            # test3 = np.sum(fun1(test3))
+            # jac3 = tape.jacobian(test3, x_graph_tuple.nodes)
+
+            # print(jac3.shape)
+
+            # print('END TESTS\n\n\n')
+            ########## END TEST GRADIENTS
+
+
+        print('evalulating gradient...')
 
         dLCOH = tape.jacobian(LCOH, x_graph_tuple.nodes)
+        print(type(dLCOH))
+
+
+
+        # print('evaluating gradient...')
+        # dpower_dnodes = tape.jacobian(plant_power, x_graph_tuple.nodes)
+        # print(dpower_dnodes.shape)
+        # plant_power, dpower_dnodes = self.find_plant_power(x_graph_tuple) # plant_power in W
+
+        
+        # from jax import jacfwd # TODO might want to use jacrev, see documentation
+
+        # dLCOH_dpower = jacfwd(get_lcoh)(plant_power)
+
+        # dLCOH = dLCOH_dpower * dpower_dnodes
 
         return LCOH, dLCOH
+    
+    # @tf.function
+    # def find_plant_power(self, x_graph_tuple):
+    #     with tf.GradientTape() as tape:
+    #         tape.watch(x_graph_tuple.nodes)
+
+    #         plant_power = 5e8*self.model(x_graph_tuple).globals[:, 0] # unnorming result, NOTE in example_opt divided by 1e6 to convert to MW 
+
+    #         # # from past debugging... this should never be triggered
+    #         # if max(plant_power) == 0:
+    #         #     raise Exception("WPGNN evaluated to plant power output of zero...")
+
+    #     print('evaluating gradient...')
+    #     dpower_dnodes = tape.jacobian(plant_power, x_graph_tuple.nodes)
+    #     print(dpower_dnodes.shape)
+        
+    #     return plant_power, dpower_dnodes
     
 
 # had to move this out of the class decleration for some reason
