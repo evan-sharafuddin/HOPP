@@ -26,10 +26,12 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import jax
 
 
 from hopp.simulation.technologies.hydrogen.electrolysis.optimization_utils_linear import optimize
 import time
+from tqdm import tqdm
 
 # from PyOMO import ipOpt !! FOR SANJANA!!
 warnings.filterwarnings("ignore")
@@ -70,8 +72,7 @@ class run_PEM_clusters:
         grad=False
     ):
         if grad:
-            import tensorflow.experimental.numpy as np
-            np.experimental_enable_numpy_behavior()
+            import jax.numpy as np
             
         # nomen
         self.cluster_cap_mw = np.round(system_size_mw / num_clusters)
@@ -268,11 +269,10 @@ class run_PEM_clusters:
 
         return np.transpose(P_full)
 
-    @tf.function
+
     def even_split_power(self):
         if self.grad:
-            import tensorflow.experimental.numpy as np
-            np.experimental_enable_numpy_behavior()
+            import jax.numpy as np
             
         start = time.perf_counter()
         # determine how much power to give each cluster
@@ -286,25 +286,24 @@ class run_PEM_clusters:
             else 0
             for ti, pwr in enumerate(self.input_power_kw)
         ]
-
         power_per_to_active_clusters = np.array(power_per_cluster)
         power_to_clusters = np.zeros((len(self.input_power_kw), self.num_clusters))
         power_to_clusters_list = []
-        for i, cluster_power in enumerate(
+        
+        def in_place_assign(arr, idx, val):
+            arr.at[idx].set(val)
+    
+        for i, cluster_power in tqdm(enumerate(
             power_per_to_active_clusters
-        ):  # np.arange(0,self.n_stacks,1):
+        )):  # np.arange(0,self.n_stacks,1):
             clusters_off = self.num_clusters - int(num_clusters_on[i])
             no_power = np.zeros(clusters_off)
             with_power = cluster_power * np.ones(int(num_clusters_on[i]))
             tot_power = np.concatenate((with_power, no_power))
             if self.grad:
-                power_to_clusters_list.append(tot_power)
+                power_to_clusters.at[i].set(tot_power) # this takes forever
             else:
                 power_to_clusters[i] = tot_power
-
-        if self.grad:
-            import tensorflow as tf
-            power_to_clusters = tf.stack(power_to_clusters_list)
 
         # power_to_clusters = np.repeat([power_per_cluster],self.num_clusters,axis=0)
         end = time.perf_counter()

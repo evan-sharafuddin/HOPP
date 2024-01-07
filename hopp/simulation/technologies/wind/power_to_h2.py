@@ -39,8 +39,7 @@ def run_electrolyzer(wind_generation_kWh,electrolyzer_size_mw,number_electrolyze
     """
 
     if grad:
-        import tensorflow.experimental.numpy as np
-        np.experimental_enable_numpy_behavior()
+        import jax.numpy as np
 
     #01: define electrolyzer inputs
 
@@ -57,7 +56,7 @@ def run_electrolyzer(wind_generation_kWh,electrolyzer_size_mw,number_electrolyze
     # need to call values method for dictionary, values is member var for df
     if grad: 
         aH2p_life = H2_Results['Performance Schedules']['Annual H2 Production [kg/year]'].values()
-        aH2p_avg = np.mean(list(aH2p_life))
+        aH2p_avg = np.mean(np.array(list(aH2p_life)))
     else:
         aH2p_life = H2_Results['Performance Schedules']['Annual H2 Production [kg/year]'].values     
         aH2p_avg = np.mean(aH2p_life)
@@ -84,8 +83,7 @@ def simple_approximate_lcoh(electrolyzer_size_mw, H2_Results, electrolyzer_unit_
     """
 
     if grad:
-        import tensorflow.experimental.numpy as np
-        np.experimental_enable_numpy_behavior()
+        import jax.numpy as np
         
     years = np.arange(0,plant_life,1)
     # stack_replacement_cost = 15/100  #[% of installed capital cost]
@@ -126,7 +124,7 @@ def simple_approximate_lcoh(electrolyzer_size_mw, H2_Results, electrolyzer_unit_
 # TODO add the grad flag to this, not sure if this function is called elsewhere in HOPP
 def get_lcoh(plant_power):
 
-    wind_generation_kWh = plant_power / 1e3 #output from WPGNN
+    wind_generation_kWh = plant_power.numpy() / 1e3 #output from WPGNN
         
     n_turbines = 12
     turbine_size_MW = 3.4 #MW

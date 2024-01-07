@@ -44,10 +44,6 @@ import wpgnn.utils
 
 import matplotlib.pyplot as plt
 
-# numpy API on tensorflow
-import tensorflow.experimental.numpy as tnp
-tnp.experimental_enable_numpy_behavior()
-
 class WPGNNForOpt(): 
     '''
         Parameters:
@@ -225,7 +221,7 @@ class WPGNNForOpt():
 
         return LCOH.numpy(), dLCOH
     
-    # @tf.function
+
     def eval_model(self, x_graph_tuple):
     
         print('calculating plant power time series...')
@@ -247,12 +243,13 @@ class WPGNNForOpt():
         return None, None
         # return LCOH, dLCOH
     
+    # @tf.function
     def find_plant_power(self, x_graph_tuple):
         with tf.GradientTape() as tape:
             tape.watch(x_graph_tuple.nodes)
             plant_power = 5e8*self.model(x_graph_tuple).globals[:, 0] # unnorming result, NOTE in example_opt divided by 1e6 to convert to MW 
         # print('evaluating first gradient...')
-        dpower_dnodes = tape.gradient(plant_power, x_graph_tuple.nodes)
+        dpower_dnodes = tape.gradient(plant_power, x_graph_tuple.nodes) # not completely sure why, but jacobian does not work here 
         return plant_power, dpower_dnodes
     
 

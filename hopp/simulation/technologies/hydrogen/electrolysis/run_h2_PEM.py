@@ -69,13 +69,15 @@ def run_h2_PEM(electrical_generation_timeseries, electrolyzer_size,
    from hopp.simulation.technologies.hydrogen.electrolysis.run_PEM_master import run_PEM_clusters
 
    if grad:
-      import tensorflow.experimental.numpy as np
-      np.experimental_enable_numpy_behavior()
+      import jax.numpy as np
    
    pem=run_PEM_clusters(electrical_generation_timeseries,electrolyzer_size,n_pem_clusters,electrolyzer_direct_cost_kw,useful_life,user_defined_pem_param_dictionary,use_degradation_penalty,turndown_ratio,grad=grad)
 
    if grid_connection_scenario!='off-grid':
-      h2_ts,h2_tot=pem.run_grid_connected_pem(electrolyzer_size,hydrogen_production_capacity_required_kgphr)
+      if grad:
+         raise NotImplementedError('Cannot perform layout optimization with grid')
+      else:
+         h2_ts,h2_tot=pem.run_grid_connected_pem(electrolyzer_size,hydrogen_production_capacity_required_kgphr)
    else:
       # NOTE added 'grad' flag to the logic so returning numpy arrays instead of pandas dataframes
       if pem_control_type == 'optimize':

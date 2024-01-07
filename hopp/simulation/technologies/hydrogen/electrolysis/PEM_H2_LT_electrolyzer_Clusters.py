@@ -28,6 +28,8 @@ import scipy
 import rainflow
 from scipy import interpolate
 
+from tqdm import tqdm
+
 np.set_printoptions(threshold=sys.maxsize)
 
 # def calc_current(P_T,p1,p2,p3,p4,p5,p6): #calculates i-v curve coefficients given the stack power and stack temp
@@ -267,8 +269,7 @@ class PEM_H2_Clusters:
 
     def full_degradation(self,voltage_signal):
         if self.grad:
-            import tensorflow.experimental.numpy as np
-            np.experimental_enable_numpy_behavior()
+            import jax.numpy as np
             
         #TODO: add reset if hits end of life degradation limit!
         voltage_signal = voltage_signal*self.cluster_status
@@ -299,8 +300,7 @@ class PEM_H2_Clusters:
     def calc_stack_replacement_info(self,deg_signal):
         """Stack life optimistic estimate based on rated efficiency"""
         if self.grad:
-            import tensorflow.experimental.numpy as np
-            np.experimental_enable_numpy_behavior()
+            import jax.numpy as np
             
         #[V] degradation at end of simulation
         d_sim = deg_signal[-1] 
@@ -325,10 +325,8 @@ class PEM_H2_Clusters:
     
     def make_yearly_performance_dict(self,power_in_kW,V_deg,V_cell,I_op,grid_connected):
         if self.grad:
-            import tensorflow.experimental.numpy as np
-            np.experimental_enable_numpy_behavior()
+            import jax.numpy as np
             
-        
         #NOTE: this is not the most accurate for cases where simulation length is not close to 8760
         #I_op only needed if grid connected, should be singular value
         refturb_schedule = np.zeros(self.plant_life_years)
@@ -353,7 +351,7 @@ class PEM_H2_Clusters:
         power_pr_yr_kWh = np.zeros(int(self.plant_life_years))
         Vdeg0 = 0
         
-        for i in range(int(self.plant_life_years)): #assuming sim is close to a year
+        for i in tqdm(range(int(self.plant_life_years))): #assuming sim is close to a year
             V_deg_pr_sim = Vdeg0 + V_deg
             
             # it_died = any(V_deg_pr_sim>death_threshold)
@@ -362,28 +360,46 @@ class PEM_H2_Clusters:
                 idx_dead = np.argwhere(V_deg_pr_sim>death_threshold)[0][0]
                 V_deg_pr_sim = np.concatenate([V_deg_pr_sim[0:idx_dead],V_deg[idx_dead:sim_length]])
                 # i_sim_dead = i
-                refturb_schedule[i]=self.max_stacks
+
+                if self.grad:
+                    refturb_schedule.at[i].set(self.max_stacks)
+                else:
+                    refturb_schedule[i]=self.max_stacks
                 
             if not grid_connected:
                 stack_current = self.find_equivalent_input_power_4_deg(power_in_kW,V_cell,V_deg_pr_sim)
                 h2_kg_hr_system_init = self.h2_production_rate(stack_current,self.n_stacks_op)
                 # total_sim_input_power = self.max_stacks*np.sum(power_in_kW)
-                power_pr_yr_kWh[i] = self.max_stacks*np.sum(power_in_kW)
+
+                if self.grad:
+                    power_pr_yr_kWh.at[i].set(self.max_stacks*np.sum(power_in_kW))
+                else:
+                    power_pr_yr_kWh[i] = self.max_stacks*np.sum(power_in_kW)
             else:
                 h2_kg_hr_system_init = self.h2_production_rate(I_op,self.n_stacks_op)
                 h2_kg_hr_system_init = h2_kg_hr_system_init*np.ones(len(power_in_kW))
                 annual_power_consumed_kWh = self.max_stacks*I_op*(V_cell + V_deg_pr_sim)*self.N_cells/1000
                 # total_sim_input_power = np.sum(annual_power_consumed_kWh)
+                if self.grad:
+                    power_pr_yr_kWh.at[i].set(np.sum(annual_power_consumed_kWh))
                 power_pr_yr_kWh[i] = np.sum(annual_power_consumed_kWh)
 
             h2_kg_hr_system = h2_kg_hr_system_init*h2_multiplier
-            kg_h2_pr_sim[i] = np.sum(h2_kg_hr_system)
-            capfac_per_sim[i] = np.sum(h2_kg_hr_system)/rated_h2_pr_sim
-            d_sim[i] = V_deg_pr_sim[sim_length-1]
+
+            if self.grad:
+                kg_h2_pr_sim.at[i].set(np.sum(h2_kg_hr_system))
+                capfac_per_sim.at[i].set(np.sum(h2_kg_hr_system)/rated_h2_pr_sim)
+                d_sim.at[i].set(V_deg_pr_sim[sim_length-1])
+            else:    
+                kg_h2_pr_sim[i] = np.sum(h2_kg_hr_system)
+                capfac_per_sim[i] = np.sum(h2_kg_hr_system)/rated_h2_pr_sim
+                d_sim[i] = V_deg_pr_sim[sim_length-1]
+
             Vdeg0 = V_deg_pr_sim[sim_length-1]
-        performance_by_year = {}
-        year = np.arange(0,int(self.plant_life_years),1)
         
+        year = np.arange(0,int(self.plant_life_years),1).tolist()
+        
+        performance_by_year = {}
         performance_by_year['Capacity Factor [-]'] = dict(zip(year,capfac_per_sim))
         performance_by_year['Refurbishment Schedule [MW replaced/year]'] = dict(zip(year,refturb_schedule))
         performance_by_year['Annual H2 Production [kg/year]'] = dict(zip(year,kg_h2_pr_sim))
@@ -407,8 +423,7 @@ class PEM_H2_Clusters:
 
     def calc_uptime_degradation(self,voltage_signal):
         if self.grad:
-            import tensorflow.experimental.numpy as np
-            np.experimental_enable_numpy_behavior()
+            import jax.numpy as np
             
         #steady_deg_rate = 1.12775521e-09
         steady_deg_per_hr=self.dt*self.steady_deg_rate*voltage_signal*self.cluster_status
@@ -420,8 +435,7 @@ class PEM_H2_Clusters:
         
     def calc_onoff_degradation(self):
         if self.grad:
-            import tensorflow.experimental.numpy as np
-            np.experimental_enable_numpy_behavior()
+            import jax.numpy as np
             
         
         change_stack=np.diff(self.cluster_status)
@@ -437,8 +451,7 @@ class PEM_H2_Clusters:
         #should not use voltage values when voltage_signal = 0
         #aka - should only be counted when electrolyzer is on
         if self.grad:
-            import tensorflow.experimental.numpy as np
-            np.experimental_enable_numpy_behavior()
+            import jax.numpy as np
             print('WARNING: not sure if rainflow will interfere with gradient calculations...')
             
         t_calc=np.arange(0,len(voltage_signal)+dt_fatigue_calc_hrs ,dt_fatigue_calc_hrs ) 
@@ -582,9 +595,8 @@ class PEM_H2_Clusters:
         """
 
         if self.grad:
-            import tensorflow.experimental.numpy as np
-            np.experimental_enable_numpy_behavior()
-            
+            import jax.numpy as np
+
         power_converter_efficiency = 1.0 #this used to be 0.95 but feel free to change as you'd like
         # if self.input_dict['voltage_type'] == 'constant':
         power_curtailed_kw=np.where(input_external_power_kw > self.max_stacks * self.stack_rating_kW,\
@@ -641,8 +653,7 @@ class PEM_H2_Clusters:
         """
 
         if self.grad:
-            import tensorflow.experimental.numpy as np
-            np.experimental_enable_numpy_behavior()
+            import jax.numpy as np
             
         # cluster_min_power = 0.1*self.max_stacks
         # cluster_min_power = 0.1*cluster_size_mw
@@ -716,8 +727,7 @@ class PEM_H2_Clusters:
         
         """
         if self.grad:
-            import tensorflow.experimental.numpy as np
-            np.experimental_enable_numpy_behavior()
+            import jax.numpy as np
             
         T_K=Stack_T+ 273.15 
         #current density [A/cm^2]
@@ -737,8 +747,7 @@ class PEM_H2_Clusters:
 
     def calc_V_ohmic(self,Stack_T,I_stack,cell_active_area,delta_cm):
         if self.grad:
-            import tensorflow.experimental.numpy as np
-            np.experimental_enable_numpy_behavior()
+            import jax.numpy as np
             
         
         T_K=Stack_T+ 273.15 
