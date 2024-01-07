@@ -272,6 +272,13 @@ class WPGNNForOpt():
 
             # print(jac3.shape)
 
+            # test4 = plant_power[:100]
+            # dict_stuff = {'test4': test4, 'pp': 12}
+            # test4 = np.sum(dict_stuff['test4'] * dict_stuff['pp'])
+
+            # jac4 = tape.jacobian(test4, x_graph_tuple.nodes)
+            # print(jac4.shape)
+
             # print('END TESTS\n\n\n')
             ########## END TEST GRADIENTS
 

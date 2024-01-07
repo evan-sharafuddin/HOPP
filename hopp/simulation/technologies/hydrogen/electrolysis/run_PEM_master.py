@@ -99,6 +99,7 @@ class run_PEM_clusters:
         self.farm_power = 1e9
         self.switching_cost = (electrolyzer_direct_cost_kw*0.15*self.cluster_cap_mw * 1000)*(1.48e-4)/(0.26586)
 
+        self.grad = grad # NOTE addition for gradient capabilities used in layout opt
     def run_grid_connected_pem(self,system_size_mw,hydrogen_production_capacity_required_kgphr):
         pem=PEMClusters(
                     system_size_mw,
@@ -266,6 +267,10 @@ class run_PEM_clusters:
         return np.transpose(P_full)
 
     def even_split_power(self):
+        if self.grad:
+            import tensorflow.experimental.numpy as np
+            np.experimental_enable_numpy_behavior()
+            
         start = time.perf_counter()
         # determine how much power to give each cluster
         num_clusters_on = np.floor(self.input_power_kw / self.cluster_min_power)
@@ -288,7 +293,10 @@ class run_PEM_clusters:
             no_power = np.zeros(clusters_off)
             with_power = cluster_power * np.ones(int(num_clusters_on[i]))
             tot_power = np.concatenate((with_power, no_power))
-            power_to_clusters[i] = tot_power
+            if self.grad:
+                power_to_clusters[i].assign(tot_power)
+            else:
+                power_to_clusters[i] = tot_power
 
         # power_to_clusters = np.repeat([power_per_cluster],self.num_clusters,axis=0)
         end = time.perf_counter()
@@ -323,6 +331,7 @@ class run_PEM_clusters:
                     *self.user_params,
                     self.use_deg_penalty,
                     self.turndown_ratio,
+                    grad=self.grad, # NOTE for layout opt
                 )
             )
         end = time.perf_counter()
