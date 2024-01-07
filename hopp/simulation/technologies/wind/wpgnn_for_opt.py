@@ -227,99 +227,33 @@ class WPGNNForOpt():
     
     # @tf.function
     def eval_model(self, x_graph_tuple):
+    
+        print('calculating plant power time series...')
+        plant_power, dpower_dnodes = self.find_plant_power(x_graph_tuple)
+        print(type(dpower_dnodes))
         
-        with tf.GradientTape(persistent=True) as tape:
-            tape.watch(x_graph_tuple.nodes)
+        print('calculating LCOH...')
+        LCOH = get_lcoh(plant_power)
+        print(LCOH)
 
-            plant_power = 5e8*self.model(x_graph_tuple).globals[:, 0] # unnorming result, units of power W 
-            LCOH = get_lcoh(plant_power)
-            
-            ########## test gradients
-            # print('\n\n\nBEGIN TESTS')
-            # # 1) should definitely work
-            # test1 = sum(plant_power[:100])
-            # jac1 = tape.jacobian(test1, x_graph_tuple.nodes)
-
-            # print(jac1.shape) # works
-
-            # # 2) using numpy operations... not sure if it will work
-            # import tensorflow.experimental.numpy as np
-            # np.experimental_enable_numpy_behavior()
-            # test2 = np.sum(plant_power[:100])
-            # jac2 = tape.jacobian(test2, x_graph_tuple.nodes)
-
-            # print(jac2.shape) # works
-
-            # 3) nested functions using numpy operations
-            # def fun2(input):
-            #     import tensorflow.experimental.numpy as np
-            #     np.experimental_enable_numpy_behavior()
-            #     input *= input
-            #     input = input + 5.129035234
-            #     return input
-            
-            # def fun1(input):
-            #     import tensorflow.experimental.numpy as np
-            #     np.experimental_enable_numpy_behavior()
-            #     return fun2(input) + np.zeros(input.shape)
-            
-            # import tensorflow.experimental.numpy as np
-            # np.experimental_enable_numpy_behavior()
-
-            # test3 = plant_power[:100]
-            # test3 = np.sum(fun1(test3))
-            # jac3 = tape.jacobian(test3, x_graph_tuple.nodes)
-
-            # print(jac3.shape)
-
-            # test4 = plant_power[:100]
-            # dict_stuff = {'test4': test4, 'pp': 12}
-            # test4 = np.sum(dict_stuff['test4'] * dict_stuff['pp'])
-
-            # jac4 = tape.jacobian(test4, x_graph_tuple.nodes)
-            # print(jac4.shape)
-
-            # print('END TESTS\n\n\n')
-            ########## END TEST GRADIENTS
-
-
-        print('evalulating gradient...')
-
-        dLCOH = tape.jacobian(LCOH, x_graph_tuple.nodes)
-        print(type(dLCOH))
-
-
-
-        # print('evaluating gradient...')
-        # dpower_dnodes = tape.jacobian(plant_power, x_graph_tuple.nodes)
-        # print(dpower_dnodes.shape)
-        # plant_power, dpower_dnodes = self.find_plant_power(x_graph_tuple) # plant_power in W
-
+        print('evalulating second gradient...')
         
-        # from jax import jacfwd # TODO might want to use jacrev, see documentation
-
-        # dLCOH_dpower = jacfwd(get_lcoh)(plant_power)
+        from jax import jacfwd # TODO might want to use jacrev, see documentation
+        dLCOH_dpower = jacfwd(get_lcoh)(plant_power)
+        print(type(dLCOH_dpower))
 
         # dLCOH = dLCOH_dpower * dpower_dnodes
-
-        return LCOH, dLCOH
-    
-    # @tf.function
-    # def find_plant_power(self, x_graph_tuple):
-    #     with tf.GradientTape() as tape:
-    #         tape.watch(x_graph_tuple.nodes)
-
-    #         plant_power = 5e8*self.model(x_graph_tuple).globals[:, 0] # unnorming result, NOTE in example_opt divided by 1e6 to convert to MW 
-
-    #         # # from past debugging... this should never be triggered
-    #         # if max(plant_power) == 0:
-    #         #     raise Exception("WPGNN evaluated to plant power output of zero...")
-
-    #     print('evaluating gradient...')
-    #     dpower_dnodes = tape.jacobian(plant_power, x_graph_tuple.nodes)
-    #     print(dpower_dnodes.shape)
         
-    #     return plant_power, dpower_dnodes
+        return None, None
+        # return LCOH, dLCOH
+    
+    def find_plant_power(self, x_graph_tuple):
+        with tf.GradientTape() as tape:
+            tape.watch(x_graph_tuple.nodes)
+            plant_power = 5e8*self.model(x_graph_tuple).globals[:, 0] # unnorming result, NOTE in example_opt divided by 1e6 to convert to MW 
+        # print('evaluating first gradient...')
+        dpower_dnodes = tape.gradient(plant_power, x_graph_tuple.nodes)
+        return plant_power, dpower_dnodes
     
 
 # had to move this out of the class decleration for some reason

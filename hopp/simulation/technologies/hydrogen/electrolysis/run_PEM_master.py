@@ -1,6 +1,8 @@
 import os
 import sys
 
+import tensorflow as tf
+
 sys.path.append("")
 # from dotenv import load_dotenv
 import pandas as pd
@@ -266,6 +268,7 @@ class run_PEM_clusters:
 
         return np.transpose(P_full)
 
+    @tf.function
     def even_split_power(self):
         if self.grad:
             import tensorflow.experimental.numpy as np
@@ -286,6 +289,7 @@ class run_PEM_clusters:
 
         power_per_to_active_clusters = np.array(power_per_cluster)
         power_to_clusters = np.zeros((len(self.input_power_kw), self.num_clusters))
+        power_to_clusters_list = []
         for i, cluster_power in enumerate(
             power_per_to_active_clusters
         ):  # np.arange(0,self.n_stacks,1):
@@ -294,9 +298,13 @@ class run_PEM_clusters:
             with_power = cluster_power * np.ones(int(num_clusters_on[i]))
             tot_power = np.concatenate((with_power, no_power))
             if self.grad:
-                power_to_clusters[i].assign(tot_power)
+                power_to_clusters_list.append(tot_power)
             else:
                 power_to_clusters[i] = tot_power
+
+        if self.grad:
+            import tensorflow as tf
+            power_to_clusters = tf.stack(power_to_clusters_list)
 
         # power_to_clusters = np.repeat([power_per_cluster],self.num_clusters,axis=0)
         end = time.perf_counter()
