@@ -27,7 +27,7 @@ from graph_nets.utils_np import graphs_tuple_to_data_dicts
 
 from floris.tools import FlorisInterface
 
-from hopp.simulation.technologies.wind.power_to_h2 import get_lcoh
+# from hopp.simulation.technologies.wind.power_to_h2 import get_lcoh
 
 # example_opt imports
 import os
@@ -90,15 +90,15 @@ class WPGNNForOpt():
         # self.x = poisson_disc_samples(self.nTurbs, self.domain, R=[250., 350.])
         self.x = np.array([[0.0, 0.0], [630.0, 0.0], [1260.0, 0.0], [1800.0, 0.0]])
 
-        plt.figure(figsize=(4, 4))
-        plt.scatter(self.x[:, 0], self.x[:, 1], s=15, facecolor='b', edgecolor='k')
-        xlim = plt.gca().get_xlim()
-        ylim = plt.gca().get_ylim()
-        plt.xlim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
-        plt.ylim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
-        plt.gca().set_aspect(1.)
-        plt.title('Number of Turbines: {}'.format(self.x.shape[0]))
-        plt.show()
+        # plt.figure(figsize=(4, 4))
+        # plt.scatter(self.x[:, 0], self.x[:, 1], s=15, facecolor='b', edgecolor='k')
+        # xlim = plt.gca().get_xlim()
+        # ylim = plt.gca().get_ylim()
+        # plt.xlim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
+        # plt.ylim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
+        # plt.gca().set_aspect(1.)
+        # plt.title('Number of Turbines: {}'.format(self.x.shape[0]))
+        # plt.show()
 
         self.ti = 0.08 # turbulance intensity
 
@@ -199,8 +199,6 @@ class WPGNNForOpt():
                                 'senders': senders,
                                 'receivers': receivers})
             
-            
-        
         normed_input_graphs, _ = utils.norm_data(xx=input_graphs, scale_factors=self.model.scale_factors)
         x_graph_tuple = data_dicts_to_graphs_tuple(normed_input_graphs)
 
@@ -227,12 +225,8 @@ class WPGNNForOpt():
             tape.watch(x_graph_tuple.nodes)
 
             plant_power = 5e8*self.model(x_graph_tuple).globals[:, 0] # unnorming result, NOTE in example_opt divided by 1e6 to convert to MW 
-
-            # from past debugging... this should never be triggered
-            if max(plant_power) == 0:
-                raise Exception("WPGNN evaluated to plant power output of zero...")
         
-            LCOH = get_lcoh(plant_power)
+            # LCOH = get_lcoh(plant_power)
 
         dLCOH = tape.jacobian(LCOH, x_graph_tuple.nodes)
 

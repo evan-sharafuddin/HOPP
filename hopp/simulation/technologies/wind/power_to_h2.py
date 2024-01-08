@@ -17,6 +17,19 @@ user_defined_pem_param_dictionary = {
     "EOL Rated Efficiency Drop": EOL_eff_drop,
 }
 
+def simple_hydrogen_production_estimation(wind_generation_kWh,electrolyzer_size_mw,n_stacks,turndown_ratio = 0.1):
+    electrolyzer_size_kW = electrolyzer_size_mw*1e3
+    stack_size_kW = electrolyzer_size_kW/n_stacks
+    minimum_power_kWh = stack_size_kW*turndown_ratio
+    #saturate wind power at electrolyzer capacity
+    usable_power_kWh = np.where(wind_generation_kWh>electrolyzer_size_kW,electrolyzer_size_kW,wind_generation_kWh)
+    #can't use any power below turndown ratio
+    usable_power_kWh = np.where(wind_generation_kWh<minimum_power_kWh,0,wind_generation_kWh)
+
+    rated_electrolyzer_efficiency = 54.61073251891887 #kWh/kg
+    simple_hydrogen_hourly_production = usable_power_kWh*(1/rated_electrolyzer_efficiency) #kg/hr
+
+    return simple_hydrogen_hourly_production
 def run_electrolyzer(wind_generation_kWh,electrolyzer_size_mw,number_electrolyzer_stacks):
     """
     Inputs
@@ -49,6 +62,15 @@ def run_electrolyzer(wind_generation_kWh,electrolyzer_size_mw,number_electrolyze
     aH2p_life = H2_Results['Performance Schedules']['Annual H2 Production [kg/year]'].values
     aH2p_avg = np.mean(aH2p_life)
     return H2_Results, aH2p_avg
+def calculate_hydrogen_storage_capacity(hydrogen_hourly_production,hydrogen_demand_kg_pr_hr = None):
+    if hydrogen_demand_kg_pr_hr is None:
+        hydrogen_demand_kg_pr_hr = np.mean(hydrogen_hourly_production)
+    diff = hydrogen_hourly_production - hydrogen_demand_kg_pr_hr
+    diff = np.insert(diff,0,0)
+    fake_soc = np.cumsum(diff)
+    hydrogen_storage_size_kg = np.abs(np.max(fake_soc)- np.min(fake_soc))
+
+    return hydrogen_storage_size_kg
 def simple_approximate_lcoh(electrolyzer_size_mw, H2_Results, electrolyzer_unit_capex = 500, stack_replacement_cost = 15/100,discount_rate = 0.08):
     """
     Inputs
@@ -95,20 +117,37 @@ def simple_approximate_lcoh(electrolyzer_size_mw, H2_Results, electrolyzer_unit_
     fixed_om_per_year = [(fixed_OM_total[i])/(denom[i]) for i in years]
     stack_rep_per_year = [(stack_replacement_total[i])/(denom[i]) for i in years]
     elec_opex_pr_year = np.array(variable_om_per_year) + np.array(fixed_om_per_year) + np.array(stack_rep_per_year)
-    LCOH_approx = electrolyzer_total_CapEx + sum(elec_opex_pr_year[i]/hydrogen_per_year[i] for i in years)
+    
+    elec_capex_per_year = np.zeros(plant_life)
+    elec_capex_per_year[0] = electrolyzer_total_CapEx
+    elec_cost_per_year = elec_opex_pr_year + elec_capex_per_year
+    # LCOH_approx = (electrolyzer_total_CapEx/hydrogen_per_year[0]) + sum(elec_opex_pr_year[i]/hydrogen_per_year[i] for i in years)
+    LCOH_approx =  sum(elec_cost_per_year[i]/hydrogen_per_year[i] for i in years)
     
     return LCOH_approx
 
-def get_lcoh(plant_power):
-    wind_generation_kWh = plant_power.numpy() / 1e3 #output from WPGNN
-        
-    n_turbines = 12
-    turbine_size_MW = 3.4 #MW
-    wind_farm_capacity = turbine_size_MW*n_turbines #MW
-    stack_size_MW = 10
-    electrolyzer_size_MW = 60
-    n_stacks = 6
-    H2_Results, annual_H2 = run_electrolyzer(wind_generation_kWh,electrolyzer_size_MW,n_stacks)
-    LCOH_estimate = simple_approximate_lcoh(electrolyzer_size_MW, H2_Results)
 
-    return LCOH_estimate
+wind_generation_kWh = np.array([0]) #output from WPGNN
+
+#wind turbine
+n_turbines = 10
+turbine_size_MW = 6 #MW
+wind_farm_capacity = turbine_size_MW*n_turbines #MW
+
+#electrolyzer
+stack_size_MW = 10
+n_stacks = 6 #could set n_stacks = 1
+electrolyzer_size_MW = n_stacks*stack_size_MW
+
+#simplified method for estimating hydrogen production from power timeseries
+hydrogen_hourly_production_kg_simple = simple_hydrogen_production_estimation(wind_generation_kWh,electrolyzer_size_MW,n_stacks)
+
+#actually run the electrolyzer for layout optimization to maximize annual_H2
+H2_Results, annual_H2 = run_electrolyzer(wind_generation_kWh,electrolyzer_size_MW,n_stacks)
+
+#OR layout optimization to minimize hydrogen_storage_capacity
+hydrogen_hourly_production = H2_Results['hydrogen_hourly_production']
+hydrogen_storage_capacity = calculate_hydrogen_storage_capacity(hydrogen_hourly_production)
+
+#Later: optimize to reduce LCOH
+LCOH_estimate = simple_approximate_lcoh(electrolyzer_size_MW, H2_Results)
