@@ -229,6 +229,7 @@ class WPGNNForOpt():
         print(type(dpower_dnodes))
         
         print('calculating LCOH...')
+        plant_power = plant_power.numpy()
         LCOH = get_lcoh(plant_power)
         print(LCOH)
 

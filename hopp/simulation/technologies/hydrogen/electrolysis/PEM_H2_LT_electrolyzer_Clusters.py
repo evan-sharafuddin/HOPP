@@ -362,7 +362,7 @@ class PEM_H2_Clusters:
                 # i_sim_dead = i
 
                 if self.grad:
-                    refturb_schedule.at[i].set(self.max_stacks)
+                    refturb_schedule = refturb_schedule.at[i].set(self.max_stacks)
                 else:
                     refturb_schedule[i]=self.max_stacks
                 
@@ -372,7 +372,7 @@ class PEM_H2_Clusters:
                 # total_sim_input_power = self.max_stacks*np.sum(power_in_kW)
 
                 if self.grad:
-                    power_pr_yr_kWh.at[i].set(self.max_stacks*np.sum(power_in_kW))
+                    power_pr_yr_kWh = power_pr_yr_kWh.at[i].set(self.max_stacks*np.sum(power_in_kW))
                 else:
                     power_pr_yr_kWh[i] = self.max_stacks*np.sum(power_in_kW)
             else:
@@ -381,15 +381,16 @@ class PEM_H2_Clusters:
                 annual_power_consumed_kWh = self.max_stacks*I_op*(V_cell + V_deg_pr_sim)*self.N_cells/1000
                 # total_sim_input_power = np.sum(annual_power_consumed_kWh)
                 if self.grad:
-                    power_pr_yr_kWh.at[i].set(np.sum(annual_power_consumed_kWh))
-                power_pr_yr_kWh[i] = np.sum(annual_power_consumed_kWh)
+                    raise NotImplementedError('Grid connnection should not be enabled during layout optimization')
+                else:
+                    power_pr_yr_kWh[i] = np.sum(annual_power_consumed_kWh)
 
             h2_kg_hr_system = h2_kg_hr_system_init*h2_multiplier
 
             if self.grad:
-                kg_h2_pr_sim.at[i].set(np.sum(h2_kg_hr_system))
-                capfac_per_sim.at[i].set(np.sum(h2_kg_hr_system)/rated_h2_pr_sim)
-                d_sim.at[i].set(V_deg_pr_sim[sim_length-1])
+                kg_h2_pr_sim = kg_h2_pr_sim.at[i].set(np.sum(h2_kg_hr_system))
+                capfac_per_sim = capfac_per_sim.at[i].set(np.sum(h2_kg_hr_system)/rated_h2_pr_sim)
+                d_sim = d_sim.at[i].set(V_deg_pr_sim[sim_length-1])
             else:    
                 kg_h2_pr_sim[i] = np.sum(h2_kg_hr_system)
                 capfac_per_sim[i] = np.sum(h2_kg_hr_system)/rated_h2_pr_sim
@@ -464,8 +465,9 @@ class PEM_H2_Clusters:
 
         else:
 
-            rf_cycles = rainflow.count_cycles(voltage_signal, nbins=10)
-            rf_sum = np.sum([pair[0] * pair[1] for pair in rf_cycles])
+            rf_cycles = rainflow.count_cycles(series=voltage_signal.tolist() if self.grad else voltage_signal, nbins=10)
+            rf_sum = np.sum(np.array([pair[0] * pair[1] for pair in rf_cycles])) if self.grad \
+                else np.sum([pair[0] * pair[1] for pair in rf_cycles])
             lifetime_fatigue_deg=rf_sum*self.rate_fatigue
             self.output_dict['Approx Total Fatigue Degradation [V]'] = lifetime_fatigue_deg
             rf_track=0
@@ -482,11 +484,15 @@ class PEM_H2_Clusters:
                         rf_sum=0
                     else:
                         
-                        rf_cycles=rainflow.count_cycles(voltage_signal_temp, nbins=10)
+                        rf_cycles=rainflow.count_cycles(series=voltage_signal_temp.tolist() if self.grad else voltage_signal_temp, nbins=10)
                     # rf_cycles=rainflow.count_cycles(voltage_signal[t_calc[i]:t_calc[i+1]], nbins=10)
-                        rf_sum=np.sum([pair[0] * pair[1] for pair in rf_cycles])
+                        rf_sum = np.sum(np.array([pair[0] * pair[1] for pair in rf_cycles])) if self.grad \
+                            else np.sum([pair[0] * pair[1] for pair in rf_cycles])
                 rf_track+=rf_sum
-                V_fatigue_ts[t_calc[i]:t_calc[i+1]]=rf_track*self.rate_fatigue
+                if self.grad:
+                    V_fatigue_ts = V_fatigue_ts.at[t_calc[i]:t_calc[i+1]].set(rf_track*self.rate_fatigue)
+                else:
+                    V_fatigue_ts[t_calc[i]:t_calc[i+1]]=rf_track*self.rate_fatigue
                 #already cumulative!
             self.output_dict['Sim End RF Track'] = rf_track #TODO: remove
             self.output_dict['Total Actual Fatigue Degradation [V]'] = V_fatigue_ts[-1] #TODO: remove

@@ -289,19 +289,16 @@ class run_PEM_clusters:
         power_per_to_active_clusters = np.array(power_per_cluster)
         power_to_clusters = np.zeros((len(self.input_power_kw), self.num_clusters))
         power_to_clusters_list = []
-        
-        def in_place_assign(arr, idx, val):
-            arr.at[idx].set(val)
     
         for i, cluster_power in tqdm(enumerate(
             power_per_to_active_clusters
         )):  # np.arange(0,self.n_stacks,1):
-            clusters_off = self.num_clusters - int(num_clusters_on[i])
-            no_power = np.zeros(clusters_off)
-            with_power = cluster_power * np.ones(int(num_clusters_on[i]))
+            clusters_off = self.num_clusters - int(num_clusters_on[i]) 
+            no_power = np.zeros(clusters_off) # takes forever
+            with_power = cluster_power * np.ones(int(num_clusters_on[i])) # takes forever
             tot_power = np.concatenate((with_power, no_power))
             if self.grad:
-                power_to_clusters.at[i].set(tot_power) # this takes forever
+                power_to_clusters = power_to_clusters.at[i, :].set(tot_power)
             else:
                 power_to_clusters[i] = tot_power
 

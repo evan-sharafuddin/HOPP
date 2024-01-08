@@ -121,10 +121,12 @@ def simple_approximate_lcoh(electrolyzer_size_mw, H2_Results, electrolyzer_unit_
     
     return LCOH_approx
 
+# LCOH_approx = (electrolyzer_total_CapEx/hydrogen_per_year[0]) + sum(elec_opex_pr_year[i]/hydrogen_per_year[i] for i in years)
+
 # TODO add the grad flag to this, not sure if this function is called elsewhere in HOPP
 def get_lcoh(plant_power):
 
-    wind_generation_kWh = plant_power.numpy() / 1e3 #output from WPGNN
+    wind_generation_kWh = plant_power / 1e3 #output from WPGNN
         
     n_turbines = 12
     turbine_size_MW = 3.4 #MW
