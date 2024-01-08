@@ -85,20 +85,20 @@ class WPGNNForOpt():
 
         self.domain = np.array([[-1000., 1000.],
                         [-1000., 1000.]]) # in m, hardcoded for now (TODO transition to using site verts in yaml?)
-        self.nTurbs = 4 # TODO hardcoded
+        
+        self.nTurbs = self.config.num_turbines
+        self.x = poisson_disc_samples(self.nTurbs, self.domain, R=[250., 350.])
 
-        # self.x = poisson_disc_samples(self.nTurbs, self.domain, R=[250., 350.])
-        self.x = np.array([[0.0, 0.0], [630.0, 0.0], [1260.0, 0.0], [1800.0, 0.0]])
-
-        # plt.figure(figsize=(4, 4))
-        # plt.scatter(self.x[:, 0], self.x[:, 1], s=15, facecolor='b', edgecolor='k')
-        # xlim = plt.gca().get_xlim()
-        # ylim = plt.gca().get_ylim()
-        # plt.xlim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
-        # plt.ylim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
-        # plt.gca().set_aspect(1.)
-        # plt.title('Number of Turbines: {}'.format(self.x.shape[0]))
-        # plt.show()
+        plt.figure(figsize=(4, 4))
+        fig = plt.gcf()
+        plt.scatter(self.x[:, 0], self.x[:, 1], s=15, facecolor='b', edgecolor='k')
+        xlim = plt.gca().get_xlim()
+        ylim = plt.gca().get_ylim()
+        plt.xlim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
+        plt.ylim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
+        plt.gca().set_aspect(1.)
+        plt.title('Number of Turbines: {}'.format(self.x.shape[0]))
+        fig.show()
 
         self.ti = 0.08 # turbulance intensity
 
@@ -159,13 +159,6 @@ class WPGNNForOpt():
         N_turbs = self.nTurbs
         yaw = self.yaw
 
-        domain = self.domain
-
-        A = np.eye(N_turbs*2)
-        lb = np.repeat(np.expand_dims(domain[:, 0], axis=0), N_turbs, axis=0).reshape((-1, ))
-        ub = np.repeat(np.expand_dims(domain[:, 1], axis=0), N_turbs, axis=0).reshape((-1, ))
-        domainConstraint = optimize.LinearConstraint(A, lb, ub)
-
         # currently not using yaw
         spacing_constraint = {'type': 'ineq', 'fun': spacing_func, 'args': [0, 250.]}
 
@@ -181,6 +174,8 @@ class WPGNNForOpt():
                                     args=(yaw, self.ws, self.wd, self.ti, self.model),
                                     method='SLSQP', jac=True,
                                     constraints=constraints)
+        
+        plt.show()
         
         return result
     
@@ -212,25 +207,42 @@ class WPGNNForOpt():
         # out_graph = graphs_tuple_to_data_dicts(self.model(x_graph_tuple))
         # plant_power_test2 = [5e8 * out_graph[i]['globals'][0] for i in range(len(out_graph))] # using logic from wpgnn_for_hopp
         
-        LCOH, dLCOH = self.eval_model(x_graph_tuple)
+        AEP, dAEP = self.eval_model(x_graph_tuple)
 
-        dLCOH = dLCOH.numpy()/np.array([[75000., 85000., 15.]])
-        dLCOH = np.sum(dLCOH.reshape((wd.size, ws.size, x.shape[0], 3)), axis=(0, 1))[:, :2].reshape((-1, ))
+        len_node = len(x_graph_tuple.nodes[0]) # x-coord, y-coord, yaw
+        dAEP = dAEP.numpy()/np.array([[75000., 85000., 15.]]) # unnorm data
+        dAEP = dAEP[:, :(len_node-1)] # remove third row, yaw isn't used in this optimization
+        dAEP = np.sum(dAEP.reshape((self.nTurbs * (len_node-1), self.num_simulations)), axis=1)
 
-        return LCOH.numpy(), dLCOH
+        print(float(AEP)/1e6/3600)
+
+        x = x_graph_tuple.nodes[:n_turbines][:, :2]
+
+        plt.figure(figsize=(4, 4))
+        fig = plt.gcf()
+        plt.scatter(self.x[:, 0], self.x[:, 1], s=15, facecolor='b', edgecolor='k')
+        xlim = plt.gca().get_xlim()
+        ylim = plt.gca().get_ylim()
+        plt.xlim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
+        plt.ylim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
+        plt.gca().set_aspect(1.)
+        plt.title('Number of Turbines: {}'.format(self.x.shape[0]))
+        fig.show()
+
+        return AEP.numpy(), dAEP
     
-    # @tf.function
+    @tf.function
     def eval_model(self, x_graph_tuple):
         with tf.GradientTape() as tape:
             tape.watch(x_graph_tuple.nodes)
 
             plant_power = 5e8*self.model(x_graph_tuple).globals[:, 0] # unnorming result, NOTE in example_opt divided by 1e6 to convert to MW 
-        
-            # LCOH = get_lcoh(plant_power)
 
-        dLCOH = tape.jacobian(LCOH, x_graph_tuple.nodes)
+            AEP = -1. * tf.reduce_sum(plant_power * 3600.) # 3600s = 1 hr; negative to convert max to min
 
-        return LCOH, dLCOH
+        dAEP = tape.gradient(AEP, x_graph_tuple.nodes) # tape.gradient and tape.jacobian do the same thing here
+
+        return AEP, dAEP
     
 
 # had to move this out of the class decleration for some reason

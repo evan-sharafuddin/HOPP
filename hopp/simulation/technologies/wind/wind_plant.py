@@ -99,6 +99,7 @@ class WindPlant(PowerSource):
                 print('Performing layout optimization using WPGNN...')
                 layout_optimizer = WPGNNForOpt(site=self.site, farm_config=self.config, model_path=self.config.wpgnn_model)
                 self.site = layout_optimizer.opt()
+                print('the layout optimization was ', 'successful' if self.site.success else 'not successful')
                 
             system_model = Floris(self.site, self.config)
             financial_model = Singleowner.default(self.config_name)
