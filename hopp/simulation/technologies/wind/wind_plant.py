@@ -12,14 +12,14 @@ from hopp.utilities import load_yaml
 from hopp.utilities.validators import gt_zero, contains
 from hopp.simulation.technologies.wind.floris import Floris
 from hopp.simulation.technologies.wind.wpgnn_for_hopp import WPGNNForHOPP
-from hopp.simulation.technologies.wind.wpgnn_for_opt import WPGNNForOpt
+from hopp.simulation.technologies.wind.wpgnn_for_opt import layout_opt
 from hopp.simulation.technologies.power_source import PowerSource
 from hopp.simulation.technologies.sites import SiteInfo
 from hopp.simulation.technologies.layout.wind_layout import WindLayout, WindBoundaryGridParameters
 from hopp.simulation.technologies.financial import CustomFinancialModel, FinancialModelType
 
-from hopp.simulation.technologies.wind.layout_opt import layout_opt
 from hopp.utilities.log import hybrid_logger as logger
+
 
 
 @define
@@ -97,9 +97,10 @@ class WindPlant(PowerSource):
 
             if True: # TODO need to figure out how to add additional inputs to the yaml
                 print('Performing layout optimization using WPGNN...')
-                layout_optimizer = WPGNNForOpt(site=self.site, farm_config=self.config, model_path=self.config.wpgnn_model)
-                self.site = layout_optimizer.opt()
-                print('the layout optimization was ', 'successful' if self.site.success else 'not successful')
+                self.site = layout_opt(self.site, self.config,
+                                       plant_from_config=False,
+                                       plot=True,
+                                       verbose=True) # TODO this is not the correct assignment
                 
             system_model = Floris(self.site, self.config)
             financial_model = Singleowner.default(self.config_name)

@@ -9,7 +9,6 @@
 import csv
 import numpy as np
 import yaml
-from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 # from floris.tools import FlorisInterface
@@ -32,223 +31,184 @@ from floris.tools import FlorisInterface
 # example_opt imports
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-import numpy as np
-import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
 from wpgnn.wpgnn import WPGNN
 from scipy import optimize
 import tensorflow as tf
 from graph_nets.utils_tf import *
-from graph_nets.utils_np import graphs_tuple_to_data_dicts
-import wpgnn.utils
 
 import matplotlib.pyplot as plt
 
-class WPGNNForOpt(): 
+
+def layout_opt(site, config, plant_from_config=True, plot=False, verbose=False):
+    '''Runs a layout optimization using WPGNN to calculate turbine powers
+    param:
+        config : dict 
+        model_path : str
+            contains path to trained WPGNN model
+        plant_from_config : bool = True
+            if False, hard-coded values will be used
+        plot : bool = False
+            plot before and after plant layouts
+        verbose : bool = False
+            display all output information relevant to the optimization
+
+
     '''
-        Parameters:
-            w_init - Sonnet initializer object for network weights
-            b_init - Sonnet initializer object for network biases
-            eN_in, eN_out - number of input/output edge features
-            nN_in, nN_out - number of input/output  node features
-            gN_in, gN_out - number of input/output  graph features
-            n_layers - number of graph layers in the network
-            graph_layers - list of graph layers 
-            model_path - location of a save model, if None then just use random weight initialization
-            scale_factors - list of scaling factors used to normalize data
-            optmizer - Sonnet optimizer object that will be used for training
-    '''
+    # initialize WPGNN model (note that trained model uses default args)
+    model = WPGNN(model_path=config.wpgnn_model)
     
-    def __init__(self, site, farm_config, eN=2, nN=3, gN=3, graph_size=None,
-                       scale_factors=None, model_path=None, name=None):    
-        
-        # initialize model
-        self.model = WPGNN(eN, nN, gN, graph_size, scale_factors, model_path, name)
-        self.config = farm_config
-        self.site = site
+    # NOTE using floris interface to extract resource data
+    floris_input = config.floris_config
+    fi = FlorisInterface(floris_input)
+    timestep = config.timestep
 
-        floris_input_file = self.config.floris_config
+    # set site paramters
+    if plant_from_config:
+        domain = np.array(
+            [[-1000., 1000.],
+             [-1000., 1000.]]
+        )
+        print('currently, domain must be hard-coded')
+        num_turbines = config.num_turbines
+        x = poisson_disc_samples(num_turbines, domain, R=[250., 350.])
+        print('currently, turbine placement must be hard-coded')
+    else:
+        domain = np.array(
+            [[-1000., 1000.],
+             [-1000., 1000.]]
+        )
+        num_turbines = 12
+        x = poisson_disc_samples(num_turbines, domain, R=[250., 350.])
+    
 
-        if floris_input_file is None:
-            raise ValueError("A floris configuration must be provided")
-        if self.config.timestep is None:
-            raise ValueError("A timestep is required.")
-        
-        # for now using FI To pull data...
-        self.fi = FlorisInterface(floris_input_file)
-        self._timestep = self.config.timestep
+    # extract resource data
+    wind_resource_data = site.wind_resource.data
+    num_simulations = len(wind_resource_data['data'])
+    ws, wd = parse_resource_data(site)
+    yaw = np.zeros((num_turbines, 1))
+    ti = 0.08 # turbulence intensity
 
-        # TODO use yaml here instead?
-        # self.wind_farm_xCoordinates = self.fi.layout_x
-        # self.wind_farm_yCoordinates = self.fi.layout_y
-        # self.nTurbs = len(self.wind_farm_xCoordinates)
-
-        self.domain = np.array([[-1000., 1000.],
-                        [-1000., 1000.]]) # in m, hardcoded for now (TODO transition to using site verts in yaml?)
-        
-        self.nTurbs = self.config.num_turbines
-        self.x = poisson_disc_samples(self.nTurbs, self.domain, R=[250., 350.])
-
+    ''' 
+    NOTE
+    * WPGNN is trained on turbines w/ the following specs
+        - 3.4 MW rated power
+        - 130 m rotor diameter
+        - 110 m hub height
+      currently this cannot be configured
+    * 
+    
+    
+    '''
+    if plot: 
         plt.figure(figsize=(4, 4))
-        fig = plt.gcf()
-        plt.scatter(self.x[:, 0], self.x[:, 1], s=15, facecolor='b', edgecolor='k')
+        plt.scatter(x[:, 0], x[:, 1], s=15, facecolor='b', edgecolor='k')
         xlim = plt.gca().get_xlim()
         ylim = plt.gca().get_ylim()
         plt.xlim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
         plt.ylim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
         plt.gca().set_aspect(1.)
-        plt.title('Number of Turbines: {}'.format(self.x.shape[0]))
-        fig.show()
+        plt.title('Number of Turbines: {}'.format(x.shape[0]))
 
-        self.ti = 0.08 # turbulance intensity
-
-        # get wind resource data
-        self.wind_resource_data = self.site.wind_resource.data
-        self.num_simulations = len(self.wind_resource_data['data'])
-        self.ws, self.wd = self.parse_resource_data()
-        # self.yaw = np.zeros((self.nTurbs, self.wd.size))
-        self.yaw = np.zeros((self.x.shape[0], 1)) # choose this for the yaw because not using wind rose
-
-        self.turb_rating = self.config.turbine_rating_kw
-        self.wind_turbine_rotor_diameter = self.fi.floris.farm.rotor_diameters[0]
-        self.system_capacity = self.nTurbs * self.turb_rating
-
-        self.wind_turbine_powercurve_powerout = [1] * 30    # dummy for now
-
-        # results
-        self.gen = []
-        self.annual_energy = None
-        self.capacity_factor = None
-
-    def value(self, name: str, set_value=None):
-        """
-        if set_value = None, then retrieve value; otherwise overwrite variable's value
-        """
-        if set_value:
-            self.__setattr__(name, set_value)
-        else:
-            return self.__getattribute__(name)
-
-    def parse_resource_data(self):
-        # NOTE copied this from FLORIS
-        # extract data for simulation
-        speeds = np.zeros(len(self.wind_resource_data['data']))
-        wind_dirs = np.zeros(len(self.site.wind_resource.data['data']))
-        data_rows_total = 4
-
-        # seems to be combining data from the two heights 
-        if np.shape(self.site.wind_resource.data['data'])[1] > data_rows_total:
-            height_entries = int(np.round(np.shape(self.site.wind_resource.data['data'])[1]/data_rows_total))
-            data_entries = np.empty((height_entries))
-            for j in range(height_entries):
-                data_entries[j] = int(j*data_rows_total)
-            data_entries = data_entries.astype(int)
-            for i in range((len(self.site.wind_resource.data['data']))):
-                data_array = np.array(self.site.wind_resource.data['data'][i])
-                speeds[i] = np.mean(data_array[2+data_entries])
-                wind_dirs[i] = np.mean(data_array[3+data_entries])
-        else:
-            for i in range((len(self.site.wind_resource.data['data']))):
-                speeds[i] = self.site.wind_resource.data['data'][i][2]
-                wind_dirs[i] = self.site.wind_resource.data['data'][i][3]
-
-        return speeds, wind_dirs
+    x_opt, _ = perform_optimization(model, x, ws, wd, ti, domain, num_simulations, verbose=verbose)
     
-    # use inside of wind_plant
-    def opt(self): 
-        N_turbs = self.nTurbs
-        yaw = self.yaw
-
-        # currently not using yaw
-        spacing_constraint = {'type': 'ineq', 'fun': spacing_func, 'args': [0, 250.]}
-
-        A = np.eye(self.nTurbs*2)
-        lb = np.repeat(np.expand_dims(self.domain[:, 0], axis=0), N_turbs, axis=0).reshape((-1, ))
-        ub = np.repeat(np.expand_dims(self.domain[:, 1], axis=0), N_turbs, axis=0).reshape((-1, ))
-        domain_constraint = optimize.LinearConstraint(A, lb, ub)
-
-        constraints = [spacing_constraint, domain_constraint]
-
-        # again, currently not using yaw
-        result = optimize.minimize(self.objective_noYaw,  self.x.reshape((-1, )),
-                                    args=(yaw, self.ws, self.wd, self.ti, self.model),
-                                    method='SLSQP', jac=True,
-                                    constraints=constraints)
-        
+    if plot:
+        plt.figure(figsize=(4, 4))
+        plt.scatter(x_opt[:, 0], x_opt[:, 1], s=15, facecolor='b', edgecolor='k')
+        xlim = plt.gca().get_xlim()
+        ylim = plt.gca().get_ylim()
+        plt.xlim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
+        plt.ylim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
+        plt.gca().set_aspect(1.)
+        plt.title('Number of Turbines: {}'.format(x_opt.shape[0]))
         plt.show()
-        
-        return result
+
+def perform_optimization(model, x, ws, wd, ti, domain, num_simulations, verbose=False):
     
-    def objective_noYaw(self, x, yaw, ws, wd, ti, model):
-        x = x.reshape((-1, 2))
-        n_turbines = x.shape[0]
+    N_turbs = x.shape[0]
+    yaw = np.zeros((N_turbs, wd.size))
 
-        # Create list of graphs (one for each hour)
-        input_graphs = []
-        for i in range(self.num_simulations):
-            uv = utils.speed_to_velocity([self.ws[i], self.wd[i]]) # converts speeds to vectors?
-            edges, senders, receivers = utils.identify_edges(x, wd[i])
-            input_graphs.append({'globals': np.array([uv[0], uv[1], ti]),
-                                'nodes': np.concatenate((x, yaw), axis=1),
-                                'edges': edges,
-                                'senders': senders,
-                                'receivers': receivers})
-            
-        normed_input_graphs, _ = utils.norm_data(xx=input_graphs, scale_factors=self.model.scale_factors)
-        x_graph_tuple = data_dicts_to_graphs_tuple(normed_input_graphs)
+    # A = np.eye(N_turbs*2)
+    # lb = np.repeat(np.expand_dims(domain[:, 0], axis=0), N_turbs, axis=0).reshape((-1, ))
+    # ub = np.repeat(np.expand_dims(domain[:, 1], axis=0), N_turbs, axis=0).reshape((-1, ))
+    # domainConstraint = optimize.LinearConstraint(A, lb, ub)
 
-        # out_graph = graphs_tuple_to_data_dicts(self.model(x_graph_tuple))
-        # plant_power_test3 = [5e8 * out_graph[i]['globals'][0] for i in range(len(out_graph))] # seeing what tf.Variable does, if it makes a change
+    # Set constraints
+    # 1) minimum turbine space > 250 m
+    # 2) box domain constaints
+    # 3) yaw angles remain at zero throughout the optimization
+    spacing_constraint = {'type': 'ineq', 'fun': spacing_func, 'args': [0, 250.]}
 
-        x_graph_tuple = x_graph_tuple.replace(nodes=tf.Variable(x_graph_tuple.nodes))
+    A = np.eye(N_turbs*2)
+    lb = np.repeat(np.expand_dims(domain[:, 0], axis=0), N_turbs, axis=0).reshape((-1, ))
+    ub = np.repeat(np.expand_dims(domain[:, 1], axis=0), N_turbs, axis=0).reshape((-1, ))
+    domain_constraint = optimize.LinearConstraint(A, lb, ub)
 
-        # plant_power_test = 5e8*self.model(x_graph_tuple).globals[:, 0] # unnorming result, NOTE in example_opt divided by 1e6 to convert to MW 
-        
-        # out_graph = graphs_tuple_to_data_dicts(self.model(x_graph_tuple))
-        # plant_power_test2 = [5e8 * out_graph[i]['globals'][0] for i in range(len(out_graph))] # using logic from wpgnn_for_hopp
-        
-        AEP, dAEP = self.eval_model(x_graph_tuple)
+    constraints = [spacing_constraint, domain_constraint]
 
-        len_node = len(x_graph_tuple.nodes[0]) # x-coord, y-coord, yaw
-        dAEP = dAEP.numpy()/np.array([[75000., 85000., 15.]]) # unnorm data
-        dAEP = dAEP[:, :(len_node-1)] # remove third row, yaw isn't used in this optimization
-        dAEP = np.sum(dAEP.reshape((self.nTurbs * (len_node-1), self.num_simulations)), axis=1)
+    res = optimize.minimize(objective, x.reshape((-1, )),
+                            args=(yaw, ws, wd, ti, model, num_simulations, verbose),
+                            method='SLSQP', jac=True,
+                            constraints=constraints, 
+                            options={'disp': True} if verbose else None)
 
-        print(float(AEP)/1e6/3600)
+    x = res.x.reshape((-1, 2))
 
-        x = x_graph_tuple.nodes[:n_turbines][:, :2]
+    return x, yaw
 
-        plt.figure(figsize=(4, 4))
-        fig = plt.gcf()
-        plt.scatter(self.x[:, 0], self.x[:, 1], s=15, facecolor='b', edgecolor='k')
-        xlim = plt.gca().get_xlim()
-        ylim = plt.gca().get_ylim()
-        plt.xlim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
-        plt.ylim(np.minimum(xlim[0], ylim[0]), np.maximum(xlim[1], ylim[1]))
-        plt.gca().set_aspect(1.)
-        plt.title('Number of Turbines: {}'.format(self.x.shape[0]))
-        fig.show()
+def objective(x, yaw, ws, wd, ti, model, num_simulations, verbose):
+    x = x.reshape((-1, 2))
+    num_turbines = x.shape[0]
 
-        return AEP.numpy(), dAEP
-    
-    @tf.function
-    def eval_model(self, x_graph_tuple):
-        with tf.GradientTape() as tape:
-            tape.watch(x_graph_tuple.nodes)
+    x_dict_list = build_dict(x, yaw, ws, wd, ti, model, num_simulations)
+    x_graph_tuple = data_dicts_to_graphs_tuple(x_dict_list)
+    x_graph_tuple = x_graph_tuple.replace(nodes=tf.Variable(x_graph_tuple.nodes))
 
-            plant_power = 5e8*self.model(x_graph_tuple).globals[:, 0] # unnorming result, NOTE in example_opt divided by 1e6 to convert to MW 
+    AEP, dAEP = eval_model(x_graph_tuple, model)
 
-            AEP = -1. * tf.reduce_sum(plant_power * 3600.) # 3600s = 1 hr; negative to convert max to min
+    dAEP = dAEP.numpy()/np.array([[75000., 85000., 15.]]) # unnorm x.nodes
+    dAEP = dAEP[:, :2] # remove third row, yaw isn't used in this optimization
+    dAEP = np.sum(dAEP.reshape((num_turbines * 2, num_simulations)), axis=1)
 
-        dAEP = tape.gradient(AEP, x_graph_tuple.nodes) # tape.gradient and tape.jacobian do the same thing here
+    if verbose:
+        print('AEP: ', float(AEP))
+        print('dAEP:\n', dAEP)
+        print('x:\n', x)
+        print()
 
-        return AEP, dAEP
-    
+    return AEP.numpy(), dAEP
 
-# had to move this out of the class decleration for some reason
+@tf.function
+def eval_model(x, model):
+    with tf.GradientTape() as tape:
+        tape.watch(x.nodes)
+
+        plant_power = 5e8 * model(x).globals[:, 0] # unnorm power 
+        AEP = -3600. * tf.reduce_sum(plant_power) / (1e3 * 3600) # 3600 s = 1 hr; negative to convert max to min; convert to kWh
+
+    dAEP = tape.jacobian(AEP, x.nodes)
+
+    return AEP, dAEP
+
+def build_dict(x, yaw, ws, wd, ti, model, num_simulations, normalize=True):
+    # Construct data format for WPGNN
+    x_dict_list = []
+
+    for i in range(num_simulations):
+        uv = utils.speed_to_velocity([ws[i], wd[i]])
+        edges, senders, receivers = utils.identify_edges(x[:, :2], wd[i], cone_deg=15)
+        x_dict_list.append({'globals': np.array([uv[0], uv[1], ti]),
+                            'nodes': np.concatenate((x, yaw[:, i].reshape((-1, 1))), axis=1),
+                            'edges': edges,
+                        'senders': senders,
+                              'receivers': receivers})       
+
+    if normalize:
+        x_dict_list, _ = utils.norm_data(xx=x_dict_list, scale_factors=model.scale_factors)
+
+    return x_dict_list
+
 def spacing_func(x, n_windDirs=0, min_spacing=250.):
-    '''used as constraint in the optimization problem'''
-
     x = x.reshape((-1, 2+n_windDirs))[:, :2]
 
     D = np.sqrt(np.sum((np.expand_dims(x, axis=0) - np.expand_dims(x, axis=1))**2, axis=2))
@@ -259,9 +219,6 @@ def spacing_func(x, n_windDirs=0, min_spacing=250.):
     return D[mask] - min_spacing
 
 def poisson_disc_samples(N_turbs, domain, R=[250., 1000.], turb_locs=None):
-    '''generates plant layout with number of turbines and domain within which 
-    the turbines must be located'''
-
     if turb_locs is None:
         turb_locs = 0.*np.random.uniform(low=domain[:, 0], high=domain[:, 1], size=(1, 2))
 
@@ -297,3 +254,27 @@ def poisson_disc_samples(N_turbs, domain, R=[250., 1000.], turb_locs=None):
             active_indices.remove(idx)
 
     return turb_locs
+
+def parse_resource_data(site):
+
+    # extract data for simulation
+    speeds = np.zeros(len(site.wind_resource.data['data']))
+    wind_dirs = np.zeros(len(site.wind_resource.data['data']))
+    data_rows_total = 4
+    if np.shape(site.wind_resource.data['data'])[1] > data_rows_total:
+        height_entries = int(np.round(np.shape(site.wind_resource.data['data'])[1]/data_rows_total))
+        data_entries = np.empty((height_entries))
+        for j in range(height_entries):
+            data_entries[j] = int(j*data_rows_total)
+        data_entries = data_entries.astype(int)
+        for i in range((len(site.wind_resource.data['data']))):
+            data_array = np.array(site.wind_resource.data['data'][i])
+            speeds[i] = np.mean(data_array[2+data_entries])
+            wind_dirs[i] = np.mean(data_array[3+data_entries])
+    else:
+        for i in range((len(site.wind_resource.data['data']))):
+            speeds[i] = site.wind_resource.data['data'][i][2]
+            wind_dirs[i] = site.wind_resource.data['data'][i][3]
+
+    return speeds, wind_dirs
+
