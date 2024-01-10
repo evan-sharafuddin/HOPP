@@ -40,7 +40,7 @@ from graph_nets.utils_tf import *
 import matplotlib.pyplot as plt
 
 
-def layout_opt(site, config, plant_from_config=True, plot=False, verbose=False):
+def layout_opt(site, config, plot=False, verbose=False):
     '''Runs a layout optimization using WPGNN to calculate turbine powers
     param:
         config : dict 
@@ -52,9 +52,8 @@ def layout_opt(site, config, plant_from_config=True, plot=False, verbose=False):
             plot before and after plant layouts
         verbose : bool = False
             display all output information relevant to the optimization
-
-
     '''
+
     # initialize WPGNN model (note that trained model uses default args)
     model = WPGNN(model_path=config.wpgnn_model)
     
@@ -64,22 +63,13 @@ def layout_opt(site, config, plant_from_config=True, plot=False, verbose=False):
     timestep = config.timestep
 
     # set site paramters
-    if plant_from_config:
-        domain = np.array(
-            [[-1000., 1000.],
-             [-1000., 1000.]]
-        )
-        print('currently, domain must be hard-coded')
-        num_turbines = config.num_turbines
-        x = poisson_disc_samples(num_turbines, domain, R=[250., 350.])
-        print('currently, turbine placement must be hard-coded')
-    else:
-        domain = np.array(
-            [[-1000., 1000.],
-             [-1000., 1000.]]
-        )
-        num_turbines = 12
-        x = poisson_disc_samples(num_turbines, domain, R=[250., 350.])
+    # TODO use config dict to set these parameters instead of hard coding
+    domain = np.array(
+        [[-1000., 1000.],
+            [-1000., 1000.]]
+    )
+    num_turbines = 12
+    x = poisson_disc_samples(num_turbines, domain, R=[250., 350.])
     
 
     # extract resource data
@@ -110,7 +100,7 @@ def layout_opt(site, config, plant_from_config=True, plot=False, verbose=False):
         plt.gca().set_aspect(1.)
         plt.title('Number of Turbines: {}'.format(x.shape[0]))
 
-    x_opt, _ = perform_optimization(model, x, ws, wd, ti, domain, num_simulations, verbose=verbose)
+    x_opt, _ = perform_optimization(model, x, ws, wd, ti, domain, num_simulations, verbose)
     
     if plot:
         plt.figure(figsize=(4, 4))
@@ -123,7 +113,7 @@ def layout_opt(site, config, plant_from_config=True, plot=False, verbose=False):
         plt.title('Number of Turbines: {}'.format(x_opt.shape[0]))
         plt.show()
 
-def perform_optimization(model, x, ws, wd, ti, domain, num_simulations, verbose=False):
+def perform_optimization(model, x, ws, wd, ti, domain, num_simulations, verbose):
     
     N_turbs = x.shape[0]
     yaw = np.zeros((N_turbs, wd.size))
@@ -168,7 +158,7 @@ def objective(x, yaw, ws, wd, ti, model, num_simulations, verbose):
 
     dAEP = dAEP.numpy()/np.array([[75000., 85000., 15.]]) # unnorm x.nodes
     dAEP = dAEP[:, :2] # remove third row, yaw isn't used in this optimization
-    dAEP = np.sum(dAEP.reshape((num_turbines * 2, num_simulations)), axis=1)
+    dAEP = np.sum(dAEP.reshape((num_simulations, num_turbines * 2)), axis=0)
 
     if verbose:
         print('AEP: ', float(AEP))
@@ -183,10 +173,31 @@ def eval_model(x, model):
     with tf.GradientTape() as tape:
         tape.watch(x.nodes)
 
-        plant_power = 5e8 * model(x).globals[:, 0] # unnorm power 
-        AEP = -3600. * tf.reduce_sum(plant_power) / (1e3 * 3600) # 3600 s = 1 hr; negative to convert max to min; convert to kWh
+        # TODO
+        plant_power = 5e8 * model(x).globals[:, 0] / 1e6 # unnorm power
 
-    dAEP = tape.jacobian(AEP, x.nodes)
+        # expected power, not cumulative energy
+        AEP = -1. * tf.reduce_sum(plant_power) # / (1e2 * 3600) ### 3600 s = 1 hr; negative to convert max to min; convert to MWh
+
+    dAEP = tape.jacobian(AEP, x.nodes) # dAEP.shape = (num_turbines * 8760, 3)
+    '''
+    hour 1:
+    x1, y1, yaw1;
+    ...
+    xn, yn, yawn;
+
+    hour 2:
+    x1, y, yaw1,;
+    ...
+    xn, yn, yawn
+    
+    REMOVE YAW + RESHAPE:
+    x1, y1, ..., xn, yn; # hour 1
+    x1, y1, ..., xn, yn; # hour 2
+    
+    SUM ALONG AXIS 1
+    x1, y1, ..., xn, yn # final gradient, shape  = (num_turbines * 2, )
+    '''
 
     return AEP, dAEP
 
@@ -200,8 +211,8 @@ def build_dict(x, yaw, ws, wd, ti, model, num_simulations, normalize=True):
         x_dict_list.append({'globals': np.array([uv[0], uv[1], ti]),
                             'nodes': np.concatenate((x, yaw[:, i].reshape((-1, 1))), axis=1),
                             'edges': edges,
-                        'senders': senders,
-                              'receivers': receivers})       
+                            'senders': senders,
+                            'receivers': receivers})       
 
     if normalize:
         x_dict_list, _ = utils.norm_data(xx=x_dict_list, scale_factors=model.scale_factors)

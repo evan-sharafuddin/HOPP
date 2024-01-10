@@ -98,7 +98,6 @@ class WindPlant(PowerSource):
             if True: # TODO need to figure out how to add additional inputs to the yaml
                 print('Performing layout optimization using WPGNN...')
                 self.site = layout_opt(self.site, self.config,
-                                       plant_from_config=False,
                                        plot=True,
                                        verbose=True) # TODO this is not the correct assignment
                 
