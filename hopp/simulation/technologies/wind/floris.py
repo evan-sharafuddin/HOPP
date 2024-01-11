@@ -14,6 +14,9 @@ from hopp.type_dec import resource_file_converter
 if TYPE_CHECKING:
     from hopp.simulation.technologies.wind.wind_plant import WindConfig
 
+from floris.utilities import load_yaml
+from pathlib import Path
+
 
 @define
 class Floris(BaseClass):
@@ -34,7 +37,16 @@ class Floris(BaseClass):
 
         # the above change is a temporary patch to bridge to refactor floris
 
-        self.fi = FlorisInterface(floris_input_file)
+        # this control flow replaces the turbines in the floris input file with those found in 
+        # the layout optimization, if one was performed
+        if self.config.layout_opt and self.config.turbine_locations is not None:
+            floris_input_dict = Floris.update_floris_turb_loc(floris_input_file,
+                                                       [coord[0] for coord in self.config.turbine_locations],
+                                                       [coord[1] for coord in self.config.turbine_locations])
+            self.fi = FlorisInterface(floris_input_dict)
+        else:   
+            self.fi = FlorisInterface(floris_input_file)
+
         self._timestep = self.config.timestep
 
         self.wind_resource_data = self.site.wind_resource.data
@@ -50,13 +62,14 @@ class Floris(BaseClass):
 
         self.wind_farm_xCoordinates = self.fi.layout_x
         self.wind_farm_yCoordinates = self.fi.layout_y
+        
         self.nTurbs = len(self.wind_farm_xCoordinates)
         self.turb_rating = self.config.turbine_rating_kw
         self.wind_turbine_rotor_diameter = self.fi.floris.farm.rotor_diameters[0]
         self.system_capacity = self.nTurbs * self.turb_rating
 
         # turbine power curve (array of kW power outputs)
-        self.wind_turbine_powercurve_powerout = []
+        self.wind_turbine_powercurve_powerout = [1] * 30    # dummy for now
 
         # time to simulate
         if len(self.config.timestep) > 0:
@@ -71,11 +84,13 @@ class Floris(BaseClass):
         self.annual_energy = None
         self.capacity_factor = None
 
-        self.initialize_from_floris()
+        # self.initialize_from_floris()
 
     def initialize_from_floris(self):
         """
         Please populate all the wind farm parameters
+
+        TODO what is the purpose of this?
         """
         self.nTurbs = len(self.fi.layout_x)
         self.wind_turbine_powercurve_powerout = [1] * 30    # dummy for now
@@ -133,3 +148,10 @@ class Floris(BaseClass):
         self.annual_energy = np.sum(self.gen)
         print('Wind annual energy: ', self.annual_energy)
         self.capacity_factor = np.sum(self.gen) / (8760 * self.system_capacity) * 100
+
+    @staticmethod
+    def update_floris_turb_loc(floris_input_file, x_coords, y_coords) -> dict:
+        input_dict = load_yaml(Path(floris_input_file).resolve()) 
+        input_dict['farm']['layout_x'] = x_coords
+        input_dict['farm']['layout_y'] = y_coords
+        return input_dict

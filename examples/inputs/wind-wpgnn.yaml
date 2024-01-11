@@ -45,9 +45,8 @@ technologies:
     layout_opt: aep
     wpgnn_model: examples/inputs/wpgnn/wpgnn.h5
     turbine_locations: 
-
-  # grid:
-  #   interconnect_kw: 50000
+  grid:
+    interconnect_kw: 50000
 config:
   simulation_options:
     wind:

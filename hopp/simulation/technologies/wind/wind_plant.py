@@ -105,7 +105,7 @@ class WindPlant(PowerSource):
             if self.config.layout_opt is not None: # TODO need to figure out how to add additional inputs to the yaml
                 print('Performing layout optimization using WPGNN...')
                 optimizer = LayoutOptAEP(self.site, self.config) # module import moved to bottom of script to avoid circular import
-                optimized_layout = optimizer.opt(plot=True, verbose=True, maxiter=3)
+                self.config.turbine_locations = optimizer.opt(plot=True, verbose=True, maxiter=50)
                 
             system_model = Floris(self.site, self.config)
             financial_model = Singleowner.default(self.config_name)

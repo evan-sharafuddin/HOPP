@@ -42,9 +42,9 @@ class LayoutOptInterface(ABC):
         self.num_simulations = len(self.site.wind_resource.data['data'])
 
         self.ws, self.wd = self.parse_resource_data()
-        self.yaw = np.zeros((self.plant_config.num_turbines, 1))
+        self.yaw = np.zeros((self.plant_config.num_turbines, self.wd.size))
 
-        self._opt_counter = 0
+        self._opt_counter = 1
 
 
 
@@ -130,8 +130,9 @@ class LayoutOptInterface(ABC):
 
         return x_dict_list
     
-    def spacing_func(self, n_windDirs=0, min_spacing=250.):
-        x = self.x.reshape((-1, 2+n_windDirs))[:, :2]
+    @staticmethod
+    def spacing_func(x, n_windDirs=0, min_spacing=250.):
+        x = x.reshape((-1, 2+n_windDirs))[:, :2]
 
         D = np.sqrt(np.sum((np.expand_dims(x, axis=0) - np.expand_dims(x, axis=1))**2, axis=2))
 
@@ -160,7 +161,7 @@ class LayoutOptInterface(ABC):
         # 1) minimum turbine space > 250 m
         # 2) box domain constaints
         # 3) yaw angles remain at zero throughout the optimization
-        spacing_constraint = {'type': 'ineq', 'fun': self.spacing_func, 'args': [0, 250.]}
+        spacing_constraint = {'type': 'ineq', 'fun': LayoutOptInterface.spacing_func, 'args': [0, 250.]}
 
         A = np.eye(self.plant_config.num_turbines*2)
         lb = np.repeat(np.expand_dims(self.domain[:, 0], axis=0), self.plant_config.num_turbines, axis=0).reshape((-1, ))
@@ -170,7 +171,7 @@ class LayoutOptInterface(ABC):
         constraints = [spacing_constraint, domain_constraint]
 
         res = optimize.minimize(self.objective, self.x.reshape((-1, )),
-                                args=(self, verbose),
+                                args=(verbose),
                                 method='SLSQP', jac=True,
                                 constraints=constraints, 
                                 options={'disp': verbose, 'maxiter': maxiter})
@@ -179,18 +180,18 @@ class LayoutOptInterface(ABC):
 
 
         if plot:
-            LayoutOptInterface.plot_layout(self.x_opt)
+            LayoutOptInterface.plot_layout(x_opt)
             plt.show()
 
-        return x_opt
+        return x_opt.tolist()
  
     @abstractmethod
-    def objective(self, verbose) -> (np.array, float):
+    def objective(self, x, verbose) -> (np.array, float):
         pass
 
     @abstractmethod
-    def _eval_model(self, x, model) -> (np.array, float):
+    def _eval_model(self, model, x) -> (np.array, float):
         pass
 
-    
+
  
