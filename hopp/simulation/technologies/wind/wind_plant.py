@@ -12,7 +12,6 @@ from hopp.utilities import load_yaml
 from hopp.utilities.validators import gt_zero, contains
 from hopp.simulation.technologies.wind.floris import Floris
 from hopp.simulation.technologies.wind.wpgnn_for_hopp import WPGNNForHOPP
-from hopp.simulation.technologies.wind.wpgnn_for_opt import layout_opt
 from hopp.simulation.technologies.power_source import PowerSource
 from hopp.simulation.technologies.sites import SiteInfo
 from hopp.simulation.technologies.layout.wind_layout import WindLayout, WindBoundaryGridParameters
@@ -20,7 +19,9 @@ from hopp.simulation.technologies.financial import CustomFinancialModel, Financi
 
 from hopp.utilities.log import hybrid_logger as logger
 
+from hopp.simulation.technologies.wind.layout_opt import layout_opt
 
+import numpy as np
 
 @define
 class WindConfig(BaseClass):
@@ -49,6 +50,9 @@ class WindConfig(BaseClass):
 
             - an object representing a `CustomFinancialModel` or `Singleowner.Singleowner` instance
 
+        NOTE the following attrs were added for layout optimization
+        layout_opt: dictionary containing param relevant for the optimization
+
     """
     num_turbines: int = field(validator=gt_zero)
     turbine_rating_kw: float = field(validator=gt_zero)
@@ -63,8 +67,11 @@ class WindConfig(BaseClass):
     timestep: Optional[Tuple[int, int]] = field(default=None)
     fin_model: Optional[Union[dict, FinancialModelType]] = field(default=None)
 
-    layout_opt: Optional[bool] = field(default=False)
-    wpgnn_model: Optional[Union[dict, str, Path]] = field(default=None)
+    layout_opt: Optional[str] = field(default=None)
+    wpgnn_model: Optional[str] = field(default='examples/inputs/wpgnn/wpgnn.h5')
+    turbine_locations: Optional[np.array] = field(default=None)
+
+
 
     def __attrs_post_init__(self):
         if self.model_name == 'floris' and self.timestep is None:
@@ -95,11 +102,10 @@ class WindPlant(PowerSource):
         if self.config.model_name == 'floris':
             print('FLORIS is the system model...')
 
-            if True: # TODO need to figure out how to add additional inputs to the yaml
+            if self.config.layout_opt is not None: # TODO need to figure out how to add additional inputs to the yaml
                 print('Performing layout optimization using WPGNN...')
-                self.site = layout_opt(self.site, self.config,
-                                       plot=True,
-                                       verbose=True) # TODO this is not the correct assignment
+                optimizer = LayoutOptAEP(self.site, self.config) # module import moved to bottom of script to avoid circular import
+                optimized_layout = optimizer.opt(plot=True, verbose=True, maxiter=3)
                 
             system_model = Floris(self.site, self.config)
             financial_model = Singleowner.default(self.config_name)
@@ -305,3 +311,5 @@ class WindPlant(PowerSource):
         :return:
         """
         self.system_capacity_by_num_turbines(size_kw)
+
+from hopp.simulation.technologies.wind.layout_opt_aep import LayoutOptAEP

@@ -41,8 +41,11 @@ technologies:
     model_name: floris
     timestep: [0, 8760]
     floris_config: examples/inputs/floris/gch.yaml
+
+    layout_opt: aep
     wpgnn_model: examples/inputs/wpgnn/wpgnn.h5
-    # opt_layout: True
+    turbine_locations: 
+
   # grid:
   #   interconnect_kw: 50000
 config:
