@@ -19,8 +19,6 @@ from hopp.simulation.technologies.financial import CustomFinancialModel, Financi
 
 from hopp.utilities.log import hybrid_logger as logger
 
-from hopp.simulation.technologies.wind.layout_opt import layout_opt
-
 import numpy as np
 
 @define

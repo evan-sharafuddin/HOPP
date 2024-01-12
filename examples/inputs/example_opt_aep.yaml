@@ -33,15 +33,14 @@ site: #!include flatirons_site.yaml
   wind_resource_origin: "WTK"
 
 technologies:
-  # pv:
-  #   system_capacity_kw: 50000
   wind:
     num_turbines: 10
     turbine_rating_kw: 3400.0 # WPGNN default
     model_name: floris
     timestep: [0, 8760]
     floris_config: examples/inputs/floris/gch.yaml
-
+    
+    # used for optimization
     layout_opt: aep
     wpgnn_model: examples/inputs/wpgnn/wpgnn.h5
     turbine_locations: 

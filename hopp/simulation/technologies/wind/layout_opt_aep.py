@@ -10,16 +10,39 @@ import tensorflow as tf
 
 @define
 class LayoutOptAEP(LayoutOptInterface):
-    def objective(self, x, verbose) -> (np.array, np.array): 
+    '''Layout optimizer that maximized AEP (expected energy generation)
+    https://github.com/NREL/WPGNN
+    Harrison-Atlas, D., Glaws, A., King, R. N., and Lantz, E. "Geodiverse prospects for wind plant controls targeting land use and economic objectives".
+    '''
+
+    def objective(self, x, verbose) -> (np.float64, np.array): 
+        '''AEP objective function
+        
+        param:
+            self: LayoutOptAEP
+            x: np.array
+                current plant layout to be evaluated
+            verbose: bool 
+                from LayoutOptInterface.opt()
+        
+        returns:
+            AEP: np.float64
+                AEP value from the current plant layout
+            dAEP: np.array
+                gradient used in optimization, shape = (num_turbines * 2, )
+
+                [dAEP/dx1, dAEP/dy1, ..., dAEP/dxn, dAEP/dyn]
+        '''
+
         x_in = x.reshape((-1, 2))
 
         x_dict_list = self.build_dict(x_in)
         x_graph_tuple = data_dicts_to_graphs_tuple(x_dict_list)
         x_graph_tuple = x_graph_tuple.replace(nodes=tf.Variable(x_graph_tuple.nodes))
 
-        AEP, dAEP = self._eval_model(self.model, x_graph_tuple)
+        AEP, dAEP = LayoutOptAEP._eval_model(self.model, x_graph_tuple)
 
-        dAEP = dAEP/np.array([[75000., 85000., 15.]]) # unnorm x.nodes
+        dAEP = dAEP.numpy()/np.array([[75000., 85000., 15.]]) # unnorm x.nodes
         dAEP = dAEP[:, :2] # remove third row, yaw isn't used in this optimization
         dAEP = np.sum(dAEP.reshape((self.num_simulations, self.plant_config.num_turbines * 2)), axis=0)
 
@@ -31,19 +54,51 @@ class LayoutOptAEP(LayoutOptInterface):
             print()
             self._opt_counter += 1
 
-        return AEP, dAEP
+        return AEP.numpy(), dAEP
     
-    # @tf.function
-    def _eval_model(self, model, x):
+    @staticmethod
+    @tf.function
+    def _eval_model(model, x) -> (tf.Tensor, tf.Tensor):
+        '''function used for WPGNN model evaluation step
+        
+        @tf.function decorator used for increased performance
+        
+        param:
+            model: WPGNN
+                trained WPGNN model
+            x: np.array
+                current plant layout
+        
+        returns:
+            AEP: tf.Tensor
+                AEP from the current plant layout
+            dAEP: tf.Tensor
+                jacobian calculated using tensorflow's GradientTape, shape=(num_simulations * num_turbines, 3)
+                
+                [ # first timestep
+                 [dAEP/dx1, dAEP/dy1, dAEP/dyaw_1],
+                  ... 
+                 [dAEP/dxn, dAEP/dyn, dAEP/dyaw_n],
+                  # second timestep
+                 [dAEP/dx1, dAEP/dy1, dAEP/dyaw_1],
+                  ... 
+                 [dAEP/dxn, dAEP/dyn, dAEP/dyaw_n],
+                  ...
+                  ...
+                  # final timestep
+                 [dAEP/dx1, dAEP/dy1, dAEP/dyaw_1],
+                  ... 
+                 [dAEP/dxn, dAEP/dyn, dAEP/dyaw_n],
+                ]
+        '''
+
         with tf.GradientTape() as tape:
             tape.watch(x.nodes)
 
-            # TODO
-            plant_power = 5e8 * model(x).globals[:, 0] / 1e6 # unnorm power
+            plant_power = 5e8 * model(x).globals[:, 0] / 1e5 # unnorm power, divide by 1e6 to "normalize" Jacobian for optimization
 
-            # expected power, not cumulative energy
-            AEP = -1. * tf.reduce_sum(plant_power) # / (1e2 * 3600) ### 3600 s = 1 hr; negative to convert max to min; convert to MWh
+            AEP = -1. * tf.reduce_sum(plant_power) # AEP using time series instead of wind rose
 
         dAEP = tape.jacobian(AEP, x.nodes) # dAEP.shape = (num_turbines * 8760, 3)
 
-        return AEP.numpy(), dAEP.numpy()
+        return AEP, dAEP

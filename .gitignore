@@ -123,3 +123,5 @@ ENV/
 *.gz
 *.db-wal
 
+examples/speed_dir_data.csv
+speed_dir_data.csv

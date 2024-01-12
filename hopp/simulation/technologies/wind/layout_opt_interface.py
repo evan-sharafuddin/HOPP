@@ -14,9 +14,44 @@ from wpgnn.wpgnn import WPGNN
 from wpgnn import utils
 import matplotlib.pyplot as plt
 from scipy import optimize
+import tensorflow as tf
+
 
 @define
 class LayoutOptInterface(ABC): 
+    '''Interface for layout optimizations, implement this class with different objectives
+    https://github.com/NREL/WPGNN
+    Harrison-Atlas, D., Glaws, A., King, R. N., and Lantz, E. "Geodiverse prospects for wind plant controls targeting land use and economic objectives".
+    
+    param:
+        site
+        plant_config
+        ti
+
+        model: trained WPGNN model used to calculate plant power
+        x: starting plant layout for the optimization
+        num_simulations: length of simulation / time step (usually 8760)
+        ws: wind speed data time series
+        wd: wind direction data time series
+        yaw: yaw angles for each turbine (TODO currently these are always set to zero)
+        domain: region within which turbine locations are constrained (TODO support non-square domains and use SiteInfo vertices)
+        _opt_counter: used to display number of function evaluations completed
+
+        plot : bool = False
+            plot before and after plant layouts
+        verbose : bool = False
+            display all output information relevant to the optimization
+
+
+    TODO
+        * make plant specs configurable by yaml file/config dict, rather than hard coding
+        * train WPGNN models to account for different hub heights/turbine wattages? Or 
+        is it valid to assume the optimal layout doesn't depend on those factors?
+        * support boundary drawn by verticies provided in site
+        * would it be better to have a separate "Optimization" class, like there is for
+        wind_plant and pv_plant? So this would be extendable to optimizing more than just wind?
+    '''
+
     site: SiteInfo
     plant_config: WindConfig
     ti: Optional[int] = field(default=0.08)
@@ -31,6 +66,8 @@ class LayoutOptInterface(ABC):
     _opt_counter: int = field(init=False)
 
     def __attrs_post_init__(self):
+        '''Initialize the remaining variables'''
+
         self.model = WPGNN(model_path=self.plant_config.wpgnn_model)
 
         # TODO use config dict to set these parameters instead of hard coding
@@ -47,8 +84,17 @@ class LayoutOptInterface(ABC):
         self._opt_counter = 1
 
 
+    def poisson_disc_samples(self, R=[250., 1000.]) -> np.array:
+        '''Generate random scatter layout
+        param:
+            self: LayoutOptInterface
+            R: list
+                [min, max] distance between turbines
 
-    def poisson_disc_samples(self, R=[250., 1000.]):
+        returns:
+            turb_locs: np.array
+        '''
+
         N_turbs = self.plant_config.num_turbines
         domain = self.domain
         
@@ -88,7 +134,10 @@ class LayoutOptInterface(ABC):
 
         return turb_locs
         
-    def parse_resource_data(self):
+
+    def parse_resource_data(self) -> (np.array, np.array):
+        '''Parses resource data (taken from ./floris.py)'''
+
         site = self.site
 
         # extract data for simulation
@@ -112,9 +161,20 @@ class LayoutOptInterface(ABC):
 
         return speeds, wind_dirs
     
-    def build_dict(self, x):
+
+    def build_dict(self, x) -> list:
+        '''Construct input data for WPGNN model evaluation
         
-        # Construct data format for WPGNN
+        param: 
+            self: LayoutOptInterface
+            x: np.array
+                Current turbine locations to be evaluated
+            
+        returns:
+            x_dict_list: list
+                formatted input data
+        '''
+
         x_dict_list = []
 
         for i in range(self.num_simulations):
@@ -130,8 +190,23 @@ class LayoutOptInterface(ABC):
 
         return x_dict_list
     
+
     @staticmethod
-    def spacing_func(x, n_windDirs=0, min_spacing=250.):
+    def spacing_func(x, n_windDirs=0, min_spacing=250.) -> np.array:
+        '''Function used to define nonlinear spacing constraint
+        
+        param:
+            x: np.array
+                current turbine locations
+            n_windDirs: int
+                number of wind direction bins (default=0 when yaw optimization is not used)
+            min_spacing: float
+                minimum spacing between turbines that is enforced
+
+        returns:
+            np.array
+                values used in nonlinear inequality constraint
+        '''
         x = x.reshape((-1, 2+n_windDirs))[:, :2]
 
         D = np.sqrt(np.sum((np.expand_dims(x, axis=0) - np.expand_dims(x, axis=1))**2, axis=2))
@@ -141,9 +216,11 @@ class LayoutOptInterface(ABC):
 
         return D[mask] - min_spacing
     
+
     @staticmethod 
     def plot_layout(x):
-        "does NOT call plt.show()"
+        '''Plots np.array of turbine layouts (NOTE must call plt.show() outside of function)'''
+
         plt.figure(figsize=(4, 4))
         plt.scatter(x[:, 0], x[:, 1], s=15, facecolor='b', edgecolor='k')
         xlim = plt.gca().get_xlim()
@@ -153,7 +230,25 @@ class LayoutOptInterface(ABC):
         plt.gca().set_aspect(1.)
         plt.title('Number of Turbines: {}'.format(x.shape[0]))
     
-    def opt(self, plot=False, verbose=False, maxiter=20):
+
+    def opt(self, plot=False, verbose=False, maxiter=50) -> list:
+        '''Prepares constraints and calls optimizer
+        
+        param:
+            self: LayoutOptInterface
+            plot: bool
+                if True, plots showing layout before and after will be shown
+            verbose: bool
+                if True, information showing current AEP, dAEP, x, as well as scipy output will be displayed to terminal
+            maxiter: int
+                maximum number of iterations before optimizer terminates
+
+
+        returns:
+            x_opt: list
+                optimized turbine locations
+        '''
+
         if plot: 
             LayoutOptInterface.plot_layout(self.x)
 
@@ -185,12 +280,17 @@ class LayoutOptInterface(ABC):
 
         return x_opt.tolist()
  
-    @abstractmethod
-    def objective(self, x, verbose) -> (np.array, float):
-        pass
 
     @abstractmethod
-    def _eval_model(self, model, x) -> (np.array, float):
+    def objective(self, x, verbose) -> (np.float64, np.array):
+        '''Optimization objective function'''
+        pass
+
+
+    @staticmethod
+    @abstractmethod
+    def _eval_model(model, x) -> (tf.Tensor, tf.Tensor):
+        '''Optimization model evaluation (should be called inside objective())'''
         pass
 
 
