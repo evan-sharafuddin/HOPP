@@ -43,7 +43,7 @@ technologies:
     # used for optimization
     layout_opt: aep
     wpgnn_model: examples/inputs/wpgnn/wpgnn.h5
-    turbine_locations: 
+    turbine_locations: # leave as None, init. with Poisson disc samples algorithm
   grid:
     interconnect_kw: 50000
 config:

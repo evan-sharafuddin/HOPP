@@ -1,7 +1,5 @@
-from typing import Optional, List
+from typing import Optional
 from attrs import define, field
-from hopp.simulation.base import BaseClass
-from hopp.utilities.validators import contains
 from abc import ABC, abstractmethod
 
 # from hopp.utilities.log import hybrid_logger as logger
@@ -24,9 +22,9 @@ class LayoutOptInterface(ABC):
     Harrison-Atlas, D., Glaws, A., King, R. N., and Lantz, E. "Geodiverse prospects for wind plant controls targeting land use and economic objectives".
     
     param:
-        site
-        plant_config
-        ti
+        site: SiteInfo
+        plant_config: WindConfig
+        ti: int
 
         model: trained WPGNN model used to calculate plant power
         x: starting plant layout for the optimization
@@ -50,11 +48,12 @@ class LayoutOptInterface(ABC):
         * support boundary drawn by verticies provided in site
         * would it be better to have a separate "Optimization" class, like there is for
         wind_plant and pv_plant? So this would be extendable to optimizing more than just wind?
+        * have different trained WPGNN models for different sized turbinies (only support 3.4 MW turbine currently)
     '''
 
     site: SiteInfo
     plant_config: WindConfig
-    ti: Optional[int] = field(default=0.08)
+    ti: Optional[int] = field(default=0.06)
 
     model: WPGNN = field(init=False)
     x: np.array = field(init=False)

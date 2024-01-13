@@ -76,6 +76,7 @@ class run_PEM_clusters:
             user_defined_electrolyzer_params["Modify BOL Eff"],
             user_defined_electrolyzer_params["BOL Eff [kWh/kg-H2]"],
         )
+
         self.plant_life_yrs = useful_life
         self.use_deg_penalty = degradation_penalty
         self.turndown_ratio = turndown_ratio

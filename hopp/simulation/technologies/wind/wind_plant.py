@@ -102,8 +102,8 @@ class WindPlant(PowerSource):
 
             if self.config.layout_opt is not None: # TODO need to figure out how to add additional inputs to the yaml
                 print('Performing layout optimization using WPGNN...')
-                optimizer = LayoutOptAEP(self.site, self.config) # module import moved to bottom of script to avoid circular import
-                self.config.turbine_locations = optimizer.opt(plot=True, verbose=True, maxiter=50)
+                optimizer = LayoutOptH2Prod(self.site, self.config) # module import moved to bottom of script to avoid circular import
+                self.config.turbine_locations = optimizer.opt(plot=False, verbose=True, maxiter=1)
                 
             system_model = Floris(self.site, self.config)
             financial_model = Singleowner.default(self.config_name)
@@ -311,3 +311,4 @@ class WindPlant(PowerSource):
         self.system_capacity_by_num_turbines(size_kw)
 
 from hopp.simulation.technologies.wind.layout_opt_aep import LayoutOptAEP
+from hopp.simulation.technologies.wind.layout_opt_h2_prod import LayoutOptH2Prod

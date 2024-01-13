@@ -127,16 +127,18 @@ def simple_approximate_lcoh(electrolyzer_size_mw, H2_Results, electrolyzer_unit_
     return LCOH_approx
 
 
-wind_generation_kWh = np.array([0]) #output from WPGNN
+wind_generation_kWh = np.ones((8760,)) * 5759.022498109443 #output from WPGNN
+
+
 
 #wind turbine
 n_turbines = 10
-turbine_size_MW = 6 #MW
+turbine_size_MW = 3.4 #MW
 wind_farm_capacity = turbine_size_MW*n_turbines #MW
 
 #electrolyzer
-stack_size_MW = 10
-n_stacks = 6 #could set n_stacks = 1
+stack_size_MW = 34
+n_stacks = 1 #could set n_stacks = 1
 electrolyzer_size_MW = n_stacks*stack_size_MW
 
 #simplified method for estimating hydrogen production from power timeseries

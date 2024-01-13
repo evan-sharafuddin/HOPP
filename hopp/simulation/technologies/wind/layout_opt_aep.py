@@ -10,7 +10,7 @@ import tensorflow as tf
 
 @define
 class LayoutOptAEP(LayoutOptInterface):
-    '''Layout optimizer that maximized AEP (expected energy generation)
+    '''Layout optimizer that maximizes AEP (expected energy generation)
     https://github.com/NREL/WPGNN
     Harrison-Atlas, D., Glaws, A., King, R. N., and Lantz, E. "Geodiverse prospects for wind plant controls targeting land use and economic objectives".
     '''
@@ -62,7 +62,7 @@ class LayoutOptAEP(LayoutOptInterface):
         '''function used for WPGNN model evaluation step
         
         @tf.function decorator used for increased performance
-        
+
         param:
             model: WPGNN
                 trained WPGNN model
