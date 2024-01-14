@@ -101,6 +101,8 @@ class LayoutOptInterface(ABC):
         
         if self.plant_config.turbine_locations is None:
             turb_locs = 0.*np.random.uniform(low=domain[:, 0], high=domain[:, 1], size=(1, 2))
+        else:
+            turb_locs = np.array(self.plant_config.turbine_locations)
 
         active_indices = [i for i in range(turb_locs.shape[0])]
         while active_indices and (turb_locs.shape[0] < N_turbs):

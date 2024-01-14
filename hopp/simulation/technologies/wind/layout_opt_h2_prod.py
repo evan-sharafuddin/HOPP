@@ -95,18 +95,19 @@ class LayoutOptH2Prod(LayoutOptInterface):
         dm_h2 = dm_h2[:, :2] # remove third row, yaw isn't used in this optimization
         dm_h2 = np.sum(dm_h2.reshape((self.num_simulations, self.plant_config.num_turbines * 2)), axis=0)
 
+        print(f'FUNCTION EVAULATION {self._opt_counter}')
         if verbose:
-            print(f'FUNCTION EVAULATION {self._opt_counter}')
             print('m_h2: ', float(m_h2))
             print('dm_h2:\n', dm_h2)
             print('x:\n', x_in)
             print()
-            self._opt_counter += 1
+        
+        self._opt_counter += 1
 
         return m_h2.numpy(), dm_h2
 
     @staticmethod
-    # @tf.function
+    @tf.function
     def _eval_model(model, x, clusters) -> (tf.Tensor, tf.Tensor):
         '''function used for WPGNN model evaluation step
         

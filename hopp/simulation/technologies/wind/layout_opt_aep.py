@@ -46,13 +46,14 @@ class LayoutOptAEP(LayoutOptInterface):
         dAEP = dAEP[:, :2] # remove third row, yaw isn't used in this optimization
         dAEP = np.sum(dAEP.reshape((self.num_simulations, self.plant_config.num_turbines * 2)), axis=0)
 
+        print(f'FUNCTION EVAULATION {self._opt_counter}')
         if verbose:
-            print(f'FUNCTION EVAULATION {self._opt_counter}')
             print('AEP: ', float(AEP))
             print('dAEP:\n', dAEP)
             print('x:\n', x_in)
             print()
-            self._opt_counter += 1
+        
+        self._opt_counter += 1
 
         return AEP.numpy(), dAEP
     

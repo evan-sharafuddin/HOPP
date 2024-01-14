@@ -34,20 +34,31 @@ site: #!include flatirons_site.yaml
 
 technologies:
   wind:
-    num_turbines: 10
+    num_turbines: 15
     turbine_rating_kw: 3400 # WPGNN default
     model_name: floris
     timestep: [0, 8760]
-    floris_config: examples/inputs/floris/gch.yaml # ipynb: inputs/floris/gch.yaml
+    # floris_config: examples/inputs/floris/gch.yaml # Python Script
+    floris_config: inputs/floris/gch.yaml # Jupyter
     
     # used for optimization
     layout_opt: h2_prod
-    wpgnn_model: examples/inputs/wpgnn/wpgnn.h5 # ipynb: inputs/wpgnn.wpgnn.h5
-    turbine_locations: # leave as None, init. with Poisson disc samples algorithm
+    # wpgnn_model: examples/inputs/wpgnn/wpgnn.h5 # Python Script
+    wpgnn_model: inputs/wpgnn/wpgnn.h5 # Jupyter
+    turbine_locations: [[  -0.        ,    0.        ],
+                        [-261.93745641,   63.54064822],
+                        [-174.4145812 ,  334.70010726],
+                        [-194.04801576, -249.94265741],
+                        [-512.89305887,  -55.83678709],
+                        [  18.24825093, -444.85998742],
+                        [ 249.51658782,  208.38592074],
+                        [-548.20257257,  265.93945736],
+                        [-394.69411682, -433.58099045],
+                        [ 438.3440821 ,  468.60843433]]
     opt_options: 
       'plot': True 
       'verbose': True
-      'maxiter': 10
+      'maxiter': 50
   grid:
     interconnect_kw: 50000
 config:
