@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Tuple, Union, Sequence
+from typing import Optional, Tuple, Union, Sequence, List
 import os
 
 import PySAM.Windpower as Windpower
@@ -20,6 +20,8 @@ from hopp.simulation.technologies.financial import CustomFinancialModel, Financi
 from hopp.utilities.log import hybrid_logger as logger
 
 import numpy as np
+
+from hopp.simulation.technologies.wind.layout_opt_interface import LayoutOptFactory
 
 @define
 class WindConfig(BaseClass):
@@ -68,6 +70,7 @@ class WindConfig(BaseClass):
     layout_opt: Optional[str] = field(default=None)
     wpgnn_model: Optional[str] = field(default='examples/inputs/wpgnn/wpgnn.h5')
     turbine_locations: Optional[np.array] = field(default=None)
+    opt_options: Optional[List[dict]] = field(default=None)
 
 
 
@@ -100,10 +103,10 @@ class WindPlant(PowerSource):
         if self.config.model_name == 'floris':
             print('FLORIS is the system model...')
 
-            if self.config.layout_opt is not None: # TODO need to figure out how to add additional inputs to the yaml
+            if self.config.layout_opt is not None:
                 print('Performing layout optimization using WPGNN...')
-                optimizer = LayoutOptH2Prod(self.site, self.config) # module import moved to bottom of script to avoid circular import
-                self.config.turbine_locations = optimizer.opt(plot=False, verbose=True, maxiter=1)
+                optimizer = LayoutOptFactory.create_optimizer(self.site, self.config)
+                self.config.turbine_locations = optimizer.opt(**self.config.opt_options)
                 
             system_model = Floris(self.site, self.config)
             financial_model = Singleowner.default(self.config_name)
@@ -309,6 +312,3 @@ class WindPlant(PowerSource):
         :return:
         """
         self.system_capacity_by_num_turbines(size_kw)
-
-from hopp.simulation.technologies.wind.layout_opt_aep import LayoutOptAEP
-from hopp.simulation.technologies.wind.layout_opt_h2_prod import LayoutOptH2Prod

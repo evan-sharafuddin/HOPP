@@ -1,10 +1,12 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from attrs import define, field
 from abc import ABC, abstractmethod
 
 # from hopp.utilities.log import hybrid_logger as logger
 
-from hopp.simulation.technologies.wind.wind_plant import WindConfig
+if TYPE_CHECKING:
+    from hopp.simulation.technologies.wind.wind_plant import WindConfig
+
 from hopp.simulation.technologies.sites import SiteInfo
 
 import numpy as np
@@ -52,7 +54,7 @@ class LayoutOptInterface(ABC):
     '''
 
     site: SiteInfo
-    plant_config: WindConfig
+    plant_config: "WindConfig"
     ti: Optional[int] = field(default=0.06)
 
     model: WPGNN = field(init=False)
@@ -291,6 +293,32 @@ class LayoutOptInterface(ABC):
     def _eval_model(model, x) -> (tf.Tensor, tf.Tensor):
         '''Optimization model evaluation (should be called inside objective())'''
         pass
+
+from hopp.simulation.technologies.wind.layout_opt_aep import LayoutOptAEP
+from hopp.simulation.technologies.wind.layout_opt_h2_prod import LayoutOptH2Prod
+
+@define
+class LayoutOptFactory: 
+    '''Factory class to create the appropriate layout optimizer based on input yaml
+    
+    To add new objective, create class inheriting from the above interface and add
+    key-value pair to `SUPPORTED_OBJECTIVES` static member variable below
+    '''
+
+    SUPPORTED_OBJECTIVES = {'aep': LayoutOptAEP,
+                            'h2_prod': LayoutOptH2Prod,}
+
+    def create_optimizer(site: SiteInfo, wind_config: "WindConfig"):
+        objective = wind_config.layout_opt
+
+        if type(objective) is not str:
+            raise ValueError(f"Objective in configuration yaml must be of type <str>. Instead got type {type(objective)}")
+
+        for o, c in LayoutOptFactory.SUPPORTED_OBJECTIVES.items():
+            if objective == o:
+                return c(site, wind_config)
+        
+        raise NotImplementedError(f"The objective {objective} is not currently implemented. Perhaps you made a typo?")
 
 
  
