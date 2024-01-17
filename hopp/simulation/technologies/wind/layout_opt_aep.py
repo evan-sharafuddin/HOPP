@@ -58,7 +58,7 @@ class LayoutOptAEP(LayoutOptInterface):
         return AEP.numpy(), dAEP
     
     @staticmethod
-    @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def _eval_model(model, x) -> (tf.Tensor, tf.Tensor):
         '''function used for WPGNN model evaluation step
         
@@ -91,6 +91,19 @@ class LayoutOptAEP(LayoutOptInterface):
                   ... 
                  [dAEP/dxn, dAEP/dyn, dAEP/dyaw_n],
                 ]
+
+        NOTE error message which prompted experimental_relax_shapes=True option
+            WARNING:tensorflow:6 out of the last 6 calls to <function pfor.<locals>.f at 0x7f8c4212e280> 
+            triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could 
+            be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes,
+            (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of 
+            the loop. For (2), @tf.function has experimental_relax_shapes=True option that relaxes argument
+            shapes that can avoid unnecessary retracing. For (3), please refer to
+            https://www.tensorflow.org/guide/function#controlling_retracing and 
+            https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+        This originated after commit 75c956ee30e1d393946890724871dfcce4fbe437 "layout opt with AEP objective now 
+        integrated with HOPP (floris solver). Needs testing", not sure why... no major changes were made to the code
+
         '''
 
         with tf.GradientTape() as tape:

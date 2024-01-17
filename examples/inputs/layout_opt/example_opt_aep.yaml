@@ -34,7 +34,7 @@ site: #!include flatirons_site.yaml
 
 technologies:
   wind:
-    num_turbines: 15
+    num_turbines: 10
     turbine_rating_kw: 3400.0 # WPGNN default
     model_name: floris
     timestep: [0, 8760]
@@ -57,8 +57,8 @@ technologies:
                         [ 438.3440821 ,  468.60843433]]
     opt_options: 
       'plot': True 
-      'verbose': True
-      'maxiter': 50
+      'verbose': False
+      'maxiter': 15
   grid:
     interconnect_kw: 50000
 config:

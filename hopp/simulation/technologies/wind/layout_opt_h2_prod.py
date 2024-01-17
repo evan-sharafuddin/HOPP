@@ -107,7 +107,7 @@ class LayoutOptH2Prod(LayoutOptInterface):
         return m_h2.numpy(), dm_h2
 
     @staticmethod
-    @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def _eval_model(model, x, clusters) -> (tf.Tensor, tf.Tensor):
         '''function used for WPGNN model evaluation step
         
