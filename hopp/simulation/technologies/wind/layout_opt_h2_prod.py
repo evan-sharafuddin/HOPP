@@ -152,7 +152,7 @@ class LayoutOptH2Prod(LayoutOptInterface):
             zero_mask = P < (clusters.turndown_ratio * clusters.max_stacks * 1e3)
             curtail_mask = P > clusters.max_stacks * 1e3
             
-            P = tf.where(zero_mask, 0., P) # P[zero_mask] = 0.
+            P = tf.where(zero_mask, tf.constant(0., dtype=tf.float64), P) # P[zero_mask] = 0.
             P = tf.where(curtail_mask, tf.constant(clusters.max_stacks * 1e3, dtype=tf.float64), P) # P[curtail_mask] = clusters.max_stacks * 1e3
 
             # 3: find power per stack
@@ -162,7 +162,7 @@ class LayoutOptH2Prod(LayoutOptInterface):
             # 4: stack power -> stack current
             get_i = lambda p, P : p[0] * P**3 + p[1] * P**2 + p[2] * P + p[3] * P**0.5 + p[4]
             i_stack = get_i(clusters.curve_coeff, P_stack)
-            i_stack = tf.where(zero_mask, 0., i_stack) # ensure that zero power cooresponds to zero current
+            i_stack = tf.where(zero_mask, tf.constant(0., dtype=tf.float64), i_stack) # ensure that zero power cooresponds to zero current
 
             # 5: 
             n_dot_h2_stack = clusters.N_cells * i_stack / (2 * clusters.F) # mol/s

@@ -57,7 +57,7 @@ technologies:
                         [ 438.3440821 ,  468.60843433]]
     opt_options: 
       'plot': True 
-      'verbose': True
+      'verbose': False
       'maxiter': 50
   grid:
     interconnect_kw: 50000
