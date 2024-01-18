@@ -237,7 +237,7 @@ class LayoutOptInterface(ABC):
         plt.title('Number of Turbines: {}'.format(x.shape[0]))
     
 
-    def opt(self, plot=False, verbose=False, maxiter=50) -> list:
+    def opt(self, plot=False, verbose=False, maxiter=50, ftol=1) -> list:
         '''Prepares constraints and calls optimizer
         
         param:
@@ -248,6 +248,8 @@ class LayoutOptInterface(ABC):
                 if True, information showing current AEP, dAEP, x, as well as scipy output will be displayed to terminal
             maxiter: int
                 maximum number of iterations before optimizer terminates
+            ftol: float
+                stopping tolerance for objective function evaluation (TODO need to confirm this with SLSQP documentation)
 
 
         returns:
@@ -275,7 +277,7 @@ class LayoutOptInterface(ABC):
                                 args=(verbose),
                                 method='SLSQP', jac=True,
                                 constraints=constraints, 
-                                options={'disp': verbose, 'maxiter': maxiter})
+                                options={'disp': verbose, 'maxiter': maxiter, 'ftol': ftol})
 
         x_opt = res.x.reshape((-1, 2))
 
