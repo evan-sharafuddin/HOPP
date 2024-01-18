@@ -103,6 +103,9 @@ class LayoutOptInterface(ABC):
             turb_locs = 0.*np.random.uniform(low=domain[:, 0], high=domain[:, 1], size=(1, 2))
         else:
             turb_locs = np.array(self.plant_config.turbine_locations)
+            print("WARNING: the provided layout might not abide by the constraints given",
+                  "in the optimization, and might yield unexpected results.")
+            return turb_locs
 
         active_indices = [i for i in range(turb_locs.shape[0])]
         while active_indices and (turb_locs.shape[0] < N_turbs):
