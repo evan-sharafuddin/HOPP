@@ -171,7 +171,7 @@ class LayoutOptH2Prod(LayoutOptInterface):
             # 6 
             m_dot_h2 = m_dot_h2_stack * n_stacks
 
-            # add vector of hourly H2 production rates and multiply by 30 to get estimated lifetime hydrogen production
+            # 7: add vector of hourly H2 production rates to get annual hydrogen production
             m_h2 = -1. * tf.reduce_sum(m_dot_h2) # convert to minimum for SciPy compatibility
 
 
