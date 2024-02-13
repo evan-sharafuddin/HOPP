@@ -10,6 +10,9 @@ technologies:
   wind:
     num_turbines: 10
     turbine_rating_kw: 5000
+    # model_name: floris
+    # timestep: [0, 8760]
+    # floris_config: inputs/floris/gch.yaml
   battery:
     system_capacity_kwh: 20000
     system_capacity_kw: 80000
