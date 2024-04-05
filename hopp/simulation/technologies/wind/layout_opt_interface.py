@@ -16,6 +16,9 @@ import matplotlib.pyplot as plt
 from scipy import optimize
 import tensorflow as tf
 
+from floris.utilities import load_yaml
+from pathlib import Path
+from floris.tools import FlorisInterface
 
 @define
 class LayoutOptInterface(ABC): 
@@ -47,6 +50,11 @@ class LayoutOptInterface(ABC):
         * make plant specs configurable by yaml file/config dict, rather than hard coding
         * train WPGNN models to account for different hub heights/turbine wattages? Or 
         is it valid to assume the optimal layout doesn't depend on those factors?
+        * TODO NREL 5MW turbine has a shorter rotor diameter (126) than reference turbine used in WPGNN training (3.4MW, 130m).
+        How do we account for this by just including turbine spacing? WPGNN returns estimated turbine powers...
+            * NOTE this shouldn't matter... don't need to get accurate turbine powers, just need to find the optimial turbine layouts
+
+
         * support boundary drawn by verticies provided in site
         * would it be better to have a separate "Optimization" class, like there is for
         wind_plant and pv_plant? So this would be extendable to optimizing more than just wind?
@@ -70,12 +78,8 @@ class LayoutOptInterface(ABC):
         '''Initialize the remaining variables'''
 
         self.model = WPGNN(model_path=self.plant_config.wpgnn_model)
-
-        # TODO use config dict to set these parameters instead of hard coding
-        self.domain = np.array([[-1000., 1000.],
-                           [-1000., 1000.]])
         
-        self.x = self.poisson_disc_samples(R=[250., 350.])
+        
 
         self.num_simulations = len(self.site.wind_resource.data['data'])
 
@@ -84,6 +88,23 @@ class LayoutOptInterface(ABC):
 
         self._opt_counter = 1
 
+        # apply factor to account for different turbine sizes
+        DIAMETER_WPGNN = 130 # m (Harrison-Atlas et al)
+
+        fi = FlorisInterface(self.plant_config.floris_config)
+        diameter_floris = fi.floris.farm.rotor_diameters[0] # from ./floris.py
+    
+        cf = DIAMETER_WPGNN / diameter_floris # ratio between desired turbine diameter and diameter in WPGNN
+
+        # scale relevant quantities TODO not sure if this is legit mathmatically
+        self.domain = np.array([[-1000., 1000.],
+                           [-1000., 1000.]]) * cf
+        self.x = self.poisson_disc_samples(R=[250., 350.]) # using scaled domain
+        self.ws, self.wd = self.parse_resource_data()
+        self.ws *= cf 
+
+        # TODO turbine_rating_kw changed to be the same as in floris cfg in example_opt_aep
+        # TODO need to convert the turbine locations back to the non-scaled version, to have accurate results
 
     def poisson_disc_samples(self, R=[250., 1000.]) -> np.array:
         '''Generate random scatter layout

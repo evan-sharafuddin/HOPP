@@ -106,7 +106,7 @@ class WindPlant(PowerSource):
             if self.config.layout_opt is not None:
                 print('Performing layout optimization using WPGNN...')
                 optimizer = LayoutOptFactory.create_optimizer(self.site, self.config)
-                self.config.turbine_locations = optimizer.opt(**self.config.opt_options)
+                self.config.turbine_locations = optimizer.opt(**self.config.opt_options) 
                 
             system_model = Floris(self.site, self.config)
             financial_model = Singleowner.default(self.config_name)

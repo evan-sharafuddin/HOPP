@@ -1,4 +1,4 @@
-# Implements WPGNN model for HOPP
+# Implements WPGNN model for HOPP as an alternative to Floris or PySAM
 # Adapted from example_opt and wpgnn_demo
 # https://github.com/NREL/WPGNN
 
