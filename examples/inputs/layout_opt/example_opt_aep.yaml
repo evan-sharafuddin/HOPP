@@ -35,16 +35,16 @@ site: #!include flatirons_site.yaml
 technologies:
   wind:
     num_turbines: 15
-    turbine_rating_kw: 5000.0 # TODO does this need to match the turbine in Floris, or is it overwritten somewhere?
+    turbine_rating_kw: 5000.0 # NOTE this should match the FLORIS config
     model_name: floris
     timestep: [0, 8760]
-    floris_config: examples/inputs/floris/gch.yaml # Python Script
-    # floris_config: inputs/floris/gch.yaml # Jupyter
+    # floris_config: examples/inputs/floris/gch.yaml # Python Script
+    floris_config: inputs/floris/gch.yaml # Jupyter
     
     # used for optimization
     layout_opt: aep
-    wpgnn_model: examples/inputs/wpgnn/wpgnn.h5 # Python Script
-    # wpgnn_model: inputs/wpgnn/wpgnn.h5 # Jupyter
+    # wpgnn_model: examples/inputs/wpgnn/wpgnn.h5 # Python Script
+    wpgnn_model: inputs/wpgnn/wpgnn.h5 # Jupyter
     # turbine_locations: [[  -0.        ,   -0.        ],
     #                     [ 237.5792207 ,  155.0045424 ],
     #                     [ -10.97717866,  310.53242118],

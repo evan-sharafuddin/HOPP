@@ -39,6 +39,7 @@ class LayoutOptInterface(ABC):
         yaw: yaw angles for each turbine (TODO currently these are always set to zero)
         domain: region within which turbine locations are constrained (TODO support non-square domains and use SiteInfo vertices)
         _opt_counter: used to display number of function evaluations completed
+        cf: conversion between turbine diameter used to train WPGNN and diameter configured in FLORIS 
 
         plot : bool = False
             plot before and after plant layouts
@@ -59,6 +60,7 @@ class LayoutOptInterface(ABC):
         * would it be better to have a separate "Optimization" class, like there is for
         wind_plant and pv_plant? So this would be extendable to optimizing more than just wind?
         * have different trained WPGNN models for different sized turbinies (only support 3.4 MW turbine currently)
+        * do the parameters in the opt yaml file have to be the same as the param in the FLORIS config yaml?
     '''
 
     site: SiteInfo
@@ -73,14 +75,13 @@ class LayoutOptInterface(ABC):
     yaw: np.array = field(init=False)
     domain: np.array = field(init=False)
     _opt_counter: int = field(init=False)
+    cf: float = field(init=False)
 
     def __attrs_post_init__(self):
         '''Initialize the remaining variables'''
 
         self.model = WPGNN(model_path=self.plant_config.wpgnn_model)
         
-        
-
         self.num_simulations = len(self.site.wind_resource.data['data'])
 
         self.ws, self.wd = self.parse_resource_data()
@@ -88,22 +89,31 @@ class LayoutOptInterface(ABC):
 
         self._opt_counter = 1
 
-        # apply factor to account for different turbine sizes
-        DIAMETER_WPGNN = 130 # m (Harrison-Atlas et al)
-
         fi = FlorisInterface(self.plant_config.floris_config)
         diameter_floris = fi.floris.farm.rotor_diameters[0] # from ./floris.py
-    
-        cf = DIAMETER_WPGNN / diameter_floris # ratio between desired turbine diameter and diameter in WPGNN
+        print(diameter_floris)
 
-        # scale relevant quantities TODO not sure if this is legit mathmatically
+        # test diameter
+        diameter_floris = 300.
+        print(f'Test diameter: {diameter_floris}')
+
+        # apply factor to account for different turbine sizes
+        DIAMETER_WPGNN = 130 # m (Harrison-Atlas et al)    
+        self.cf = DIAMETER_WPGNN / diameter_floris # ratio between desired turbine diameter and diameter in WPGNN
+
+        ### scale relevant quantities 
+        # TODO not sure if this is legit mathmatically
+        # https://link.springer.com/referenceworkentry/10.1007/978-3-030-31307-4_60 ; King et. al. 2022, Jensen (1983)
+        # Jensen model states wake deficit primarly dependent on turbine diameter, so the wake effects can be encoded
+        # purely geometrically by WPGNN... need to look into this more
         self.domain = np.array([[-1000., 1000.],
-                           [-1000., 1000.]]) * cf
-        self.x = self.poisson_disc_samples(R=[250., 350.]) # using scaled domain
+                           [-1000., 1000.]]) * self.cf
+        R_min = 250. * self.cf
+        R_max = 350. * self.cf
+        self.x = self.poisson_disc_samples(R=[R_min, R_max]) # using scaled domain
         self.ws, self.wd = self.parse_resource_data()
-        self.ws *= cf 
+        self.ws *= self.cf 
 
-        # TODO turbine_rating_kw changed to be the same as in floris cfg in example_opt_aep
         # TODO need to convert the turbine locations back to the non-scaled version, to have accurate results
 
     def poisson_disc_samples(self, R=[250., 1000.]) -> np.array:
@@ -279,7 +289,7 @@ class LayoutOptInterface(ABC):
         '''
 
         if plot: 
-            LayoutOptInterface.plot_layout(self.x)
+            LayoutOptInterface.plot_layout(self.x / self.cf) # reverting the conversion factor for illustrating the original turbine dimensions
 
         # Set constraints
         # 1) minimum turbine space > 250 m
@@ -300,7 +310,7 @@ class LayoutOptInterface(ABC):
                                 constraints=constraints, 
                                 options={'disp': verbose, 'maxiter': maxiter, 'ftol': ftol})
 
-        x_opt = res.x.reshape((-1, 2))
+        x_opt = res.x.reshape((-1, 2))  / self.cf # unscale turbine diameters
 
 
         if plot:

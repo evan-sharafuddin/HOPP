@@ -91,7 +91,7 @@ farm:
   # The types can be either a name included in the turbine_library or
   # a full definition of a wind turbine directly.
   turbine_type:
-  - nrel_5MW
+  - nrel_5MW # NOTE changed to test turbine
 
 ###
 # Configure the atmospheric conditions.
