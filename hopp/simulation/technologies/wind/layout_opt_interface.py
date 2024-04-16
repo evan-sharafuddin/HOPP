@@ -287,6 +287,9 @@ class LayoutOptInterface(ABC):
             x_opt: list
                 optimized turbine locations
         '''
+        
+        # account for scaling factor in tolerance
+        ftol *= self.cf
 
         if plot: 
             LayoutOptInterface.plot_layout(self.x / self.cf) # reverting the conversion factor for illustrating the original turbine dimensions
@@ -302,7 +305,20 @@ class LayoutOptInterface(ABC):
         ub = np.repeat(np.expand_dims(self.domain[:, 1], axis=0), self.plant_config.num_turbines, axis=0).reshape((-1, ))
         domain_constraint = optimize.LinearConstraint(A, lb, ub)
 
-        constraints = [spacing_constraint, domain_constraint]
+        # testing hole constraint
+        # same A
+        hole = np.array([[-100., 100.],
+                        [-100., 100.]]) * self.cf # still making sure to scale by the factor to acct for different turbine radii
+        
+        lb = np.repeat(np.expand_dims(hole[:, 1], axis=0), self.plant_config.num_turbines, axis=0).reshape((-1, ))
+        ub = np.inf * np.ones(np.shape(lb))
+        hole_positive_end = optimize.LinearConstraint(A, lb, ub)
+
+        ub = np.repeat(np.expand_dims(hole[:, 0], axis=0), self.plant_config.num_turbines, axis=0).reshape((-1, ))
+        lb = -np.inf * np.ones(np.shape(ub))
+        hole_negative_end = optimize.LinearConstraint(A, lb, ub)
+
+        constraints = [spacing_constraint, domain_constraint, hole_positive_end, hole_negative_end]
 
         res = optimize.minimize(self.objective, self.x.reshape((-1, )),
                                 args=(verbose),
