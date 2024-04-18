@@ -38,13 +38,13 @@ technologies:
     turbine_rating_kw: 5000.0 # NOTE this should match the FLORIS config
     model_name: floris
     timestep: [0, 8760]
-    floris_config: examples/inputs/floris/gch.yaml # Python Script
-    # floris_config: inputs/floris/gch.yaml # Jupyter
+    # floris_config: examples/inputs/floris/gch.yaml # Python Script
+    floris_config: inputs/floris/gch.yaml # Jupyter
     
     # used for optimization
     layout_opt: aep
-    wpgnn_model: examples/inputs/wpgnn/wpgnn.h5 # Python Script
-    # wpgnn_model: inputs/wpgnn/wpgnn.h5 # Jupyter
+    # wpgnn_model: examples/inputs/wpgnn/wpgnn.h5 # Python Script
+    wpgnn_model: inputs/wpgnn/wpgnn.h5 # Jupyter
     turbine_locations: [[ 237.5792207 ,  155.0045424 ],
                         [ 214.50656791,  488.24092763],
                         [ 279.94951469, -134.27796088],

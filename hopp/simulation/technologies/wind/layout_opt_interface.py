@@ -94,7 +94,7 @@ class LayoutOptInterface(ABC):
         print(diameter_floris)
 
         # test diameter
-        diameter_floris = 300.
+        diameter_floris = 130. # default diameter
         print(f'Test diameter: {diameter_floris}')
 
         # apply factor to account for different turbine sizes
@@ -253,6 +253,29 @@ class LayoutOptInterface(ABC):
 
         return D[mask] - min_spacing
     
+    @staticmethod
+    def hole_constraint(x, hole_verts=np.array([100., 100.])) -> np.array:
+        '''Defines a linear constrain used to exclude parts of the domain
+
+        TODO currently only supports a square/rectangular "hole" shape, symmetric at the origin
+
+        param: 
+            x: np.array
+                current turbine locations
+            hole_bounds: np.array
+                verticies of the square "hole"
+            
+            returns:
+                np.array
+                    output of constraint
+        '''
+
+        A = np.eye(np.size(x))
+        x = np.abs(x) # make all values positive
+        bounds = np.repeat(np.expand_dims(hole_verts, axis=0), np.size(x) / 2, axis=0).reshape((-1, )) 
+
+        return A @ x - bounds # establish lower bound
+    
 
     @staticmethod 
     def plot_layout(x):
@@ -268,7 +291,7 @@ class LayoutOptInterface(ABC):
         plt.title('Number of Turbines: {}'.format(x.shape[0]))
     
 
-    def opt(self, plot=False, verbose=False, maxiter=50, ftol=1) -> list:
+    def opt(self, plot=False, verbose=False, maxiter=50, ftol=0.1) -> list:
         '''Prepares constraints and calls optimizer
         
         param:
@@ -307,18 +330,10 @@ class LayoutOptInterface(ABC):
 
         # testing hole constraint
         # same A
-        hole = np.array([[-100., 100.],
-                        [-100., 100.]]) * self.cf # still making sure to scale by the factor to acct for different turbine radii
-        
-        lb = np.repeat(np.expand_dims(hole[:, 1], axis=0), self.plant_config.num_turbines, axis=0).reshape((-1, ))
-        ub = np.inf * np.ones(np.shape(lb))
-        hole_positive_end = optimize.LinearConstraint(A, lb, ub)
+        hole = np.array([600,  200]) * self.cf # still making sure to scale by the factor to acct for different turbine radii
+        hole_constraint = {'type': 'ineq', 'fun': LayoutOptInterface.hole_constraint, 'args': [hole]}
 
-        ub = np.repeat(np.expand_dims(hole[:, 0], axis=0), self.plant_config.num_turbines, axis=0).reshape((-1, ))
-        lb = -np.inf * np.ones(np.shape(ub))
-        hole_negative_end = optimize.LinearConstraint(A, lb, ub)
-
-        constraints = [spacing_constraint, domain_constraint, hole_positive_end, hole_negative_end]
+        constraints = (spacing_constraint, domain_constraint, hole_constraint)
 
         res = optimize.minimize(self.objective, self.x.reshape((-1, )),
                                 args=(verbose),
