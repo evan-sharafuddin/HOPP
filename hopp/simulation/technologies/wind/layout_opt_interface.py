@@ -276,8 +276,52 @@ class LayoutOptInterface(ABC):
 
         return A @ x - bounds # establish lower bound
     
+    def boundary_contraint_polygon(x, verts, above) -> np.array:
+        '''Defines a linear constraint to define convex polygon boundaries
 
-    @staticmethod 
+        param: 
+            x: np.array
+                current turbine locations
+            verts: np.array
+                verticies of the line segment
+                assume the following structure:
+
+                [xlow , ylow;
+                 xhigh, yhigh]
+
+            above: bool
+                whether or not we are looking "above" the line, meaning y >= mx + b
+                NOTE: this can be calcluated using the centroid of the shape, or input in the yaml
+            
+            returns:
+                np.array
+                    output of constraint
+        '''
+
+        x_coord = x[::2]  # even entries
+        y_coord = x[1::2] # odd entries
+        if np.size(x_coord) != np.size(y_coord):
+            raise Exception('Should have same number of x and y coordinates')
+
+        slope = (verts[1, 1] - verts[0, 1]) / (verts[1, 0] - verts[0, 0]) # dy/dx
+        intercept = verts[0, 1] - slope * verts[0, 0] # x-intercept
+        
+        A = np.eye(np.size(x_coord)) * slope
+        b = np.ones(np.shape(x_coord)) * intercept
+
+        print(A)
+        print(b)
+        print(x_coord)
+        print(y_coord)
+        
+        if above:
+            return A @ -x_coord - b + y_coord # y >= mx + b
+        else:
+            return A @ x_coord + b - y_coord # y <= mx + b
+
+
+
+    @staticmethod
     def plot_layout(x):
         '''Plots np.array of turbine layouts (NOTE must call plt.show() outside of function)'''
 
