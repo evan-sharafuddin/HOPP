@@ -70,6 +70,14 @@ conda install -c conda-forge tensorflow=2.7.0
 * https://github.com/NREL/WPGNN
 * Harrison-Atlas, D., Glaws, A., King, R. N., and Lantz, E. "Geodiverse prospects for wind plant controls targeting land use and economic objectives".
 
+## Future Goals
+* Support of irregular plant boundaries (currently only supports hardcoded square boundary).
+    * Supporting verticies of plant boundary that can be input to the configuration file
+* Support of exclusion zones that are irregularily shape ("hole constraint")
+    * fixing the existing "hole constraint"
+* Addition of a cost function that minimizes the variance of hourly power production, which should coorelate to minimizing storage size and electrolyzer degredation
+
+
 ## Questions? Contact:
 * Evan Sharafuddin (evansharafuddin@gmail.com)
 
