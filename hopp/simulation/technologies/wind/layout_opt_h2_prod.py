@@ -24,18 +24,6 @@ class LayoutOptH2Prod(LayoutOptInterface):
     
     '''
 
-    # NOTE all of these are defined in the PEM_H2_Clusters instance
-    # P_STACK_RATING = 1000 # kW
-    # N_CELLS = 130 # cells/stack
-    # DT = 3600 # s
-    # CELL_ACTIVE_AREA = 1920 # cm^2
-    # MAX_CURRENT_DENSITY = 2 # A/cm^2
-    # TURNDOWN_RATIO = 0.1 # min_power/nameplate_power [kW/kW]
-    # MAX_CELL_CURRENT = CELL_ACTIVE_AREA * MAX_CURRENT_DENSITY # A
-    # MIN_CELL_CURRENT = TURNDOWN_RATIO * MAX_CELL_CURRENT # TODO is this the correct interpretation?
-    
-    # T_C = 80 # stack temperature [C]
-
     clusters: PEM_H2_Clusters = field(init=False)
     cluster_size_mw: int = field(init=False)
 

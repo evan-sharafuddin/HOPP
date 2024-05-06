@@ -51,16 +51,14 @@ class LayoutOptInterface(ABC):
         * make plant specs configurable by yaml file/config dict, rather than hard coding
         * train WPGNN models to account for different hub heights/turbine wattages? Or 
         is it valid to assume the optimal layout doesn't depend on those factors?
-        * TODO NREL 5MW turbine has a shorter rotor diameter (126) than reference turbine used in WPGNN training (3.4MW, 130m).
-        How do we account for this by just including turbine spacing? WPGNN returns estimated turbine powers...
-            * NOTE this shouldn't matter... don't need to get accurate turbine powers, just need to find the optimial turbine layouts
+            * currently accounting for different turbine diameters via a scaling factor
 
 
         * support boundary drawn by verticies provided in site
         * would it be better to have a separate "Optimization" class, like there is for
-        wind_plant and pv_plant? So this would be extendable to optimizing more than just wind?
+        wind_plant and pv_plant? So this would be extendable to optimizing more than just wind (building toward entire
+        hybrid plant optimization)?
         * have different trained WPGNN models for different sized turbinies (only support 3.4 MW turbine currently)
-        * do the parameters in the opt yaml file have to be the same as the param in the FLORIS config yaml?
     '''
 
     site: SiteInfo
@@ -91,11 +89,6 @@ class LayoutOptInterface(ABC):
 
         fi = FlorisInterface(self.plant_config.floris_config)
         diameter_floris = fi.floris.farm.rotor_diameters[0] # from ./floris.py
-        print(diameter_floris)
-
-        # test diameter
-        diameter_floris = 130. # default diameter
-        print(f'Test diameter: {diameter_floris}')
 
         # apply factor to account for different turbine sizes
         DIAMETER_WPGNN = 130 # m (Harrison-Atlas et al)    
@@ -112,9 +105,7 @@ class LayoutOptInterface(ABC):
         R_max = 350. * self.cf
         self.x = self.poisson_disc_samples(R=[R_min, R_max]) # using scaled domain
         self.ws, self.wd = self.parse_resource_data()
-        self.ws *= self.cf 
 
-        # TODO need to convert the turbine locations back to the non-scaled version, to have accurate results
 
     def poisson_disc_samples(self, R=[250., 1000.]) -> np.array:
         '''Generate random scatter layout
@@ -275,50 +266,6 @@ class LayoutOptInterface(ABC):
         bounds = np.repeat(np.expand_dims(hole_verts, axis=0), np.size(x) / 2, axis=0).reshape((-1, )) 
 
         return A @ x - bounds # establish lower bound
-    
-    def boundary_contraint_polygon(x, verts, above) -> np.array:
-        '''Defines a linear constraint to define convex polygon boundaries
-
-        param: 
-            x: np.array
-                current turbine locations
-            verts: np.array
-                verticies of the line segment
-                assume the following structure:
-
-                [xlow , ylow;
-                 xhigh, yhigh]
-
-            above: bool
-                whether or not we are looking "above" the line, meaning y >= mx + b
-                NOTE: this can be calcluated using the centroid of the shape, or input in the yaml
-            
-            returns:
-                np.array
-                    output of constraint
-        '''
-
-        x_coord = x[::2]  # even entries
-        y_coord = x[1::2] # odd entries
-        if np.size(x_coord) != np.size(y_coord):
-            raise Exception('Should have same number of x and y coordinates')
-
-        slope = (verts[1, 1] - verts[0, 1]) / (verts[1, 0] - verts[0, 0]) # dy/dx
-        intercept = verts[0, 1] - slope * verts[0, 0] # x-intercept
-        
-        A = np.eye(np.size(x_coord)) * slope
-        b = np.ones(np.shape(x_coord)) * intercept
-
-        print(A)
-        print(b)
-        print(x_coord)
-        print(y_coord)
-        
-        if above:
-            return A @ -x_coord - b + y_coord # y >= mx + b
-        else:
-            return A @ x_coord + b - y_coord # y <= mx + b
-
 
 
     @staticmethod
@@ -371,13 +318,19 @@ class LayoutOptInterface(ABC):
         lb = np.repeat(np.expand_dims(self.domain[:, 0], axis=0), self.plant_config.num_turbines, axis=0).reshape((-1, ))
         ub = np.repeat(np.expand_dims(self.domain[:, 1], axis=0), self.plant_config.num_turbines, axis=0).reshape((-1, ))
         domain_constraint = optimize.LinearConstraint(A, lb, ub)
+        
+        ##### UNCOMMENT BELOW FOR HOLE CONSTRAINT
+        # TODO need to develop cleaner way to add constraints to the optimization problem
+        # NOTE same A matrix as with domain constraint
+        # hole = np.array([600,  200]) * self.cf # still making sure to scale by the factor to acct for different turbine radii
+        # hole_constraint = {'type': 'ineq', 'fun': LayoutOptInterface.hole_constraint, 'args': [hole]}
+        
+        # constraints = (spacing_constraint, domain_constraint, hole_constraint)
+        #####
 
-        # testing hole constraint
-        # same A
-        hole = np.array([600,  200]) * self.cf # still making sure to scale by the factor to acct for different turbine radii
-        hole_constraint = {'type': 'ineq', 'fun': LayoutOptInterface.hole_constraint, 'args': [hole]}
-
-        constraints = (spacing_constraint, domain_constraint, hole_constraint)
+        ##### UNCOMMENT BELOW FOR NO HOLE CONSTRAINT
+        constraints = (spacing_constraint, domain_constraint)
+        #####
 
         res = optimize.minimize(self.objective, self.x.reshape((-1, )),
                                 args=(verbose),
